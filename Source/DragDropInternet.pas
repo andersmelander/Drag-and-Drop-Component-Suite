@@ -56,8 +56,6 @@ type
     property URL: string read GetText write SetText;
   end;
 
-  TURLWClipboardFormat = TUnicodeURLClipboardFormat {$ifdef VER17_PLUS}deprecated {$IFDEF VER20_PLUS}'Use TURLWClipboardFormat instead'{$ENDIF}{$endif};
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 //              TURLClipboardFormat

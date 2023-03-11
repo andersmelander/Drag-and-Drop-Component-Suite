@@ -172,11 +172,7 @@ uses
 ////////////////////////////////////////////////////////////////////////////////
 function IsLine(Item: TMenuItem): boolean;
 begin
-{$ifdef VER13_PLUS}
   Result := Item.IsLine;
-{$else}
-  Result := Item.Caption = '-';
-{$endif}
 end;
 
 
@@ -633,22 +629,12 @@ begin
   end;
 end;
 
-{$ifndef VER13_PLUS}
-type
-  TComponentCracker = class(TComponent);
-{$endif}
-
 procedure TDropContextMenu.SetContextMenu(const Value: TPopupMenu);
 begin
   if (Value <> FContextMenu) then
   begin
-{$ifdef VER13_PLUS}
     if (FContextMenu <> nil) then
       FContextMenu.RemoveFreeNotification(Self);
-{$else}
-    if (FContextMenu <> nil) then
-      TComponentCracker(FContextMenu).Notification(Self, opRemove);
-{$endif}
     FContextMenu := Value;
     if (Value <> nil) then
       Value.FreeNotification(Self);
@@ -860,24 +846,6 @@ end;
 
 type
   TMenuItemCracker = class(TMenuItem);
-{$ifndef VER13_PLUS}
-  TOwnerDrawState = set of (odSelected, odGrayed, odDisabled, odChecked,
-    odFocused, odDefault, odHotLight, odInactive, odNoAccel, odNoFocusRect,
-    odReserved1, odReserved2, odComboBoxEdit);
-{$endif}
-
-{$ifndef VER13_PLUS}
-function GetMenuFont: HFONT;
-var
-  NonClientMetrics: TNonClientMetrics;
-begin
-  NonClientMetrics.cbSize := sizeof(NonClientMetrics);
-  if SystemParametersInfo(SPI_GETNONCLIENTMETRICS, 0, @NonClientMetrics, 0) then
-    Result := CreateFontIndirect(NonClientMetrics.lfMenuFont)
-  else
-    Result := GetStockObject(SYSTEM_FONT);
-end;
-{$endif}
 
 procedure TDropContextMenu.DrawMenuItem(var DrawItemStruct: TDrawItemStruct);
 var
@@ -909,11 +877,7 @@ begin
       SaveIndex := SaveDC(DrawItemStruct.hDC);
       try
         Canvas.Handle := DrawItemStruct.hDC;
-{$ifdef VER13_PLUS}
         Canvas.Font := Screen.MenuFont;
-{$else}
-        Canvas.Font.Handle := GetMenuFont;
-{$endif}
 
         State := TOwnerDrawState(LongRec(DrawItemStruct.itemState).Lo);
 
@@ -963,11 +927,7 @@ begin
         if ((MenuItem.Parent <> nil) and (MenuItem.Parent.Parent = nil)) and
           not((MenuItem.GetParentMenu <> nil) and
            (MenuItem.GetParentMenu.OwnerDraw or (MenuItem.GetParentMenu.Images <> nil)) and
-{$ifdef VER13_PLUS}
            (Assigned(MenuItem.OnAdvancedDrawItem) or Assigned(MenuItem.OnDrawItem))) then
-{$else}
-           (Assigned(MenuItem.OnDrawItem))) then
-{$endif}
         begin
           Canvas.FillRect(DrawItemStruct.rcItem);
 
@@ -980,7 +940,7 @@ begin
         end;
 
         // TODO : Unless menu item is ownerdraw we should handle the draw internally instead of relying on TMenuItem's draw code.
-{$ifdef VER13_PLUS}
+
         // Because the VCL draws menu items different from standard shell menu
         // items, we need to manually handle the drawing of the bitmap and
         // positioning of the text relative to the bitmap.
@@ -1053,10 +1013,6 @@ begin
           end;
         end else
           TMenuItemCracker(MenuItem).AdvancedDrawItem(Canvas, DrawItemStruct.rcItem, State, False);
-{$else}
-        TMenuItemCracker(MenuItem).DrawItem(Canvas, DrawItemStruct.rcItem, (odSelected in State));
-{$endif}
-        // Menus.DrawMenuItem(MenuItem, Canvas, DrawItemStruct.rcItem, State);
       finally
         Canvas.Handle := 0;
         RestoreDC(DrawItemStruct.hDC, SaveIndex);
@@ -1094,11 +1050,7 @@ begin
         SaveIndex := SaveDC(DC);
         try
           Canvas.Handle := DC;
-{$ifdef VER13_PLUS}
           Canvas.Font := Screen.MenuFont;
-{$else}
-          Canvas.Font.Handle := GetMenuFont;
-{$endif}
           TMenuItemCracker(MenuItem).MeasureItem(Canvas, Integer(MeasureItemStruct.itemWidth),
             Integer(MeasureItemStruct.itemHeight));
         finally

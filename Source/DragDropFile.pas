@@ -648,19 +648,11 @@ function WriteFilesToZeroList(Data: pointer; Size: integer;
 implementation
 
 uses
-{$ifdef VER14_PLUS}
   RTLConsts,
-{$else}
-  Consts,
-{$endif}
   DragDropPIDL,
   ComObj,
   SysUtils;
 
-{$ifndef VER14_PLUS}
-const
-  sLineBreak = #13#10;
-{$endif}
 ////////////////////////////////////////////////////////////////////////////////
 //
 //              TAnsiStrings

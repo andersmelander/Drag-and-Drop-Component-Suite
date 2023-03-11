@@ -333,9 +333,6 @@ function ILGetSize(Pidl: PItemIDList): Word; stdcall;
 function ILGetNext(Pidl: PItemIDList): PItemIDList; stdcall;
   external shell32 index 153;
 
-procedure ILFree(Pidl: PItemIDList); stdcall {$ifdef VER15_PLUS} deprecated {$endif};
-  external shell32 index 155;
-
 (* TODO : Unused IL functions:
 function ILCreateFromPath(Path: PWideChar): PItemIDList; stdcall;
   external shell32 index 157;
@@ -357,9 +354,6 @@ function ILGetCount(Pidl: PItemIDList): integer; stdcall;
 
 
 *)
-
-procedure SHFree(Buffer: Pointer); stdcall {$ifdef VER15_PLUS} deprecated {$endif}; external shell32 index 195;
-function SHAlloc(BufferSize: ULONG): Pointer; stdcall {$ifdef VER15_PLUS} deprecated {$endif}; external shell32 index 196;
 {$endif}
 
 

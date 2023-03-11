@@ -17,9 +17,6 @@ interface
 {$include DragDrop.inc}
 
 uses
-{$ifndef VER17_PLUS}
-  Graphics,
-{$endif}
   Classes,
   Controls,
   Windows,
@@ -341,15 +338,6 @@ type
     property Formats[Index: integer]: TCustomDataFormat read GetFormat; default;
     property Count: integer read GetCount;
   end;
-
-{$ifndef VER17_PLUS}
-  TDataFormatClassListProxy = class
-  private
-    class function GetItem(Index: integer): TDataFormatClass;
-  public
-    property Items[Index: integer]: TDataFormatClass read GetItem; default;
-  end;
-{$endif}
 
   // TDataFormatClasses
   // List of TCustomDataFormat classes.
@@ -708,23 +696,6 @@ var
   // Once DragDropShutdown is True, the TDataFormatClasses and TDataFormatMap
   // singleton objects have been freed and should no longer be used.
   DragDropShutdown: boolean = False;
-
-////////////////////////////////////////////////////////////////////////////////
-//
-//              Misc drag drop API related constants
-//
-////////////////////////////////////////////////////////////////////////////////
-
-// The following DVASPECT constants are missing from some versions of Delphi and
-// C++Builder.
-{$ifndef VER135_PLUS}
-const
-{$ifndef VER10_PLUS}
-  DVASPECT_SHORTNAME = 2; // use for CF_HDROP to get short name version of file paths
-{$endif}
-  DVASPECT_COPY = 3; // use to indicate format is a "Copy" of the data (FILECONTENTS, FILEDESCRIPTOR, etc)
-  DVASPECT_LINK = 4; // use to indicate format is a "Shortcut" to the data (FILECONTENTS, FILEDESCRIPTOR, etc)
-{$endif}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1561,23 +1532,6 @@ class procedure TDataFormatClasses.Remove(DataFormat: TDataFormatClass);
 begin
   Instance.FList.Remove(DataFormat);
 end;
-
-{$ifndef VER17_PLUS}
-class function TDataFormatClasses.Count: integer;
-begin
-  Result := TDataFormatClasses.GetCount;
-end;
-
-class function TDataFormatClasses.Formats: TDataFormatClassListProxy;
-begin
-  Result := TDataFormatClassListProxy(Self); // Dirty hack!
-end;
-
-class function TDataFormatClassListProxy.GetItem(Index: integer): TDataFormatClass;
-begin
-  Result := TDataFormatClasses(Self).GetFormat(Index); // Dirty hack!
-end;
-{$endif}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
