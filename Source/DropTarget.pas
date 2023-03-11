@@ -284,10 +284,13 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//              Misc.
+//              Work around for Vista+ UAC/UIPI blocking
+//              drag from lower to higher privilege processes.
+//
+// Note: This only works for WM_DROPFILES.
 //
 ////////////////////////////////////////////////////////////////////////////////
-
+procedure UnblockDropFilesMessages(Handle: HWND);
 
 (*******************************************************************************
 **
@@ -314,9 +317,55 @@ resourcestring
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//              Misc.
+//              Work around for Vista+ UAC/UIPI blocking
+//              drag from lower to higher privilege processes.
+//
+// Note: This only works for WM_DROPFILES.
 //
 ////////////////////////////////////////////////////////////////////////////////
+type
+  TCHANGEFILTERSTRUCT = record
+    cbSize: DWORD;
+    ExtStatus: DWORD;
+  end;
+  PCHANGEFILTERSTRUCT = ^TCHANGEFILTERSTRUCT;
+
+function ChangeWindowMessageFilter(Msg: Cardinal; Action: Word): BOOL; stdcall; external 'user32.dll' delayed;
+function ChangeWindowMessageFilterEx(hWnd: HWND; Msg: Cardinal; Action: DWORD; ChangeFilterStruct: PCHANGEFILTERSTRUCT = nil): BOOL; stdcall; external 'user32.dll' delayed;
+
+const
+  // ChangeWindowMessageFilter(Action)
+  MSGFLT_ADD = 1;
+  MSGFLT_REMOVE = 2;
+
+  // ChangeWindowMessageFilterEx(Action)
+  MSGFLT_RESET = 0;
+  MSGFLT_ALLOW = 1;
+  MSGFLT_DISALLOW = 2;
+
+  // CHANGEFILTERSTRUCT.ExtStatus
+  MSGFLTINFO_NONE = 0;
+  MSGFLTINFO_ALREADYALLOWED_FORWND = 1;
+  MSGFLTINFO_ALREADYDISALLOWED_FORWND = 2;
+  MSGFLTINFO_ALLOWED_HIGHER = 3;
+
+  WM_COPYGLOBALDATA = $0049;
+
+procedure UnblockDropFilesMessages(Handle: HWND);
+begin
+  if (CheckWin32Version(6, 1)) then
+  begin
+    ChangeWindowMessageFilterEx(Handle, WM_DROPFILES, MSGFLT_ALLOW);
+    ChangeWindowMessageFilterEx(Handle, WM_COPYDATA, MSGFLT_ALLOW);
+    ChangeWindowMessageFilterEx(Handle, WM_COPYGLOBALDATA, MSGFLT_ALLOW);
+  end else
+  if (CheckWin32Version(6)) then
+  begin
+    ChangeWindowMessageFilter(WM_DROPFILES, MSGFLT_ADD);
+    ChangeWindowMessageFilter(WM_COPYDATA, MSGFLT_ADD);
+    ChangeWindowMessageFilter(WM_COPYGLOBALDATA, MSGFLT_ADD);
+  end;
+end;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -451,6 +500,7 @@ begin
 
     // Find the target control.
     // TODO : FTarget is modified even when Enabled=False.
+    // Note that FTarget is needed in DragOver to display drag images - also when Enabled=False
     FTarget := FindTarget(pt);
 
     (*
@@ -1062,6 +1112,7 @@ end;
 procedure TWinControlProxy.CreateWnd;
 begin
   inherited CreateWnd;
+
   OleCheck(RegisterDragDrop(Parent.Handle, TCustomDropTarget(Owner)));
   Visible := False;
   Width := 0;
