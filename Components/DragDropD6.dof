@@ -1,16 +1,18 @@
+[FileVersion]
+Version=6.0
 [Compiler]
-A=1
+A=4
 B=0
 C=1
 D=1
 E=0
 F=0
-G=1
+G=0
 H=1
 I=1
-J=1
+J=0
 K=0
-L=0
+L=1
 M=0
 N=1
 O=0
@@ -18,10 +20,10 @@ P=1
 Q=1
 R=1
 S=0
-T=0
+T=1
 U=0
 V=1
-W=0
+W=1
 X=1
 Y=1
 Z=1
@@ -36,28 +38,35 @@ DebugInfo=0
 RemoteSymbols=0
 MinStackSize=16384
 MaxStackSize=1048576
-ImageBase=4259840
+ImageBase=4548489
 ExeDescription=Drag and Drop Component Suite
 [Directories]
 OutputDir=
 UnitOutputDir=
 PackageDLLOutputDir=
 PackageDCPOutputDir=
-SearchPath=
+SearchPath=$(DELPHI)\Lib\Debug
 Packages=
-Conditionals=
+Conditionals=DEBUG
 DebugSourceDirs=
 UsePackages=0
 [Parameters]
 RunParams=
 HostApplication=
+Launcher=
+UseLauncher=0
+DebugCWD=
+[Language]
+ActiveLang=
+ProjectLang=
+RootDir=
 [Version Info]
 IncludeVerInfo=1
 AutoIncBuild=1
 MajorVer=4
 MinorVer=0
 Release=3
-Build=11
+Build=27
 Debug=0
 PreRelease=0
 Special=0
@@ -66,24 +75,24 @@ DLL=1
 Locale=1033
 CodePage=1252
 [Version Info Keys]
-CompanyName=Anders melander
+CompanyName=Anders Melander
 FileDescription=Drag and Drop Component Suite
-FileVersion=4.0.3.11
+FileVersion=4.0.3.27
 InternalName=DragDrop
-LegalCopyright=Copyright © 1997-2000 Angus Johnson & Anders Melander
+LegalCopyright=Copyright © 1997-2001 Anders Melander
 LegalTrademarks=
 OriginalFilename=DragDrop
 ProductName=DragDrop
-ProductVersion=1.0.0.0
-Comments=Freeware.
+ProductVersion=4.0.0.0
+Comments=This is freeware. Use as you please, but please give me credit.
 mailto=anders@melander.dk
 URL=http://www.melander.dk
-[Excluded Packages]
-$(DELPHI)\Bin\dcltee40.bpl=Borland TeeChart Components
-$(DELPHI)\Bin\dcldss40.bpl=Borland Decision Cube Components
-[HistoryLists\hlDebugSourcePath]
+[HistoryLists\hlConditionals]
 Count=1
-Item0=$(DELPHI)\source\vcl;$(DELPHI)\source\rtl\win
+Item0=DEBUG
 [HistoryLists\hlUnitAliases]
 Count=1
 Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[HistoryLists\hlSearchPath]
+Count=1
+Item0=$(DELPHI)\Lib\Debug

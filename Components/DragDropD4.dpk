@@ -1,14 +1,17 @@
 package DragDropD4;
 
 {$R *.RES}
+{$R 'DragDrop.dcr'}
 {$R 'DropSource.dcr'}
 {$R 'DropTarget.dcr'}
-{$R 'DropBMPSource.dcr'}
-{$R 'DropBMPTarget.dcr'}
-{$R 'DropURLSource.dcr'}
-{$R 'DropURLTarget.dcr'}
-{$R 'DropPIDLSource.dcr'}
-{$R 'DropPIDLTarget.dcr'}
+{$R 'DragDropText.dcr'}
+{$R 'DragDropFile.dcr'}
+{$R 'DragDropGraphics.dcr'}
+{$R 'DragDropPIDL.dcr'}
+{$R 'DragDropInternet.dcr'}
+{$R 'DropComboTarget.dcr'}
+{$R 'DragDropHandler.dcr'}
+{$R 'DragDropContext.dcr'}
 {$ALIGN ON}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
@@ -19,7 +22,7 @@ package DragDropD4;
 {$LOCALSYMBOLS OFF}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
-{$OPTIMIZATION ON}
+{$OPTIMIZATION OFF}
 {$OVERFLOWCHECKS ON}
 {$RANGECHECKS ON}
 {$REFERENCEINFO ON}
@@ -29,22 +32,30 @@ package DragDropD4;
 {$VARSTRINGCHECKS ON}
 {$WRITEABLECONST ON}
 {$MINENUMSIZE 1}
-{$IMAGEBASE $400000}
+{$IMAGEBASE $00410000}
 {$DESCRIPTION 'Drag and Drop Component Suite'}
 {$DESIGNONLY}
 {$IMPLICITBUILD OFF}
 
 requires
-  vcl40;
+  Vcl40;
 
 contains
   DropSource in 'DropSource.pas',
   DropTarget in 'DropTarget.pas',
-  DropBMPSource in 'DropBMPSource.pas',
-  DropBMPTarget in 'DropBMPTarget.pas',
-  DropURLSource in 'DropURLSource.pas',
-  DropURLTarget in 'DropURLTarget.pas',
-  DropPIDLSource in 'DropPIDLSource.pas',
-  DropPIDLTarget in 'DropPIDLTarget.pas';
+  DragDropPIDL in 'DragDropPIDL.pas',
+  DragDropFormats in 'DragDropFormats.pas',
+  DragDropFile in 'DragDropFile.pas',
+  DragDropText in 'DragDropText.pas',
+  DragDrop in 'DragDrop.pas',
+  DragDropGraphics in 'DragDropGraphics.pas',
+  DropSource3 in 'DropSource3.pas',
+  DropFileSource3 in 'DropFileSource3.pas',
+  DragDropInternet in 'DragDropInternet.pas',
+  DragDropDesign in 'DragDropDesign.pas',
+  DropComboTarget in 'DropComboTarget.pas',
+  DragDropHandler in 'DragDropHandler.pas',
+  DragDropContext in 'DragDropContext.pas',
+  DragDropComObj in 'DragDropComObj.pas';
 
 end.

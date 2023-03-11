@@ -1,7 +1,5 @@
-[FileVersion]
-Version=6.0
 [Compiler]
-A=8
+A=1
 B=0
 C=1
 D=1
@@ -10,12 +8,12 @@ F=0
 G=1
 H=1
 I=1
-J=1
+J=0
 K=0
 L=0
 M=0
 N=1
-O=1
+O=0
 P=1
 Q=1
 R=1
@@ -38,14 +36,14 @@ DebugInfo=0
 RemoteSymbols=0
 MinStackSize=16384
 MaxStackSize=1048576
-ImageBase=4194304
+ImageBase=4259840
 ExeDescription=Drag and Drop Component Suite
 [Directories]
 OutputDir=
 UnitOutputDir=
 PackageDLLOutputDir=
 PackageDCPOutputDir=
-SearchPath=
+SearchPath=$(DELPHI)\Lib\Debug
 Packages=
 Conditionals=
 DebugSourceDirs=
@@ -53,9 +51,6 @@ UsePackages=0
 [Parameters]
 RunParams=
 HostApplication=
-Launcher=
-UseLauncher=0
-DebugCWD=
 [Language]
 ActiveLang=
 ProjectLang=00000406
@@ -63,10 +58,10 @@ RootDir=
 [Version Info]
 IncludeVerInfo=1
 AutoIncBuild=1
-MajorVer=3
-MinorVer=7
-Release=2
-Build=12
+MajorVer=4
+MinorVer=0
+Release=3
+Build=19
 Debug=0
 PreRelease=0
 Special=0
@@ -75,21 +70,25 @@ DLL=1
 Locale=1033
 CodePage=1252
 [Version Info Keys]
-CompanyName=Angus Johnson & Anders Melander
+CompanyName=Anders Melander
 FileDescription=Drag and Drop Component Suite
-FileVersion=3.7.2.12
+FileVersion=4.0.3.19
 InternalName=DragDrop
-LegalCopyright=Copyright © 1997-99,  Angus Johnson and Anders Melander
+LegalCopyright=Copyright © 1997-2000 Angus Johnson & Anders Melander
 LegalTrademarks=
 OriginalFilename=DragDrop
 ProductName=DragDrop
-ProductVersion=1.0.0.0
+ProductVersion=4.0.0.0
 Comments=Freeware.
-mailto=ajohnson@rpi.net.au ; anders@melander.dk
+mailto=anders@melander.dk
 URL=http://www.melander.dk
-[HistoryLists\hlDebugSourcePath]
-Count=1
-Item0=$(DELPHI)\source\vcl;$(DELPHI)\source\rtl\win
+[Excluded Packages]
+$(DELPHI)\Projects\Bpl\sbServerPackage.bpl=S-BOSS Server side components
+D:\Projects\SkilteDesigner\Bin\DCDComponents.bpl=S-BOSS Designer Components
+D:\Library\Delphi3\DragDrop\Competition\UnitOOPS\OLEDD\D5\uoolep5.bpl=UnitOOPS OLE Drag and Drop Components for Delphi 5
 [HistoryLists\hlUnitAliases]
 Count=1
 Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[HistoryLists\hlSearchPath]
+Count=1
+Item0=$(DELPHI)\Lib\Debug

@@ -1,7 +1,6 @@
 //---------------------------------------------------------------------------
 #include <vcl.h>
 #pragma hdrstop
-USERES("dragdropC4.res");
 USEUNIT("DragDrop.pas");
 USEUNIT("DragDropFile.pas");
 USERES("DragDropFile.dcr");
@@ -12,15 +11,17 @@ USEUNIT("DragDropPIDL.pas");
 USERES("DragDropPIDL.dcr");
 USEUNIT("DragDropText.pas");
 USERES("DragDropText.dcr");
-USEUNIT("DragDropURL.pas");
-USERES("DragDropURL.dcr");
-USEUNIT("DropMultiTarget.pas");
-USERES("DropMultiTarget.dcr");
 USEUNIT("DropSource.pas");
 USERES("DropSource.dcr");
 USEUNIT("DropTarget.pas");
 USERES("DropTarget.dcr");
-USEPACKAGE("vcl50.bpi");
+USEUNIT("DragDropInternet.pas");
+USERES("DragDropInternet.dcr");
+USEPACKAGE("Vcl50.bpi");
+USEUNIT("DropComboTarget.pas");
+USERES("DropComboTarget.dcr");
+USEUNIT("DragDropHandler.pas");
+USERES("DragDropHandler.dcr");
 //---------------------------------------------------------------------------
 #pragma package(smart_init)
 //---------------------------------------------------------------------------

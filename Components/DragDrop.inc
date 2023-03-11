@@ -3,10 +3,8 @@
 // Module:          DragDrop.inc
 // Description:     This include file contains common defines used by the
 //                  library.
-// Authors:         Angus Johnson,   ajohnson@rpi.net.au
-//                  Anders Melander, anders@melander.dk
-//                                   http://www.melander.dk
-// Copyright        © 1997-99 Angus Johnson & Anders Melander
+// Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
+// Copyright        © 1997-2000 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 
@@ -64,13 +62,33 @@
   {$DEFINE VER_OK}
 {$ENDIF}
 
-// Unknown compiler version - assume D4 compatible
+// C++ Builder 5.x - Not verified!
+{$IFDEF VER130}
+{$IFDEF BCB}
+  {$DEFINE VER135_PLUS}
+  {$DEFINE VER_OK}
+{$ENDIF}
+{$ENDIF}
+
+// Delphi 6.x
+{$IFDEF VER140}
+  {$DEFINE VER14_PLUS}
+  {$DEFINE VER_OK}
+{$ENDIF}
+
+// Unknown compiler version - assume D6 compatible
 {$IFNDEF VER_OK}
-  {$DEFINE VER12_PLUS}
+  {$DEFINE VER14_PLUS}
 {$ELSE}
   {$UNDEF VER_OK}
 {$ENDIF}
 
+{$IFDEF VER14_PLUS}
+  {$DEFINE VER135_PLUS}
+{$ENDIF}
+{$IFDEF VER135_PLUS}
+  {$DEFINE VER13_PLUS}
+{$ENDIF}
 {$IFDEF VER13_PLUS}
   {$DEFINE VER125_PLUS}
 {$ENDIF}
@@ -98,7 +116,20 @@
 //			Required compiler directives
 // -----------------------------------------------------------------------------
 
-{$TYPEDADDRESS OFF}	// @ operator returns untyped pointer
-{$BOOLEVAL OFF}		// Short circuit boolean evaluation
-{$EXTENDEDSYNTAX ON}	// Enable Delphi Pascal extensions
+{$BOOLEVAL OFF}		// Short circuit boolean evaluation.
+{$EXTENDEDSYNTAX ON}	// Enable Delphi Pascal extensions.
+{$LONGSTRINGS ON}       // String = AnsiString.
+{$ALIGN ON}             // Aligned data. Required by COM.
+{$ifdef BCB}
+  {$ObjExportAll ON}    // Required for C++ Builder
+{$endif}
+
+// The following are not realy nescessary, but they are good practice.
+{$TYPEDADDRESS ON}	// @ operator returns typed pointer.
+{$WRITEABLECONST OFF}   // Typed consts are R/O.
+
+// Disable platform warnings. This library is only supported on Windows.
+{$ifdef VER14_PLUS}
+{$WARN SYMBOL_PLATFORM OFF}
+{$endif}
 
