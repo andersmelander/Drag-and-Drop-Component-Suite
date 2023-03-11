@@ -1429,6 +1429,9 @@ const
   MAPI32DLL = 'mapi32.dll';
 
 procedure LoadMAPI32;
+// TODO : See also: finding the lcoation os MSMAPI
+// http://www.tech-archive.net/Archive/Development/microsoft.public.win32.programmer.messaging/2005-10/msg00127.html
+// http://support.microsoft.com/kb/229700
 
   procedure GetProc(const Name: AnsiString; var Func: pointer);
   begin
@@ -1444,15 +1447,15 @@ begin
     MAPI32 := SafeLoadLibrary(MAPI32DLL);
     if (MAPI32 <= HINSTANCE_ERROR) then
       raise Exception.CreateFmt('%s: %s', [SysErrorMessage(GetLastError), MAPI32DLL]);
-    GetProc('MAPIGetDefaultMalloc@0', @MAPIGetDefaultMalloc);
-    GetProc('MAPIInitialize', @MAPIInitialize);
-    GetProc('MAPIUninitialize', @MAPIUninitialize);
-    GetProc('MAPIAllocateBuffer', @MAPIAllocateBuffer);
-    GetProc('MAPIAllocateMore', @MAPIAllocateMore);
-    GetProc('MAPIFreeBuffer', @MAPIFreeBuffer);
-    GetProc('OpenIMsgOnIStg@44', @OpenIMsgOnIStg);
-    GetProc('OpenIMsgSession@12', @OpenIMsgSession);
-    GetProc('CloseIMsgSession@4', @CloseIMsgSession);
+    GetProc('MAPIGetDefaultMalloc@0', pointer(@MAPIGetDefaultMalloc));
+    GetProc('MAPIInitialize', pointer(@MAPIInitialize));
+    GetProc('MAPIUninitialize', pointer(@MAPIUninitialize));
+    GetProc('MAPIAllocateBuffer', pointer(@MAPIAllocateBuffer));
+    GetProc('MAPIAllocateMore', pointer(@MAPIAllocateMore));
+    GetProc('MAPIFreeBuffer', pointer(@MAPIFreeBuffer));
+    GetProc('OpenIMsgOnIStg@44', pointer(@OpenIMsgOnIStg));
+    GetProc('OpenIMsgSession@12', pointer(@OpenIMsgSession));
+    GetProc('CloseIMsgSession@4', pointer(@CloseIMsgSession));
   end;
 end;
 
