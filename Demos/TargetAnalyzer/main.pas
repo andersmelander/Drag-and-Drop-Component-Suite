@@ -28,7 +28,7 @@ type
     property OnQueryGetData: TOnQueryGetData read FOnQueryGetData write FOnQueryGetData;
   end;
 
-  TTraceKind = (tkSourceBegin, tkSourceEnd, tkTargetBegin, tkTargetEnd);
+  TTraceKind = (tkSourceBegin, tkSourceEnd, tkTargetBegin, tkTargetEnd, tkInfo);
 
   TFormTarget = class(TForm)
     DataFormatAdapter1: TDataFormatAdapter;
@@ -45,6 +45,7 @@ type
     Copytoclipboard1: TMenuItem;
     Splitter1: TSplitter;
     SpeedButton1: TSpeedButton;
+    ButtonAbort: TButton;
     procedure Panel1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure DropEmptySource1Drop(Sender: TObject; DragType: TDragType;
@@ -65,11 +66,13 @@ type
     procedure Copytoclipboard1Click(Sender: TObject);
     procedure SpeedButton1Click(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure ButtonAbortClick(Sender: TObject);
   private
     FStartTime: DWORD;
 //    FDragContextClipboardFormatID: TClipFormat;
     FFormats: array of TRequestedFormat;
     FAbortCount: integer;
+    FMozillaFirefox: boolean;
     procedure Trace(Kind: TTraceKind; const Action: string; const Details: string = '');
     procedure AddClipboardFormat(Format: TClipFormat; Medium: integer);
     procedure OnQueryGetData(const FormatEtc: TFormatEtc; var Result: HRESULT; var Handled: boolean);
@@ -200,6 +203,11 @@ begin
     ListViewFormats.Items[i].SubItems[0] := GetMediaName(FFormats[i].Medium);
 end;
 
+procedure TFormTarget.ButtonAbortClick(Sender: TObject);
+begin
+  inc(FAbortCount);
+end;
+
 procedure TFormTarget.Copytoclipboard1Click(Sender: TObject);
 var
   DragResult: boolean;
@@ -225,6 +233,10 @@ const
   sOptimized: array[boolean] of string = ('', ' (optimized)');
 begin
   Trace(tkSourceEnd, 'DoDragDrop returned', sDragResult[DragResult]+sOptimized[Optimized]);
+
+  ButtonAbort.Visible := False;
+  Panel1.ShowCaption := True;
+  FMozillaFirefox := False;
 end;
 
 procedure TFormTarget.DropEmptySource1Drop(Sender: TObject; DragType: TDragType;
@@ -298,17 +310,52 @@ end;
 
 procedure TFormTarget.OnQueryGetData(const FormatEtc: TFormatEtc;
   var Result: HRESULT; var Handled: boolean);
+var
+  Name: string;
+resourcestring
+  sMsgFirefoxDetectTitle = 'Mozilla Firefox detected';
+  sMsgFirefoxWorkaround = 'Applying work around';
+  sMsgFirefoxDetect = 'Due to a bug in Firefox, dropping from this application onto Firefox causes an endless loop in Firefox.'#13#13'The application will now terminate.';
 begin
   AddClipboardFormat(FormatEtc.cfFormat, FormatEtc.tymed);
 
-  Trace(tkTargetEnd, 'IDataObject.QueryGetData', Format('%d: %s on %s', [FormatEtc.cfFormat, GetClipboardFormatNameStr(FormatEtc.cfFormat), GetMediaName(FormatEtc.tymed)]));
-  Result := S_OK;
+  Name := GetClipboardFormatNameStr(FormatEtc.cfFormat);
+
+  Trace(tkTargetEnd, 'IDataObject.QueryGetData', Format('%d: %s on %s', [FormatEtc.cfFormat, Name, GetMediaName(FormatEtc.tymed)]));
+
+  if (not FMozillaFirefox) and (Name = 'Mozilla/IDataObjectCollectionFormat') then
+  begin
+    Trace(tkInfo, sMsgFirefoxDetectTitle, sMsgFirefoxWorkaround);
+    FMozillaFirefox := True;
+  end;
+
+  // Work around Firefox's endless QuerygetData loop
+  if (FMozillaFirefox) then
+    Result:= DV_E_FORMATETC
+  else
+    Result := S_OK;
   Handled := True;
+
+
+  // Provide us with some means of getting out of Firefox's endless QuerygetData loop
+  if (FMozillaFirefox) then
+    Application.ProcessMessages;
 
   if (GetAsyncKeyState(VK_ESCAPE) and $0001 = $0001) then
     inc(FAbortCount);
-  if (FAbortCount >= 3) then
-    Result := E_UNEXPECTED;
+
+  if (FAbortCount > 0) then
+  begin
+    Result := E_ABORT;
+    // Halt if we have detected that the application ignored the previous abort
+    // request and are requesting one of the Firefox formats.
+    if (FAbortCount > 1) and (FMozillaFirefox) then
+    begin
+      MessageBox(Handle, PChar(sMsgFirefoxDetect), PChar(sMsgFirefoxDetectTitle), MB_ICONWARNING or MB_OK);
+      Halt;
+    end;
+    inc(FAbortCount);
+  end;
 end;
 
 procedure TFormTarget.Panel1MouseDown(Sender: TObject; Button: TMouseButton;
@@ -329,7 +376,12 @@ begin
     FStartTime := GetTickCount;
     FAbortCount := 0;
     Trace(tkSourceBegin, 'DropSource.Execute (DoDragDrop)');
+
+    Panel1.ShowCaption := False;
+    ButtonAbort.Visible := True;
+
     DragResult := DropEmptySource1.Execute(True);
+
     Trace(tkSourceEnd, 'DropSource.Execute (DoDragDrop)', sDragResult[DragResult]);
   end;
 end;

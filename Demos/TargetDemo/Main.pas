@@ -20,6 +20,8 @@ type
     procedure ButtonCloseClick(Sender: TObject);
     procedure DropFileTarget1Drop(Sender: TObject; ShiftState: TShiftState;
       Point: TPoint; var Effect: Integer);
+    procedure DropFileTarget1Enter(Sender: TObject; ShiftState: TShiftState;
+      APoint: TPoint; var Effect: Integer);
   private
     { Private declarations }
   public
@@ -32,6 +34,10 @@ var
 implementation
 
 {$R *.DFM}
+
+uses
+  ActiveX,
+  DragDropFormats;
 
 procedure TForm1.ButtonCloseClick(Sender: TObject);
 begin
@@ -78,6 +84,28 @@ begin
   // delete the source data. See also "Optimized move".
   if (Effect = DROPEFFECT_MOVE) then
     Effect := DROPEFFECT_NONE;
+end;
+
+const
+  // Just some random GUID (press Ctrl+Shift+G in the IDE to generate a GUID)
+  MyClassID: TGUID = '{228FF208-AD46-46DC-B02D-7906787BF8F7}';
+
+procedure TForm1.DropFileTarget1Enter(Sender: TObject; ShiftState: TShiftState;
+  APoint: TPoint; var Effect: Integer);
+var
+  Medium: TStgMedium;
+begin
+  // The following code is an example of how to write the TargetCLSID value back
+  // to the drop source in order to identify the target application.
+  // Unless you have an explicit need for this feature you don't need to do this
+  // in your own application.
+  with TTargetCLSIDClipboardFormat.Create do
+    try
+      CLSID := MyClassID;
+      SetData(TCustomDropTarget(Sender).DataObject, FormatEtc, Medium);
+    finally
+      Free;
+    end;
 end;
 
 end.

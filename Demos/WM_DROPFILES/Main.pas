@@ -16,6 +16,7 @@ type
     procedure FormDestroy(Sender: TObject);
   private
   protected
+    procedure CreateWnd; override;
     procedure WMDropFiles(var Msg: TWMDropFiles); message WM_DROPFILES;
   public
   end;
@@ -28,7 +29,8 @@ implementation
 {$R *.dfm}
 
 uses
-  ShellAPI;
+  ShellAPI,
+  DropTarget;
 
 (*
 ** TDropFiles
@@ -87,6 +89,13 @@ end;
 resourcestring
   sAbout = 'This application demonstrates the old method of handling files dragged from Windows Explorer.'+#13+#13+
     'The application does not use the Drag and Drop Component Suite.';
+
+procedure TFormMain.CreateWnd;
+begin
+  inherited;
+
+  UnblockDropFilesMessages(Handle);
+end;
 
 procedure TFormMain.FormCreate(Sender: TObject);
 begin

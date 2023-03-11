@@ -77,6 +77,7 @@ object Form1: TForm1
   end
   object DropFileTarget1: TDropFileTarget
     DragTypes = [dtCopy, dtMove, dtLink]
+    OnEnter = DropFileTarget1Enter
     OnDrop = DropFileTarget1Drop
     Target = ListView1
     OptimizedMove = True

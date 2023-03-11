@@ -1,9 +1,9 @@
 object FormMain: TFormMain
   Left = 231
   Top = 182
-  Width = 651
-  Height = 375
   Caption = 'WM_DROPFILES demo'
+  ClientHeight = 337
+  ClientWidth = 635
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -18,7 +18,7 @@ object FormMain: TFormMain
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 643
+    Width = 635
     Height = 41
     Align = alTop
     BevelOuter = bvNone
@@ -70,8 +70,8 @@ object FormMain: TFormMain
   object ListView1: TListView
     Left = 0
     Top = 41
-    Width = 643
-    Height = 300
+    Width = 635
+    Height = 296
     Align = alClient
     BevelInner = bvNone
     BevelOuter = bvNone
