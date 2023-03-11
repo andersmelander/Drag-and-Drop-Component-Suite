@@ -2481,13 +2481,13 @@ function GetClipboardFormatNameStr(Value: TClipFormat): string;
   end;
 
 const
-  sClipNames: array[CF_TEXT..CF_MAX-1] of string =
+  sClipNames: array[CF_TEXT..CF_LOCALE] of string =
     ('CF_TEXT', 'CF_BITMAP', 'CF_METAFILEPICT', 'CF_SYLK', 'CF_DIF', 'CF_TIFF',
     'CF_OEMTEXT', 'CF_DIB', 'CF_PALETTE', 'CF_PENDATA', 'CF_RIFF', 'CF_WAVE',
     'CF_UNICODETEXT', 'CF_ENHMETAFILE', 'CF_HDROP', 'CF_LOCALE');
 begin
   case Value of
-    CF_TEXT..CF_MAX-1: Result := sClipNames[Value];
+    CF_TEXT..CF_LOCALE: Result := sClipNames[Value];
     17: Result := 'CF_DIBV5';
     18: Result := 'CF_MAX_XP';
     128: Result := 'CF_OWNERDISPLAY';
