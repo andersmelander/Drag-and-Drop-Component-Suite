@@ -1,28 +1,28 @@
 unit DropPIDLTarget;
 
 // -----------------------------------------------------------------------------
-// Project:         Drag and Drop Target Components
+// Project:         Drag and Drop Component Suite
 // Component Names: TDropPIDLTarget
 // Module:          DropPIDLTarget
 // Description:     Implements Dragging & Dropping of PIDLs
 //                  TO your application from another.
-// Version:	       3.6
-// Date:            21-APR-1999
-// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
+// Version:         3.7
+// Date:            22-JUL-1999
+// Target:          Win32, Delphi 3 - Delphi 5, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
-//                  Graham Wideman,  graham@sdsu.edu
-//                                   http://www.wideman-one.com
-// Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
+// Copyright        © 1997-99 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  DropSource, DropTarget, ActiveX, ShlObj, ClipBrd, DropPIDLSource, ShellApi;
+  DropSource, DropTarget,
+  Classes, ActiveX, ShlObj;
+
+{$include DragDrop.inc}
 
 type
   TDropPIDLTarget = class(TDropTarget)
@@ -30,8 +30,8 @@ type
     PIDLFormatEtc,
     fFileNameMapFormatEtc,
     fFileNameMapWFormatEtc: TFormatEtc;
-    fPIDLs: TStrings; //Used internally to store PIDLs. I use strings to simplify cleanup.
-    fFiles: TStrings; //List of filenames (paths)
+    fPIDLs: TStrings; // Used internally to store PIDLs. I use strings to simplify cleanup.
+    fFiles: TStrings; // List of filenames (paths)
     fMappedNames: TStrings;
     function GetPidlCount: integer;
   protected
@@ -57,6 +57,12 @@ type
 procedure Register;
 
 implementation
+
+uses
+  DropPIDLSource,
+  Windows,
+  SysUtils,
+  ClipBrd;
 
 procedure Register;
 begin

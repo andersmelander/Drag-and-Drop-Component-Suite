@@ -1,27 +1,27 @@
 unit DropURLTarget;
 
 // -----------------------------------------------------------------------------
-// Project:         Drag and Drop Target Components
+// Project:         Drag and Drop Component Suite
 // Component Names: TDropURLTarget
 // Module:          DropURLTarget
 // Description:     Implements Dragging & Dropping of URLs
 //                  TO your application from another.
-// Version:	       3.6
-// Date:            21-APR-1999
-// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
+// Version:         3.7
+// Date:            22-APR-1999
+// Target:          Win32, Delphi 3 - Delphi 5, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
-//                  Graham Wideman,  graham@sdsu.edu
-//                                   http://www.wideman-one.com
-// Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
+// Copyright        © 1997-99 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  DropSource, DropTarget, ActiveX, ShlObj;
+  DropSource, DropTarget,
+  Classes, ActiveX;
+
+{$include DragDrop.inc}
 
 type
   TDropURLTarget = class(TDropTarget)
@@ -45,38 +45,54 @@ procedure Register;
 
 implementation
 
+uses
+  Windows,
+  SysUtils,
+  ShlObj;
+
 procedure Register;
 begin
   RegisterComponents('DragDrop', [TDropURLTarget]);
 end;
-// ----------------------------------------------------------------------------- 
+// -----------------------------------------------------------------------------
 
 function GetURLFromFile(const Filename: string; var URL: string): boolean;
 var
-  URLfile: textfile;
-  str: string;
-  i: integer;
+  URLfile		: TStringList;
+  i			: integer;
+  s			: string;
+  p			: PChar;
 begin
-  //OK, just to get confusing...
-  //URL file contents in 2 possible formats...
-  //1. '[InternetShortcut]'#13#10'URL=http://....';
-  //2. '[InternetShortcut]'#10'URL=http://....';
-  result := false;
-  AssignFile(URLFile, Filename);
+  Result := False;
+  URLfile := TStringList.Create;
   try
-    Reset(URLFile);
-    try
-      ReadLn(URLFile, str);
-      if (copy(str,1,18) <> '[InternetShortcut]') then exit; //error
-      if length(str) = 18 then ReadLn(URLFile, str);
-      i := pos('=',str);
-      if (i = 0) then exit;
-      URL := copy(str,i+1,250);
-      result := true;
-    finally
-      CloseFile(URLFile);
+    URLFile.LoadFromFile(Filename);
+    i := 0;
+    while (i < URLFile.Count-1) do
+    begin
+      if (CompareText(URLFile[i], '[InternetShortcut]') = 0) then
+      begin
+        inc(i);
+        while (i < URLFile.Count) do
+        begin
+          s := URLFile[i];
+          p := PChar(s);
+          if (StrLIComp(p, 'URL=', length('URL=')) = 0) then
+          begin
+            inc(p, length('URL='));
+            URL := p;
+            Result := True;
+            exit;
+          end else
+            if (p^ = '[') then
+              exit;
+          inc(i);
+        end;
+      end;
+      inc(i);
     end;
-  except
+  finally
+    URLFile.Free;
   end;
 end;
 
@@ -232,6 +248,7 @@ begin
       if (medium.tymed <> TYMED_HGLOBAL) then exit;
       pFGD := pointer(GlobalLock(medium.HGlobal));
       fTitle := pFGD^.fgd[0].cFileName;
+      GlobalUnlock(medium.HGlobal);
       delete(fTitle,length(fTitle)-3,4); //deletes '.url' extension
     finally
       ReleaseStgMedium(medium);

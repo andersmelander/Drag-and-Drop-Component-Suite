@@ -1,27 +1,27 @@
 unit DropURLSource;
 
 // -----------------------------------------------------------------------------
-// Project:         Drag and Drop Source Components
+// Project:         Drag and Drop Component Suite
 // Component Names: TDropURLSource
 // Module:          DropURLSource
 // Description:     Implements Dragging & Dropping of URLs
 //                  FROM your application to another.
-// Version:	       3.6
-// Date:            21-APR-1999
-// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
+// Version:         3.7
+// Date:            22-APR-1999
+// Target:          Win32, Delphi 3 - Delphi 5, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
-//                  Graham Wideman,  graham@sdsu.edu
-//                                   http://www.wideman-one.com
-// Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
+// Copyright        © 1997-99 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  dropsource, ActiveX, ClipBrd, ShlObj;
+  DropSource,
+  Classes, ActiveX;
+
+{$include DragDrop.inc}
 
 type
   TDropURLSource = class(TDropSource)
@@ -42,11 +42,17 @@ procedure Register;
 
 implementation
 
+uses
+  Windows,
+  SysUtils,
+  ClipBrd,
+  ShlObj;
+
 procedure Register;
 begin
   RegisterComponents('DragDrop', [TDropURLSource]);
 end;
-// ----------------------------------------------------------------------------- 
+// -----------------------------------------------------------------------------
 
 function ConvertURLToFilename(url: string): string;
 const

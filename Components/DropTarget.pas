@@ -1,62 +1,83 @@
 unit DropTarget;
 
 // -----------------------------------------------------------------------------
-// Project:         Drag and Drop Target Component
+//
+//			*** NOT FOR RELEASE ***
+//
+// -----------------------------------------------------------------------------
+// Project:         Drag and Drop Component Suite
 // Component Names: TDropFileTarget, TDropTextTarget
 // Module:          DropTarget
 // Description:     Implements Dragging & Dropping of text and files
 //                  INTO your application FROM another.
-// Version:	       3.6
-// Date:            21-APR-1999
-// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
+// Version:         3.7.1
+// Date:            16-SEP-1999
+// Target:          Win32, Delphi 3 - Delphi 5, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
-//                  Graham Wideman,  graham@sdsu.edu
-//                                   http://www.wideman-one.com
-// Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
+// Copyright        © 1997-99 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
 
-  uses
-    Windows, Messages, ActiveX, Classes, Controls, ShlObj, ShellApi, SysUtils,
-    ClipBrd, DropSource, Forms, CommCtrl, ExtCtrls, Graphics;
+uses
+  DropSource,
+  Windows, ActiveX, Classes, Controls, CommCtrl, ExtCtrls;
 
-  type
+{$include DragDrop.inc}
+
+type
 
   TScrollDirection = (sdHorizontal, sdVertical);
   TScrollDirections = set of TScrollDirection;
-  
+
   TDropTargetEvent = procedure(Sender: TObject;
     ShiftState: TShiftState; Point: TPoint; var Effect: Longint) of Object;
 
-  //Note: TInterfacedComponent is declared in DropSource.pas
+  TControlList = class(TObject)
+  private
+    FList		: TList;
+    function GetControl(AIndex: integer): TWinControl;
+    function GetCount: integer;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function Add(AControl: TWinControl): integer;
+    procedure Remove(AControl: TWinControl);
+    procedure Delete(AIndex: integer);
+    function IndexOf(AControl: TWinControl): integer;
+    property Count: integer read GetCount;
+    property Controls[AIndex: integer]: TWinControl read GetControl; default;
+  end;
+
+  // Note: TInterfacedComponent is declared in DropSource.pas
   TDropTarget = class(TInterfacedComponent, IDropTarget)
   private
-    fDataObj: IDataObject;
-    fDragTypes: TDragTypes;
-    fRegistered: boolean;
-    fTarget: TWinControl;
-    fGetDataOnEnter: boolean;
-    fOnEnter: TDropTargetEvent;
-    fOnDragOver: TDropTargetEvent;
-    fOnLeave: TNotifyEvent;
-    fOnDrop: TDropTargetEvent;
-    fGetDropEffectEvent: TDropTargetEvent;
+    FDataObj		: IDataObject;
+    FDragTypes		: TDragTypes;
+    FGetDataOnEnter	: boolean;
+    FOnEnter		: TDropTargetEvent;
+    FOnDragOver		: TDropTargetEvent;
+    FOnLeave		: TNotifyEvent;
+    FOnDrop		: TDropTargetEvent;
+    FGetDropEffectEvent	: TDropTargetEvent;
+    FTargets		: TControlList;
+    FMultiTarget	: boolean;
+    FTarget		: TWinControl;
 
-    fImages: TImageList;
-    fDragImageHandle: HImageList;
-    fShowImage: boolean;
-    fImageHotSpot: TPoint;
-    fLastPoint: TPoint; //Point where DragImage was last painted (used internally)
-
-    fTargetScrollMargin: integer;
-    fScrollDirs: TScrollDirections; //enables auto scrolling of target window during drags
-    fScrollTimer: TTimer;   //and paints any drag image 'cleanly'.
+    FImages		: TImageList;
+    FDragImageHandle	: HImageList;
+    FShowImage		: boolean;
+    FImageHotSpot	: TPoint;
+    FLastPoint		: TPoint;	// Point where DragImage was last painted (used internally)
+    					// and paints any drag image 'cleanly'.
+    FTargetScrollMargin	: integer;
+    FScrollDirs		: TScrollDirections; //enables auto scrolling of target window during drags
+    FScrollTimer	: TTimer;
     procedure DoTargetScroll(Sender: TObject);
-
-    procedure SetTarget(Target: TWinControl);
+    procedure SetShowImage(Show: boolean);
+    function GetTarget: TWinControl;
   protected
     // IDropTarget methods...
     function DragEnter(const DataObj: IDataObject; grfKeyState: Longint;
@@ -67,39 +88,53 @@ interface
     function Drop(const dataObj: IDataObject; grfKeyState: Longint; pt: TPoint;
       var dwEffect: Longint): HRESULT; StdCall;
 
+    procedure DoEnter(ShiftState: TShiftState; Point: TPoint; var Effect: Longint); virtual;
+    procedure DoDragOver(ShiftState: TShiftState; Point: TPoint; var Effect: Longint); virtual;
+    procedure DoDrop(ShiftState: TShiftState; Point: TPoint; var Effect: Longint); virtual;
+    procedure DoLeave; virtual;
+
     function DoGetData: boolean; Virtual; Abstract;
     procedure ClearData; Virtual; Abstract;
     function HasValidFormats: boolean; Virtual; Abstract;
     function GetValidDropEffect(ShiftState: TShiftState;
       pt: TPoint; dwEffect: LongInt): LongInt; Virtual;
+    procedure DoUnregister(ATarget: TWinControl);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure Register(Target: TWinControl);
+    procedure Register(ATarget: TWinControl);
+{$ifdef VER12_PLUS}
+    procedure Unregister(ATarget: TWinControl = nil);
+{$else}
     procedure Unregister;
+{$endif}
+    function FindTarget(p: TPoint): TWinControl;
+    function FindNearestTarget(p: TPoint): TWinControl;
     function PasteFromClipboard: longint; Virtual;
-    property DataObject: IDataObject read fDataObj;
-    property Target: TWinControl read fTarget write SetTarget;
+    property DataObject: IDataObject read FDataObj;
+    property Target: TWinControl read GetTarget;
+    property Targets: TControlList read FTargets;
   published
-    property Dragtypes: TDragTypes read fDragTypes write fDragTypes;
-    property GetDataOnEnter: Boolean read fGetDataOnEnter write fGetDataOnEnter;
+    property Dragtypes: TDragTypes read FDragTypes write FDragTypes;
+    property GetDataOnEnter: Boolean read FGetDataOnEnter write FGetDataOnEnter;
     //Events...
-    property OnEnter: TDropTargetEvent read fOnEnter write fOnEnter;
-    property OnDragOver: TDropTargetEvent read fOnDragOver write fOnDragOver;
-    property OnLeave: TNotifyEvent read fOnLeave write fOnLeave;
-    property OnDrop: TDropTargetEvent read fOnDrop write fOnDrop;
+    property OnEnter: TDropTargetEvent read FOnEnter write FOnEnter;
+    property OnDragOver: TDropTargetEvent read FOnDragOver write FOnDragOver;
+    property OnLeave: TNotifyEvent read FOnLeave write FOnLeave;
+    property OnDrop: TDropTargetEvent read FOnDrop write FOnDrop;
     property OnGetDropEffect: TDropTargetEvent
-      read fGetDropEffectEvent write fGetDropEffectEvent;
+      read FGetDropEffectEvent write FGetDropEffectEvent;
     //Drag Images...
-    property ShowImage: boolean read fShowImage write fShowImage;
+    property ShowImage: boolean read FShowImage write SetShowImage;
+    property MultiTarget: boolean read FMultiTarget write FMultiTarget;
   end;
 
   TDropFileTarget = class(TDropTarget)
   private
-    fFiles: TStrings;
-    fMappedNames: TStrings;
-    fFileNameMapFormatEtc,
-    fFileNameMapWFormatEtc: TFormatEtc;
+    FFiles		: TStrings;
+    FMappedNames	: TStrings;
+    FFileNameMapFormatEtc,
+    FFileNameMapWFormatEtc: TFormatEtc;
   protected
     procedure ClearData; override;
     function DoGetData: boolean; override;
@@ -108,22 +143,22 @@ interface
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function PasteFromClipboard: longint; Override;
-    property Files: TStrings Read fFiles;
+    property Files: TStrings Read FFiles;
     //MappedNames is only needed if files need to be renamed after a drag op
     //eg dragging from 'Recycle Bin'.
-    property MappedNames: TStrings read fMappedNames;
+    property MappedNames: TStrings read FMappedNames;
   end;
 
   TDropTextTarget = class(TDropTarget)
   private
-    fText: String;
+    FText		: string;
   protected
     procedure ClearData; override;
     function DoGetData: boolean; override;
     function HasValidFormats: boolean; override;
   public
     function PasteFromClipboard: longint; Override;
-    property Text: String Read fText Write fText;
+    property Text: string Read FText Write FText;
   end;
 
   TDropDummy = class(TDropTarget)
@@ -139,12 +174,24 @@ const
   TextFormatEtc: TFormatEtc = (cfFormat: CF_TEXT;
     ptd: nil; dwAspect: DVASPECT_CONTENT; lindex: -1; tymed: TYMED_HGLOBAL);
 
-function GetFilesFromHGlobal(const HGlob: HGlobal; var Files: TStrings): boolean;
+function GetFilesFromHGlobal(const HGlob: HGlobal; Files: TStrings): boolean;
 function ClientPtToWindowPt(Handle: HWND; pt: TPoint): TPoint;
 
 procedure Register;
 
 implementation
+
+uses
+  SysUtils,
+  Graphics,
+  Messages,
+  ShlObj,
+  ClipBrd,
+  Forms;
+
+resourcestring
+  sRegisterFailed	= 'Failed to register %s as a drop target';
+  sUnregisterActiveTarget = 'Can''t unregister target while drag operation is in progress';
 
 procedure Register;
 begin
@@ -171,96 +218,205 @@ begin
 end;
 // -----------------------------------------------------------------------------
 
-function GetFilesFromHGlobal(const HGlob: HGlobal; var Files: TStrings): boolean;
+function GetFilesFromHGlobal(const HGlob: HGlobal; Files: TStrings): boolean;
 var
-  DropFiles: PDropFiles;
-  Filename: PChar;
-  s: string;
+  DropFiles		: PDropFiles;
+  Filename		: PChar;
 begin
+  { TODO -oanme -cImprovement : Shouldn't there be a Files.Clear here? }
   DropFiles := PDropFiles(GlobalLock(HGlob));
   try
     Filename := PChar(DropFiles) + DropFiles^.pFiles;
     while (Filename^ <> #0) do
     begin
-      if (DropFiles^.fWide) then // -> NT4 compatibility
+      if (DropFiles^.fWide) then // -> NT4 & Asian compatibility
       begin
-        s := PWideChar(FileName);
-        inc(Filename, (Length(s) + 1) * 2);
+        Files.Add(PWideChar(FileName));
+        inc(Filename, (Length(PWideChar(FileName)) + 1) * 2);
       end else
       begin
-        s := Filename;
-        inc(Filename, Length(s) + 1);
+        Files.Add(Filename);
+        inc(Filename, Length(Filename) + 1);
       end;
-      Files.Add(s);
     end;
   finally
     GlobalUnlock(HGlob);
   end;
-  if Files.count > 0 then
-    result := true else
-    result := false;
+
+  Result := (Files.Count > 0);
+end;
+
+// -----------------------------------------------------------------------------
+//			TControlList
+//	List of TWinControl objects.
+//      Used for the TDroptarget.Targets property.
+// -----------------------------------------------------------------------------
+
+constructor TControlList.Create;
+begin
+  inherited Create;
+  FList := TList.Create;
+end;
+
+destructor TControlList.Destroy;
+begin
+  FList.Free;
+  inherited Destroy;
+end;
+
+function TControlList.Add(AControl: TWinControl): integer;
+begin
+  Result := FList.Add(AControl);
+end;
+
+procedure TControlList.Delete(AIndex: integer);
+begin
+  FList.Delete(AIndex);
+end;
+
+function TControlList.IndexOf(AControl: TWinControl): integer;
+begin
+  Result := FList.IndexOf(AControl);
+end;
+
+function TControlList.GetControl(AIndex: integer): TWinControl;
+begin
+  Result := TWinControl(FList[AIndex]);
+end;
+
+function TControlList.GetCount: integer;
+begin
+  Result := FList.Count;
+end;
+
+procedure TControlList.Remove(AControl: TWinControl);
+begin
+  FList.Remove(AControl);
 end;
 
 // -----------------------------------------------------------------------------
 //			TDropTarget
 // -----------------------------------------------------------------------------
 
+constructor TDropTarget.Create( AOwner: TComponent );
+var
+  bm			: TBitmap;
+begin
+   inherited Create(AOwner);
+   FScrollTimer := TTimer.create(Self);
+   FScrollTimer.Interval := 100;
+   FScrollTimer.Enabled := False;
+   FScrollTimer.OnTimer := DoTargetScroll;
+   _AddRef;
+   FGetDataOnEnter := False;
+   FTargets :=  TControlList.Create;
+
+   FImages := TImageList.Create(Self);
+   // Create a blank image for FImages which we will use to hide any cursor
+   // 'embedded' in a drag image.
+   // This avoids the possibility of two cursors showing.
+   bm := TBitmap.Create;
+   with bm do
+     try
+       Height := 32;
+       Width := 32;
+       Canvas.Brush.Color := clWindow;
+       Canvas.FillRect(Canvas.ClipRect);
+       FImages.AddMasked(bm, clWindow);
+     finally
+       Free;
+     end;
+   FDataObj := nil;
+   ShowImage := True;
+end;
+// -----------------------------------------------------------------------------
+
+destructor TDropTarget.Destroy;
+begin
+  Unregister;
+  FImages.Free;
+  FScrollTimer.Free;
+  FTargets.Free;
+  inherited Destroy;
+end;
+// -----------------------------------------------------------------------------
+
 function TDropTarget.DragEnter(const dataObj: IDataObject; grfKeyState: Longint;
   pt: TPoint; var dwEffect: Longint): HRESULT;
 var
-  ShiftState: TShiftState;
-  TargetStyles: longint;
+  ShiftState		: TShiftState;
+  TargetStyles		: longint;
 begin
   ClearData;
-  fDataObj := dataObj;
-  fDataObj._AddRef;
-  result := S_OK;
+  FDataObj := dataObj;
+  { TODO -oanme -cBug : Why _AddRef here? Delphi should take care of this for us. }
+  FDataObj._AddRef;
+  Result := S_OK;
 
-  fDragImageHandle := 0;  
-  if ShowImage then
+  // Find the target control
+  // Note: We have to use FindNearestTarget instead of FindTarget, because the
+  // drag point passed to us might be outside the target rect.
+  FTarget := FindNearestTarget(pt);
+
+  // Refuse drop if we couldn't find the target control (shouldn't happen).
+  if (FTarget = nil) then
   begin
-    fDragImageHandle := ImageList_GetDragImage(nil,@fImageHotSpot);
-    if (fDragImageHandle <> 0) then
-    begin
-      //Currently we will just replace any 'embedded' cursor with our
-      //blank (transparent) image otherwise we sometimes get 2 cursors ...
-      ImageList_SetDragCursorImage(fImages.Handle,0,fImageHotSpot.x,fImageHotSpot.y);
-      with ClientPtToWindowPt(fTarget.handle,pt) do
-        ImageList_DragEnter(fTarget.handle,x,y);
-    end;
-  end;
-  
-  if not HasValidFormats then
-  begin
-    fDataObj._Release;
-    fDataObj := nil;
-    dwEffect := DROPEFFECT_NONE;
-    //result := E_FAIL;
+    FDataObj := nil;
+    Result := DROPEFFECT_NONE;
     exit;
   end;
 
-  fScrollDirs := [];
+  pt := FTarget.ScreenToClient(pt);
+  FLastPoint := pt;
 
-  //thanks to a suggestion by Praful Kapadia ...
-  fTargetScrollMargin := abs(TDummyWinControl(fTarget).font.height);
+  FDragImageHandle := 0;
+  if ShowImage then
+  begin
+    FDragImageHandle := ImageList_GetDragImage(nil, @FImageHotSpot);
+    if (FDragImageHandle <> 0) then
+    begin
+      //Currently we will just replace any 'embedded' cursor with our
+      //blank (transparent) image otherwise we sometimes get 2 cursors ...
+      ImageList_SetDragCursorImage(FImages.Handle, 0, FImageHotSpot.x, FImageHotSpot.y);
+      with ClientPtToWindowPt(FTarget.Handle, pt) do
+        ImageList_DragEnter(FTarget.handle, x, y);
+    end;
+  end;
 
-  TargetStyles := GetWindowLong(fTarget.handle,GWL_STYLE);
+  if not HasValidFormats then
+  begin
+    FDataObj := nil;
+    dwEffect := DROPEFFECT_NONE;
+    exit;
+  end;
+
+  FScrollDirs := [];
+
+  // thanks to a suggestion by Praful Kapadia ...
+  FTargetScrollMargin := abs(TDummyWinControl(FTarget).Font.Height);
+
+  TargetStyles := GetWindowLong(FTarget.Handle, GWL_STYLE);
   if (TargetStyles and WS_HSCROLL <> 0) then
-    fScrollDirs := fScrollDirs + [sdHorizontal];
+    FScrollDirs := FScrollDirs + [sdHorizontal];
   if (TargetStyles and WS_VSCROLL <> 0) then
-    fScrollDirs := fScrollDirs + [sdVertical];
+    FScrollDirs := FScrollDirs + [sdVertical];
   //It's generally more efficient to get data only if a drop occurs
   //rather than on entering a potential target window.
   //However - sometimes there is a good reason to get it here.
-  if fGetDataOnEnter then DoGetData;
+  if FGetDataOnEnter then
+    DoGetData;
 
   ShiftState := KeysToShiftState(grfKeyState);
-  pt := fTarget.ScreenToClient(pt);
-  fLastPoint := pt;
-  dwEffect := GetValidDropEffect(ShiftState,Pt,dwEffect);
-  if Assigned(fOnEnter) then
-    fOnEnter(self, ShiftState, pt, dwEffect);
+  dwEffect := GetValidDropEffect(ShiftState, Pt, dwEffect);
+  DoEnter(ShiftState, pt, dwEffect);
 
+end;
+// -----------------------------------------------------------------------------
+
+procedure TDropTarget.DoEnter(ShiftState: TShiftState; Point: TPoint; var Effect: Longint);
+begin
+  if Assigned(FOnEnter) then
+    FOnEnter(Self, ShiftState, Point, Effect);
 end;
 // -----------------------------------------------------------------------------
 
@@ -270,172 +426,271 @@ var
   ShiftState: TShiftState;
   IsScrolling: boolean;
 begin
-
-  pt := fTarget.ScreenToClient(pt);
-
-  if fDataObj = nil then
+  // Refuse drop if we couldn't find the target control (shouldn't happen)
+  if (FTarget = nil) then
   begin
-    //fDataObj = nil when no valid formats .... see DragEnter method.
     dwEffect := DROPEFFECT_NONE;
-    IsScrolling := false;
+    Result := S_OK;
+    exit;
+  end;
+
+  pt := FTarget.ScreenToClient(pt);
+
+  if (FDataObj = nil) then
+  begin
+    //FDataObj = nil when no valid formats .... see DragEnter method.
+    dwEffect := DROPEFFECT_NONE;
+    IsScrolling := False;
   end else
   begin
     ShiftState := KeysToShiftState(grfKeyState);
     dwEffect := GetValidDropEffect(ShiftState, pt, dwEffect);
-    if Assigned(fOnDragOver) then
-      fOnDragOver(self, ShiftState, pt, dwEffect);
+    DoDragOver(ShiftState, pt, dwEffect);
 
-    if (fScrollDirs <> []) and (dwEffect and DROPEFFECT_SCROLL <> 0) then
+    if (FScrollDirs <> []) and (dwEffect and DROPEFFECT_SCROLL <> 0) then
     begin
-      IsScrolling := true;
-      fScrollTimer.enabled := true
+      IsScrolling := True;
+      FScrollTimer.Enabled := True
     end else
     begin
-      IsScrolling := false;
-      fScrollTimer.enabled := false;
+      IsScrolling := False;
+      FScrollTimer.Enabled := False;
     end;
   end;
 
-  if (fDragImageHandle <> 0) and
-      ((fLastPoint.x <> pt.x) or (fLastPoint.y <> pt.y)) then
+  if (FDragImageHandle <> 0) and
+      ((FLastPoint.x <> pt.x) or (FLastPoint.y <> pt.y)) then
   begin
-    fLastPoint := pt;
+    FLastPoint := pt;
     if IsScrolling then
-      //fScrollTimer.enabled := true
-    else with ClientPtToWindowPt(fTarget.handle,pt) do
-      ImageList_DragMove(X,Y);
-  end
-  else
-    fLastPoint := pt;
-  RESULT := S_OK;
+      //FScrollTimer.enabled := True
+    else with ClientPtToWindowPt(FTarget.Handle, pt) do
+      ImageList_DragMove(X, Y);
+  end else
+    FLastPoint := pt;
+
+  Result := S_OK;
+end;
+// -----------------------------------------------------------------------------
+
+procedure TDropTarget.DoDragOver(ShiftState: TShiftState; Point: TPoint; var Effect: Longint);
+begin
+  if Assigned(FOnDragOver) then
+    FOnDragOver(Self, ShiftState, Point, Effect);
 end;
 // -----------------------------------------------------------------------------
 
 function TDropTarget.DragLeave: HResult;
 begin
   ClearData;
-  fScrollTimer.enabled := false;
+  FScrollTimer.Enabled := False;
 
-  if fDataObj <> nil then
-  begin
-    fDataObj._Release;
-    fDataObj := nil;
-  end;
+  FDataObj := nil;
 
-  if (fDragImageHandle <> 0) then
-    ImageList_DragLeave(fTarget.handle);
+  if (FDragImageHandle <> 0) then
+    ImageList_DragLeave(FTarget.Handle);
 
-  if Assigned(fOnLeave) then fOnLeave(self);
+  DoLeave;
+  FTarget := nil;
   Result := S_OK;
+end;
+// -----------------------------------------------------------------------------
+
+procedure TDropTarget.DoLeave;
+begin
+  if Assigned(FOnLeave) then
+    FOnLeave(Self);
 end;
 // -----------------------------------------------------------------------------
 
 function TDropTarget.Drop(const dataObj: IDataObject; grfKeyState: Longint;
   pt: TPoint; var dwEffect: Longint): HResult;
 var
-  ShiftState: TShiftState;
+  ShiftState		: TShiftState;
 begin
-  RESULT := S_OK;
+  Result := S_OK;
 
-  if fDataObj = nil then
+  if FDataObj = nil then
   begin
     dwEffect := DROPEFFECT_NONE;
     exit;
   end;
 
-  fScrollTimer.enabled := false;
+  FScrollTimer.Enabled := False;
 
-  if (fDragImageHandle <> 0) then
-    ImageList_DragLeave(fTarget.handle);
+  if (FDragImageHandle <> 0) then
+    ImageList_DragLeave(FTarget.Handle);
 
   ShiftState := KeysToShiftState(grfKeyState);
-  pt := fTarget.ScreenToClient(pt);
+  pt := FTarget.ScreenToClient(pt);
   dwEffect := GetValidDropEffect(ShiftState, pt, dwEffect);
-  if (not fGetDataOnEnter) and (not DoGetData) then
+  if (not FGetDataOnEnter) and (not DoGetData) then
     dwEffect := DROPEFFECT_NONE
-  else if Assigned(fOnDrop) then
-    fOnDrop(Self, ShiftState, pt, dwEffect);
+  else
+    DoDrop(ShiftState, pt, dwEffect);
 
   // clean up!
   ClearData;
-  if fDataObj = nil then exit;
-  fDataObj._Release;
-  fDataObj := nil;
+  FDataObj := nil;
+  FTarget := nil;
 end;
 // -----------------------------------------------------------------------------
 
-constructor TDropTarget.Create( AOwner: TComponent );
-var
-  bm: TBitmap;
+procedure TDropTarget.DoDrop(ShiftState: TShiftState; Point: TPoint; var Effect: Longint);
 begin
-   inherited Create( AOwner );
-   fScrollTimer := TTimer.create(self);
-   fScrollTimer.interval := 100;
-   fScrollTimer.enabled := false;
-   fScrollTimer.OnTimer := DoTargetScroll;
-   _AddRef;
-   fGetDataOnEnter := false;
-
-   fImages := TImageList.create(self);
-   //Create a blank image for fImages which we...
-   //will use to hide any cursor 'embedded' in a drag image.
-   //This avoids the possibility of two cursors showing.
-   bm := TBitmap.create;
-   with bm do
-   begin
-     height := 32;
-     width := 32;
-     Canvas.Brush.Color:=clWindow;
-     Canvas.FillRect(Rect(0,0,31,31));
-     fImages.AddMasked(bm,clWindow);
-     free;
-   end;
-   fDataObj := nil;
-   ShowImage := true;
+  if Assigned(FOnDrop) then
+    FOnDrop(Self, ShiftState, Point, Effect);
 end;
 // -----------------------------------------------------------------------------
 
-destructor TDropTarget.Destroy;
+procedure TDropTarget.Register(ATarget: TWinControl);
 begin
-  fImages.free;
-  fScrollTimer.free;
-  Unregister;
-  inherited Destroy;
+  if (FTargets.IndexOf(ATarget) <> -1) then
+    exit;
+
+  if (not FMultiTarget) then
+    Unregister;
+
+  if (ATarget = nil) then
+    exit;
+
+  if not (RegisterDragDrop(ATarget.Handle, Self) = S_OK) then
+      raise Exception.CreateFmt(sRegisterFailed, [ATarget.Name]);
+
+  FTargets.Add(ATarget);
 end;
 // -----------------------------------------------------------------------------
 
-procedure TDropTarget.SetTarget(Target: TWinControl);
+{$ifdef VER12_PLUS}
+procedure TDropTarget.Unregister(ATarget: TWinControl);
 begin
-  if fTarget = Target then exit;
-  Unregister;
-  fTarget := Target;
+  DoUnregister(ATarget);
 end;
-// -----------------------------------------------------------------------------
-
-procedure TDropTarget.Register(Target: TWinControl);
-begin
-  if fTarget = Target then exit;
-  if (fTarget <> nil) then Unregister;
-  fTarget := target;
-  if fTarget = nil then exit;
-
-  //CoLockObjectExternal(self,true,false);
-  if not RegisterDragDrop(fTarget.handle,self) = S_OK then
-      raise Exception.create('Failed to Register '+ fTarget.name);
-  fRegistered := true;
-end;
-// -----------------------------------------------------------------------------
-
+{$else}
 procedure TDropTarget.Unregister;
 begin
-  fRegistered := false;
-  if (fTarget = nil) or not fTarget.handleallocated then exit;
+  DoUnregister(nil);
+end;
+{$endif}
 
-  if not RevokeDragDrop(fTarget.handle) = S_OK then
-      raise Exception.create('Failed to Unregister '+ fTarget.name);
+procedure TDropTarget.DoUnregister(ATarget: TWinControl);
+var
+  i			: integer;
+begin
+  if (ATarget = nil) then
+  begin
+    for i := FTargets.Count-1 downto 0 do
+      DoUnregister(FTargets[i]);
+    exit;
+  end;
 
-  //CoLockObjectExternal(self,false,false);
-  fTarget := nil;
+  i := FTargets.IndexOf(ATarget);
+  if (i = -1) then
+    exit;
+
+  if (ATarget = FTarget) then
+    raise Exception.Create(sUnregisterActiveTarget);
+
+  with Targets[i] do
+    if (HandleAllocated) then
+      // Ignore failed unregistrations - nothing to do about it anyway
+      RevokeDragDrop(Handle);
+
+  FTargets.Delete(i);
+end;
+// -----------------------------------------------------------------------------
+
+function TDropTarget.FindTarget(p: TPoint): TWinControl;
+var
+  i			: integer;
+  r			: TRect;
+begin
+  for i := 0 to Targets.Count-1 do
+  begin
+    Result := Targets[i];
+    r := Result.ClientRect;
+    inc(r.Right);
+    inc(r.Bottom);
+    if (PtInRect(r, Result.ScreenToClient(p))) then
+      exit;
+  end;
+  Result := nil;
+end;
+// -----------------------------------------------------------------------------
+
+function TDropTarget.FindNearestTarget(p: TPoint): TWinControl;
+var
+  i			: integer;
+  r			: TRect;
+  pc			: TPoint;
+  Control		: TWinControl;
+  Dist			,
+  BestDist		: integer;
+
+  function Distance(r: TRect; p: TPoint): integer;
+  var
+    dx			,
+    dy			: integer;
+  begin
+    if (p.x < r.Left) then
+      dx := r.Left - p.x
+    else if (p.x > r.Right) then
+      dx := r.Right - p.x
+    else
+      dx := 0;
+    if (p.y < r.Top) then
+      dy := r.Top - p.y
+    else if (p.y > r.Bottom) then
+      dy := r.Bottom - p.y
+    else
+      dy := 0;
+    Result := dx*dx + dy*dy;
+  end;
+
+begin
+  Result := nil;
+  BestDist := high(integer);
+  for i := 0 to Targets.Count-1 do
+  begin
+    Control := Targets[i];
+    r := Control.ClientRect;
+    inc(r.Right);
+    inc(r.Bottom);
+    pc := Control.ScreenToClient(p);
+    if (PtInRect(r, p)) then
+    begin
+      Result := Control;
+      exit;
+    end;
+    Dist := Distance(r, pc);
+    if (Dist < BestDist) then
+    begin
+      Result := Control;
+      BestDist := Dist;
+    end;
+  end;
+end;
+
+// -----------------------------------------------------------------------------
+
+function TDropTarget.GetTarget: TWinControl;
+begin
+  Result := FTarget;
+  if (Result = nil) then
+  begin
+    if (FTargets.Count > 0) then
+      Result := TWinControl(FTargets[0])
+    else
+      Result := nil;
+  end;
+end;
+// -----------------------------------------------------------------------------
+
+procedure TDropTarget.SetShowImage(Show: boolean);
+begin
+  FShowImage := Show;
+  if FDataObj <> nil then
+    ImageList_DragShowNolock(FShowImage);
 end;
 // -----------------------------------------------------------------------------
 
@@ -444,17 +699,17 @@ function TDropTarget.GetValidDropEffect(ShiftState: TShiftState;
 begin
   //dwEffect 'in' parameter = set of drop effects allowed by drop source.
   //Now filter out the effects disallowed by target...
-  if not (dtCopy in fDragTypes) then
-    dwEffect := dwEffect and not DROPEFFECT_COPY;
-  if not (dtMove in fDragTypes) then
-    dwEffect := dwEffect and not DROPEFFECT_MOVE;
-  if not (dtLink in fDragTypes) then
-    dwEffect := dwEffect and not DROPEFFECT_LINK;
+  if not (dtCopy in FDragTypes) then
+    dwEffect := dwEffect AND NOT DROPEFFECT_COPY;
+  if not (dtMove in FDragTypes) then
+    dwEffect := dwEffect AND NOT DROPEFFECT_MOVE;
+  if not (dtLink in FDragTypes) then
+    dwEffect := dwEffect AND NOT DROPEFFECT_LINK;
   Result := dwEffect;
 
   //'Default' behaviour can be overriden by assigning OnGetDropEffect.
-  if Assigned(fGetDropEffectEvent) then
-    fGetDropEffectEvent(self, ShiftState, pt, Result)
+  if Assigned(FGetDropEffectEvent) then
+    FGetDropEffectEvent(self, ShiftState, pt, Result)
   else
   begin
     //As we're only interested in ssShift & ssCtrl here
@@ -462,60 +717,65 @@ begin
     ShiftState := ([ssShift, ssCtrl] * ShiftState);
 
     if (ShiftState = [ssShift, ssCtrl]) and
-      (dwEffect and DROPEFFECT_LINK <> 0) then result := DROPEFFECT_LINK
+      (dwEffect AND DROPEFFECT_LINK <> 0) then Result := DROPEFFECT_LINK
     else if (ShiftState = [ssShift]) and
-      (dwEffect and DROPEFFECT_MOVE <> 0) then result := DROPEFFECT_MOVE
-    else if (dwEffect and DROPEFFECT_COPY <> 0) then result := DROPEFFECT_COPY
-    else if (dwEffect and DROPEFFECT_MOVE <> 0) then result := DROPEFFECT_MOVE
-    else if (dwEffect and DROPEFFECT_LINK <> 0) then result := DROPEFFECT_LINK
-    else result := DROPEFFECT_NONE;
+      (dwEffect AND DROPEFFECT_MOVE <> 0) then Result := DROPEFFECT_MOVE
+    else if (dwEffect AND DROPEFFECT_COPY <> 0) then Result := DROPEFFECT_COPY
+    else if (dwEffect AND DROPEFFECT_MOVE <> 0) then Result := DROPEFFECT_MOVE
+    else if (dwEffect AND DROPEFFECT_LINK <> 0) then Result := DROPEFFECT_LINK
+    else Result := DROPEFFECT_NONE;
     //Add Scroll effect if necessary...
-    if fScrollDirs = [] then exit;
-    if (sdHorizontal in fScrollDirs) and
-      ((pt.x < fTargetScrollMargin) or
-          (pt.x>fTarget.ClientWidth - fTargetScrollMargin)) then
-        result := result or integer(DROPEFFECT_SCROLL)
-    else if (sdVertical in fScrollDirs) and
-      ((pt.y < fTargetScrollMargin) or
-          (pt.y>fTarget.ClientHeight - fTargetScrollMargin)) then
-        result := result or integer(DROPEFFECT_SCROLL);
+    if FScrollDirs = [] then
+      Exit;
+    if (sdHorizontal in FScrollDirs) and
+      ((pt.x < FTargetScrollMargin) or (pt.x > fTarget.ClientWidth - FTargetScrollMargin)) then
+      Result := Result OR integer(DROPEFFECT_SCROLL)
+    else if (sdVertical in FScrollDirs) and
+      ((pt.y < FTargetScrollMargin) or (pt.y > fTarget.ClientHeight - FTargetScrollMargin)) then
+      Result := Result OR integer(DROPEFFECT_SCROLL);
   end;
 end;
 // -----------------------------------------------------------------------------
 
 procedure TDropTarget.DoTargetScroll(Sender: TObject);
 begin
-  with fTarget, fLastPoint do
+  with FTarget, FLastPoint do
   begin
-    if (fDragImageHandle <> 0) then ImageList_DragLeave(handle);
-    if (Y < fTargetScrollMargin) then
-      Perform(WM_VSCROLL,SB_LINEUP,0)
-    else if (Y>ClientHeight - fTargetScrollMargin) then
-      Perform(WM_VSCROLL,SB_LINEDOWN,0);
-    if (X < fTargetScrollMargin) then
-      Perform(WM_HSCROLL,SB_LINEUP,0)
-    else if (X > ClientWidth - fTargetScrollMargin) then
-      Perform(WM_HSCROLL,SB_LINEDOWN,0);
-    if (fDragImageHandle <> 0) then
-      with ClientPtToWindowPt(handle,fLastPoint) do
-        ImageList_DragEnter(handle,x,y);
+    if (FDragImageHandle <> 0) then
+      ImageList_DragLeave(Handle);
+
+    if (Y < FTargetScrollMargin) then
+      Perform(WM_VSCROLL,SB_LINEUP, 0)
+    else if (Y > ClientHeight - FTargetScrollMargin) then
+      Perform(WM_VSCROLL,SB_LINEDOWN, 0);
+    if (X < FTargetScrollMargin) then
+      Perform(WM_HSCROLL,SB_LINEUP, 0)
+    else if (X > ClientWidth - FTargetScrollMargin) then
+      Perform(WM_HSCROLL,SB_LINEDOWN, 0);
+
+    if (FDragImageHandle <> 0) then
+      with ClientPtToWindowPt(Handle, FLastPoint) do
+        ImageList_DragEnter(Handle, X, Y);
   end;
 end;
 // -----------------------------------------------------------------------------
 
 function TDropTarget.PasteFromClipboard: longint;
 var
-  Global: HGlobal;
-  pEffect: ^DWORD;
+  Global		: HGlobal;
+  pEffect		: ^DWORD;
 begin
   if not ClipBoard.HasFormat(CF_PREFERREDDROPEFFECT) then
-    result := DROPEFFECT_NONE
+    Result := DROPEFFECT_NONE
   else
   begin
     Global := Clipboard.GetAsHandle(CF_PREFERREDDROPEFFECT);
-    pEffect := pointer(GlobalLock(Global)); // DROPEFFECT_COPY, DROPEFFECT_MOVE ...
-    result := pEffect^;
-    GlobalUnlock(Global);
+    try
+      pEffect := pointer(GlobalLock(Global)); // DROPEFFECT_COPY, DROPEFFECT_MOVE ...
+      Result := pEffect^;
+    finally
+      GlobalUnlock(Global);
+    end;
   end;
 end;
 
@@ -526,9 +786,9 @@ end;
 constructor TDropFileTarget.Create( AOwner: TComponent );
 begin
   inherited Create( AOwner );
-  fFiles := TStringList.Create;
-  fMappedNames := TStringList.Create;
-  with fFileNameMapFormatEtc do
+  FFiles := TStringList.Create;
+  FMappedNames := TStringList.Create;
+  with FFileNameMapFormatEtc do
   begin
     cfFormat := CF_FILENAMEMAP;
     ptd := nil;
@@ -536,7 +796,7 @@ begin
     lindex := -1;
     tymed := TYMED_HGLOBAL;
   end;
-  with fFileNameMapWFormatEtc do
+  with FFileNameMapWFormatEtc do
   begin
     cfFormat := CF_FILENAMEMAPW;
     ptd := nil;
@@ -549,112 +809,114 @@ end;
 
 destructor TDropFileTarget.Destroy;
 begin
-  fFiles.Free;
-  fMappedNames.Free;
+  FFiles.Free;
+  FMappedNames.Free;
   inherited Destroy;
 end;
 // -----------------------------------------------------------------------------
 
 function TDropFileTarget.PasteFromClipboard: longint;
 var
-  Global: HGlobal;
-  Preferred: longint;
+  Global		: HGlobal;
+  Preferred		: longint;
 begin
-  result  := DROPEFFECT_NONE;
-  if not ClipBoard.HasFormat(CF_HDROP) then exit;
+  Result  := DROPEFFECT_NONE;
+  if not ClipBoard.HasFormat(CF_HDROP) then
+    exit;
   Global := Clipboard.GetAsHandle(CF_HDROP);
-  fFiles.clear;
-  if not GetFilesFromHGlobal(Global,fFiles) then exit;
+  FFiles.Clear;
+  if not GetFilesFromHGlobal(Global, FFiles) then
+    exit;
   Preferred := inherited PasteFromClipboard;
   //if no Preferred DropEffect then return copy else return Preferred ...
   if (Preferred = DROPEFFECT_NONE) then
-    result := DROPEFFECT_COPY else
-    result := Preferred;
+    Result := DROPEFFECT_COPY
+  else
+    Result := Preferred;
 end;
 // -----------------------------------------------------------------------------
 
 function TDropFileTarget.HasValidFormats: boolean;
 begin
-  result := (fDataObj.QueryGetData(HDropFormatEtc) = S_OK);
+  Result := (FDataObj.QueryGetData(HDropFormatEtc) = S_OK);
 end;
 // -----------------------------------------------------------------------------
 
 procedure TDropFileTarget.ClearData;
 begin
-  fFiles.clear;
-  fMappedNames.clear;
+  FFiles.Clear;
+  FMappedNames.Clear;
 end;
 // -----------------------------------------------------------------------------
 
 function TDropFileTarget.DoGetData: boolean;
 var
-  medium: TStgMedium;
-  pFilename: pChar;
-  pFilenameW: PWideChar;
-  sFilename: string;
+  medium		: TStgMedium;
+  pFilename		: pChar;
+  pFilenameW		: PWideChar;
+  sFilename		: string;
 begin
   ClearData;
-  result := false;
+  Result := False;
 
-  if (fDataObj.GetData(HDropFormatEtc, medium) <> S_OK) then
+  if (FDataObj.GetData(HDropFormatEtc, medium) <> S_OK) then
     exit;
 
   try
-    if (medium.tymed = TYMED_HGLOBAL) and
-       GetFilesFromHGlobal(medium.HGlobal,fFiles) then
-      result := true else
-      result := false;
+    Result := (medium.tymed = TYMED_HGLOBAL) and
+       GetFilesFromHGlobal(medium.HGlobal, FFiles);
   finally
     //Don't forget to clean-up!
     ReleaseStgMedium(medium);
   end;
 
   //OK, now see if file name mapping is also used ...
-  if (fDataObj.GetData(fFileNameMapFormatEtc, medium) = S_OK) then
-  try
-    if (medium.tymed = TYMED_HGLOBAL) then
-    begin
-      pFilename := GlobalLock(medium.HGlobal);
-      try
-        while true do
-        begin
-          sFilename := pFilename;
-          if sFilename = '' then break;
-          fMappedNames.add(sFilename);
-          inc(pFilename, length(sFilename)+1);
+  if (FDataObj.GetData(FFileNameMapFormatEtc, medium) = S_OK) then
+    try
+      if (medium.tymed = TYMED_HGLOBAL) then
+      begin
+        pFilename := GlobalLock(medium.HGlobal);
+        try
+          while True do
+          begin
+            sFilename := pFilename;
+            if sFilename = '' then
+              break;
+            FMappedNames.add(sFilename);
+            inc(pFilename, length(sFilename)+1);
+          end;
+          if FFiles.Count <> FMappedNames.Count then
+            FMappedNames.Clear;
+        finally
+          GlobalUnlock(medium.HGlobal);
         end;
-        if fFiles.count <> fMappedNames.count then
-          fMappedNames.clear;
-      finally
-        GlobalUnlock(medium.HGlobal);
       end;
-    end;
-  finally
-    ReleaseStgMedium(medium);
-  end
-  else if (fDataObj.GetData(fFileNameMapWFormatEtc, medium) = S_OK) then
-  try
-    if (medium.tymed = TYMED_HGLOBAL) then
-    begin
-      pFilenameW := GlobalLock(medium.HGlobal);
-      try
-        while true do
-        begin
-          sFilename := WideCharToString(pFilenameW);
-          if sFilename = '' then break;
-          fMappedNames.add(sFilename);
-          inc(pFilenameW, length(sFilename)+1);
+    finally
+      ReleaseStgMedium(medium);
+    end
+  else if (FDataObj.GetData(FFileNameMapWFormatEtc, medium) = S_OK) then
+    try
+      if (medium.tymed = TYMED_HGLOBAL) then
+      begin
+        pFilenameW := GlobalLock(medium.HGlobal);
+        try
+          while True do
+          begin
+            sFilename := WideCharToString(pFilenameW);
+            if sFilename = '' then
+              break;
+            FMappedNames.Add(sFilename);
+            inc(pFilenameW, length(sFilename)+1);
+          end;
+          if FFiles.Count <> FMappedNames.Count then
+            FMappedNames.Clear;
+        finally
+          GlobalUnlock(medium.HGlobal);
         end;
-        if fFiles.count <> fMappedNames.count then
-          fMappedNames.clear;
-      finally
-        GlobalUnlock(medium.HGlobal);
       end;
+    finally
+      ReleaseStgMedium(medium);
     end;
-  finally
-    ReleaseStgMedium(medium);
-  end;
-
 end;
 
 // -----------------------------------------------------------------------------
@@ -663,53 +925,54 @@ end;
 
 function TDropTextTarget.PasteFromClipboard: longint;
 var
-  Global: HGlobal;
-  TextPtr: pChar;
+  Global		: HGlobal;
+  TextPtr		: pChar;
 begin
-  result := DROPEFFECT_NONE;
-  if not ClipBoard.HasFormat(CF_TEXT) then exit;
+  Result := DROPEFFECT_NONE;
+  if not ClipBoard.HasFormat(CF_TEXT) then
+    exit;
   Global := Clipboard.GetAsHandle(CF_TEXT);
   TextPtr := GlobalLock(Global);
-  fText := TextPtr;
+  FText := TextPtr;
   GlobalUnlock(Global);
-  result := DROPEFFECT_COPY;
+  Result := DROPEFFECT_COPY;
 end;
 // -----------------------------------------------------------------------------
 
 function TDropTextTarget.HasValidFormats: boolean;
 begin
-  result := (fDataObj.QueryGetData(TextFormatEtc) = S_OK);
+  Result := (FDataObj.QueryGetData(TextFormatEtc) = S_OK);
 end;
 // -----------------------------------------------------------------------------
 
 procedure TDropTextTarget.ClearData;
 begin
-  fText := '';
+  FText := '';
 end;
 // -----------------------------------------------------------------------------
 
 function TDropTextTarget.DoGetData: boolean;
 var
-  medium: TStgMedium;
-  cText: pchar;
+  medium		: TStgMedium;
+  cText			: pchar;
 begin
-  result := false;
-  if fText <> '' then
-    result := true // already got it!
-  else if (fDataObj.GetData(TextFormatEtc, medium) = S_OK) then
+  Result := False;
+  if FText <> '' then
+    Result := True // already got it!
+  else if (FDataObj.GetData(TextFormatEtc, medium) = S_OK) then
   begin
     try
-      if (medium.tymed <> TYMED_HGLOBAL) then exit;
+      if (medium.tymed <> TYMED_HGLOBAL) then
+        exit;
       cText := PChar(GlobalLock(medium.HGlobal));
-      fText := cText;
+      FText := cText;
       GlobalUnlock(medium.HGlobal);
-      result := true;
+      Result := True;
     finally
       ReleaseStgMedium(medium);
     end;
-  end
-  else
-    result := false;
+  end else
+    Result := False;
 end;
 
 // -----------------------------------------------------------------------------
@@ -720,7 +983,7 @@ end;
 
 function TDropDummy.HasValidFormats: boolean;
 begin
-  result := true;
+  Result := True;
 end;
 // -----------------------------------------------------------------------------
 
@@ -732,7 +995,7 @@ end;
 
 function TDropDummy.DoGetData: boolean;
 begin
-  result := false;
+  Result := False;
 end;
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------

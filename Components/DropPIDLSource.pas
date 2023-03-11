@@ -1,27 +1,27 @@
 unit DropPIDLSource;
 
 // -----------------------------------------------------------------------------
-// Project:         Drag and Drop Source Components
+// Project:         Drag and Drop Component Suite
 // Component Names: TDropPIDLSource
 // Module:          DropPIDLSource
 // Description:     Implements Dragging & Dropping of PIDLs
 //                  FROM your application to another.
-// Version:	       3.6
-// Date:            21-APR-1999
-// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
+// Version:         3.7
+// Date:            22-JUL-1999
+// Target:          Win32, Delphi 3 - Delphi 5, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
-//                  Graham Wideman,  graham@sdsu.edu
-//                                   http://www.wideman-one.com
-// Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
+// Copyright        © 1997-99 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  dropsource, ActiveX, ClipBrd, ShlObj;
+  DropSource,
+  Classes, ActiveX, ShlObj;
+
+{$include DragDrop.inc}
 
 type
   TDropPIDLSource = class(TDropSource)
@@ -49,6 +49,11 @@ function PidlToString(pidl: PItemIDList): String;
 function JoinPidlStrings(pidl1,pidl2: string): String;
 
 implementation
+
+uses
+  Windows, 
+  SysUtils,
+  ClipBrd;
 
 procedure Register;
 begin
@@ -198,8 +203,8 @@ begin
   begin
     fFiles := '';
     for i := 1 to fPIDLs.Count-1 do
-      appendstr(fFiles,GetFilename(i)+#0);
-    appendstr(fFiles,#0);
+      AppendStr(fFiles,GetFilename(i)+#0);
+    AppendStr(fFiles,#0);
 
     Medium.hGlobal := GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT,
         SizeOf(TDropFiles)+length(fFiles));
@@ -338,7 +343,7 @@ begin
     begin
       DropEffect := GlobalLock(Medium.hGlobal);
       try
-        DropEffect^ := FeedbackEffect;
+        DropEffect^ := DWORD(FeedbackEffect);
       finally
         GlobalUnLock(Medium.hGlobal);
       end;

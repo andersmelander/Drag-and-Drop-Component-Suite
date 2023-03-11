@@ -1,24 +1,20 @@
 unit DropBMPSource;
 
 // -----------------------------------------------------------------------------
-// Project:         Drag and Drop Source Components
+// Project:         Drag and Drop Component Suite
 // Component Names: TDropBMPSource
 // Module:          DropBMPSource
 // Description:     Implements Dragging & Dropping of Bitmaps
 //                  FROM your application to another.
-// Version:	       3.6
-// Date:            21-APR-1999
-// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
+// Version:         3.7
+// Date:            22-JUL-1999
+// Target:          Win32, Delphi 3 - Delphi 5, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
-//                  Graham Wideman,  graham@sdsu.edu
-//                                   http://www.wideman-one.com
-// Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
+// Copyright        © 1997-99 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
-
-// -----------------------------------------------------------------------------
-// Acknowledgement:
+// Acknowledgements:
 // Thanks to Dieter Steinwedel for some help with DIBs.
 // http://godard.oec.uni-osnabrueck.de/student_home/dsteinwe/delphi/DietersDelphiSite.htm
 // -----------------------------------------------------------------------------
@@ -26,7 +22,10 @@ unit DropBMPSource;
 interface
 
 uses
-  Windows, SysUtils, Classes, Graphics, Controls, dropsource, ActiveX, ClipBrd;
+  DropSource,
+  Classes, Graphics, ActiveX;
+
+{$include DragDrop.inc}
 
 type
   TDropBMPSource = class(TDropSource)
@@ -47,136 +46,52 @@ procedure Register;
 
 implementation
 
+uses
+  Windows,
+  SysUtils,
+  ClipBrd;
+
 procedure Register;
 begin
   RegisterComponents('DragDrop', [TDropBMPSource]);
 end;
 
 // -----------------------------------------------------------------------------
-//     Miscellaneous DIB Functions
-//    (Modified from Graphic.pas - ©Inprise Corporation.)
+//     Miscellaneous DIB Function
 // -----------------------------------------------------------------------------
 
-function BytesPerScanline(PixelsPerScanline, BitsPerPixel, Alignment: Longint): Longint;
-begin
-  Dec(Alignment);
-  Result := ((PixelsPerScanline * BitsPerPixel) + Alignment) and not Alignment;
-  Result := Result div 8;
-end;
-// ----------------------------------------------------------------------------- 
-
-procedure InitializeBitmapInfoHeader(Bitmap: HBITMAP; var BI: TBitmapInfoHeader);
+function GetHGlobalDIBFromBitmap(Bitmap: Graphics.TBitmap): HGlobal;
 var
-  DS: TDIBSection;
-  Bytes: Integer;
+  Stream: TMemoryStream;
+  DIB: pointer;
+  DIBSize: integer;
+  bfh: TBitmapFileHeader;
 begin
-  FillChar(BI, sizeof(BI), 0);
-  DS.dsbmih.biSize := 0;
-  Bytes := GetObject(Bitmap, SizeOf(DS), @DS);
-  if Bytes = 0 then exit;
-  if (Bytes >= (sizeof(DS.dsbm) + sizeof(DS.dsbmih))) and
-    (DS.dsbmih.biSize >= sizeof(DS.dsbmih)) then
-    BI := DS.dsbmih
-  else
-  begin
-    with BI, DS.dsbm do
-    begin
-      biSize := SizeOf(BI);
-      biWidth := bmWidth;
-      biHeight := bmHeight;
-    end;
-  end;
-  BI.biBitCount := DS.dsbm.bmBitsPixel * DS.dsbm.bmPlanes;
-  BI.biPlanes := 1;
-  if BI.biSizeImage = 0 then
-    BI.biSizeImage := BytesPerScanLine(BI.biWidth, BI.biBitCount, 32) * Abs(BI.biHeight);
-end;
-// ----------------------------------------------------------------------------- 
-
-procedure InternalGetDIBSizes(Bitmap: HBITMAP; var InfoHeaderSize: Integer;
-  var ImageSize: DWORD);
-var
-  BI: TBitmapInfoHeader;
-begin
-  InitializeBitmapInfoHeader(Bitmap, BI);
-  if BI.biSize = 0 then exit; //error
-
-  if BI.biBitCount > 8 then
-  begin
-    InfoHeaderSize := SizeOf(TBitmapInfoHeader);
-    if (BI.biCompression and BI_BITFIELDS) <> 0 then
-      Inc(InfoHeaderSize, 12);
-  end
-  else
-    InfoHeaderSize := SizeOf(TBitmapInfoHeader) + SizeOf(TRGBQuad) *
-      (1 shl BI.biBitCount);
-  ImageSize := BI.biSizeImage;
-end;
-// ----------------------------------------------------------------------------- 
-
-function InternalGetDIB(Bitmap: HBITMAP;
-   Palette: HPALETTE; var BitmapInfo; var Bits): Boolean;
-var
-  OldPal: HPALETTE;
-  DC: HDC;
-begin
-  Result := false;
-  InitializeBitmapInfoHeader(Bitmap, TBitmapInfoHeader(BitmapInfo));
-  if TBitmapInfoHeader(BitmapInfo).biSize = 0 then exit; //error
-
-  OldPal := 0;
-  DC := CreateCompatibleDC(0);
+  Stream := TMemoryStream.Create;
   try
-    if Palette <> 0 then
+    //let Graphics.pas do the work...
+    Bitmap.SaveToStream(Stream);
+    //BitmapFileHeader will be discarded
+    DIBSize := Stream.Size - sizeof(TBitmapFileHeader);
+    Result:=GlobalAlloc(GMEM_MOVEABLE or GMEM_ZEROINIT or GMEM_SHARE, DIBSize);
+    if Result = 0 then exit;
+    DIB := GlobalLock(Result);
+    if DIB = nil then
     begin
-      OldPal := SelectPalette(DC, Palette, False);
-      RealizePalette(DC);
+      GlobalFree(Result);
+      Result := 0;
+    end else
+    begin
+      Stream.Seek(0,soFromBeginning);
+      //skip BitmapFileHeader...
+      Stream.readbuffer(bfh,sizeof(TBitmapFileHeader));
+      //copy data...
+      Stream.readbuffer(DIB^,DIBSize);
+      GlobalUnlock(Result);
     end;
-    Result := GetDIBits(DC, Bitmap, 0, TBitmapInfoHeader(BitmapInfo).biHeight, @Bits,
-      TBitmapInfo(BitmapInfo), DIB_RGB_COLORS) <> 0;
   finally
-    if OldPal <> 0 then SelectPalette(DC, OldPal, False);
-    DeleteDC(DC);
+    Stream.free;
   end;
-end;
-// ----------------------------------------------------------------------------- 
-
-function GetHGlobalDIBFromBitmap(Src: HBITMAP; Pal: HPALETTE): HGlobal;
-var HeaderSize: Integer;
-    ImageSize: DWORD;
-    DIBHeader, DIBBits: Pointer;
-    HasFailed: boolean;
-begin
-     Result := 0;
-     if Src=0 then exit;
-     InternalGetDIBSizes(Src, HeaderSize, ImageSize);
-     Result:=GlobalAlloc(GMEM_MOVEABLE or GMEM_ZEROINIT or GMEM_SHARE, HeaderSize+integer(ImageSize));
-     if Result=0 then exit; //Out of memory.
-     try
-       DIBHeader:=GlobalLock(Result);
-       if DIBHeader = nil then
-       begin
-         GlobalFree(Result);
-         Result := 0;
-         exit;
-       end;
-       HasFailed := false;
-       try
-         DIBBits:=Pointer(Longint(DIBHeader) + HeaderSize);
-         if not InternalGetDIB(Src, Pal, DIBHeader^, DIBBits^) then
-           HasFailed := true;
-       finally
-         GlobalUnlock(Result);
-         if HasFailed then
-         begin
-           GlobalFree(Result);
-           Result := 0;
-         end;
-       end;
-     except
-       GlobalFree(Result);
-       Result := 0;
-     end;
 end;
 
 // -----------------------------------------------------------------------------
@@ -186,7 +101,7 @@ end;
 constructor TDropBMPSource.Create(aOwner: TComponent);
 begin
   inherited Create(aOwner);
-  fbitmap := TBitmap.create;
+  fBitmap := Graphics.TBitmap.Create;
   DragTypes := [dtCopy]; // Default to Copy
 
   AddFormatEtc(CF_BITMAP, NIL, DVASPECT_CONTENT, -1, TYMED_GDI);
@@ -202,7 +117,7 @@ begin
 end;
 // ----------------------------------------------------------------------------- 
 
-procedure TDropBMPSource.SetBitmap(Bmp: TBitmap);
+procedure TDropBMPSource.SetBitmap(Bmp: Graphics.TBitmap);
 begin
   fBitmap.assign(Bmp);
 end;
@@ -215,7 +130,7 @@ begin
   result := false;
   if fBitmap.empty then exit;
   try
-    data := GetHGlobalDIBFromBitmap(fBitmap.handle,fBitmap.palette);
+    data := GetHGlobalDIBFromBitmap(fBitmap);
     if data = 0 then exit;
     Clipboard.SetAsHandle(CF_DIB,data);
     result := true;
@@ -241,7 +156,7 @@ begin
      (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
   begin
     try
-      Medium.HGlobal := GetHGlobalDIBFromBitmap(fBitmap.handle,fBitmap.palette);
+      Medium.HGlobal := GetHGlobalDIBFromBitmap(fBitmap);
       if Medium.HGlobal <> 0 then
       begin
         Medium.tymed := TYMED_HGLOBAL;

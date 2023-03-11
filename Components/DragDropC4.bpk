@@ -23,8 +23,11 @@ RESFILES = dragdropC4.res DropSource.dcr DropURLTarget.dcr DropBMPTarget.dcr \
 DEFFILE =
 RESDEPEN = $(RESFILES)
 LIBFILES =
-LIBRARIES =
-SPARELIBS = vcl40.lib
+LIBRARIES = dclusr40.lib nmfast40.lib tee40.lib teedb40.lib teeui40.lib vcldbx40.lib \
+  ibsmp40.lib vcldb40.lib qrpt40.lib bcbsmp40.lib vcljpg40.lib vclx40.lib
+SPARELIBS = vcl40.lib vclx40.lib vcljpg40.lib bcbsmp40.lib qrpt40.lib vcldb40.lib \
+  ibsmp40.lib vcldbx40.lib teeui40.lib teedb40.lib tee40.lib nmfast40.lib \
+  dclusr40.lib
 PACKAGES = vcl40.bpi
 # ---------------------------------------------------------------------------
 PATHCPP = .;
@@ -41,12 +44,12 @@ CFLAG1 = -I$(BCB)\include;$(BCB)\include\vcl -Od -Hc -H=$(BCB)\lib\vcl40.csm -w 
   -w-inl -Vx -tWM
 CFLAG2 =
 CFLAG3 =
-PFLAGS = -U$(BCB)\lib\obj;$(BCB)\lib;$(RELEASELIBPATH) \
+PFLAGS = -U$(BCB)\Projects\Lib;$(BCB)\lib\obj;$(BCB)\lib;$(RELEASELIBPATH) \
   -I$(BCB)\include;$(BCB)\include\vcl -$YD -$W -v -M -JPHNE
 RFLAGS = -i$(BCB)\include;$(BCB)\include\vcl
 AFLAGS = /i$(BCB)\include /i$(BCB)\include\vcl /mx /w2 /zd /dUSEPACKAGES
-LFLAGS = -L$(BCB)\lib\obj;$(BCB)\lib;$(RELEASELIBPATH) -D"Drag & Drop Component Suite" \
-  -aa -Tpp -x -Gn -Gl -Gi
+LFLAGS = -L$(BCB)\Projects\Lib;$(BCB)\lib\obj;$(BCB)\lib;$(RELEASELIBPATH) \
+  -D"Drag and Drop Component Suite" -aa -Tpp -x -Gn -Gl -Gi
 IFLAGS =
 # ---------------------------------------------------------------------------
 ALLOBJ = c0pkg32.obj $(PACKAGES) sysinit.obj $(OBJFILES)
@@ -61,7 +64,7 @@ AutoIncBuild=1
 MajorVer=3
 MinorVer=5
 Release=2
-Build=7
+Build=8
 Debug=0
 PreRelease=0
 Special=0
@@ -73,7 +76,7 @@ CodePage=1252
 [Version Info Keys]
 CompanyName=Johnson, Melander & Wideman
 FileDescription=Drag & Drop Component Suite
-FileVersion=3.5.2.7
+FileVersion=3.5.2.8
 InternalName=DragDrop
 LegalCopyright=Copyright © 1997-99,  Johnson,  Melander & Wideman
 LegalTrademarks=

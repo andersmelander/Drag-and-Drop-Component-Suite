@@ -1,33 +1,28 @@
 unit DropBMPTarget;
 
 // -----------------------------------------------------------------------------
-// Project:         Drag and Drop Source Components
+// Project:         Drag and Drop Component Suite
 // Component Names: TDropBMPSource
 // Module:          DropBMPSource
 // Description:     Implements Dragging & Dropping of Bitmaps
 //                  FROM your application to another.
-// Version:	       3.6
-// Date:            21-APR-1999
-// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
+// Version:         3.7
+// Date:            22-JUL-1999
+// Target:          Win32, Delphi 3 - Delphi 5, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
-//                  Graham Wideman,  graham@sdsu.edu
-//                                   http://www.wideman-one.com
-// Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
-// -----------------------------------------------------------------------------
-
-// -----------------------------------------------------------------------------
-// Acknowledgement:
-// Thanks to Dieter Steinwedel for some help with DIBs.
-// http://godard.oec.uni-osnabrueck.de/student_home/dsteinwe/delphi/DietersDelphiSite.htm
+// Copyright        © 1997-99 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  dropsource, DropTarget, ActiveX;
+  DropSource,
+  DropTarget,
+  Windows, Classes, Graphics, ActiveX;
+
+{$include DragDrop.inc}
 
 type
   TDropBMPTarget = class(TDropTarget)
@@ -44,6 +39,7 @@ type
   end;
 
 procedure Register;
+procedure CopyDIBToBitmap(Bitmap: TBitmap; BitmapInfo: PBitmapInfo; DIBSize: integer);
 
 implementation
 
@@ -61,105 +57,46 @@ begin
 end;
 
 // -----------------------------------------------------------------------------
-//	Miscellaneous DIB Functions
-//  (Modified from Graphics.pas - © Inprise Corporation.)
+//	Miscellaneous DIB Function
 // -----------------------------------------------------------------------------
 
-procedure ByteSwapColors(var Colors; Count: Integer);
-// convert RGB to BGR and vice-versa.  TRGBQuad <-> TPaletteEntry
-// Note: Intel 386s processors not supported.
-begin
-  asm
-        MOV   EDX, Colors
-        MOV   ECX, Count
-        DEC   ECX
-        JS    @@END
-  @@1:  MOV   EAX, [EDX+ECX*4]
-        BSWAP EAX
-        SHR   EAX,8
-        MOV   [EDX+ECX*4],EAX
-        DEC   ECX
-        JNS   @@1
-  @@END:
-  end;
-end;
-// ----------------------------------------------------------------------------- 
-
-function PaletteFromDIBColorTable(ColorTable: pointer; ColorCount: Integer): HPalette;
+procedure CopyDIBToBitmap(Bitmap: TBitmap; BitmapInfo: PBitmapInfo; DIBSize: integer);
 var
-  Pal: TMaxLogPalette;
-  DC: HDC;
-  SysPalSize: Integer;
+  BitmapFileHeader	: TBitmapFileHeader;
+  FileSize		: integer;
+  InfoSize		: integer;
+  Stream		: TMemoryStream;
 begin
-  Result := 0;
-  if (ColorCount <= 2) then Exit;
-  Pal.palVersion := $300;
-  Pal.palNumEntries := ColorCount;
-  Move(ColorTable, Pal.palPalEntry, ColorCount * 4);
-
-  DC := GetDC(0);
+  // Write DIB to a stream in the BMP file format
+  Stream := TMemoryStream.Create;
   try
-    SysPalSize := GetDeviceCaps(DC, SIZEPALETTE);
-    if (ColorCount = 16) and (SysPalSize >= 16) then
+    FileSize := sizeof(TBitmapFileHeader) + DIBSize;
+    InfoSize := sizeof(TBitmapInfoHeader);
+    if (BitmapInfo^.bmiHeader.biBitCount > 8) then
     begin
-      GetSystemPaletteEntries(DC, 0, 8, Pal.palPalEntry);
-      GetSystemPaletteEntries(DC, SysPalSize - 8, 8, Pal.palPalEntry[8]);
-    end
-    else
-      ByteSwapColors(Pal.palPalEntry, ColorCount);
-  finally
-    ReleaseDC(0, DC);
-  end;
-  Result := CreatePalette(PLogPalette(@Pal)^);
-end;
-// ----------------------------------------------------------------------------- 
-
-procedure CopyDIBToBitmap(Bitmap:TBitmap; ImagePtr: pointer);
-var
-  BitmapInfoHeader: PBitmapInfoHeader;
-  BitmapInfo: PBitmapInfo;
-  ColorCount: integer;
-  DIBits: Pointer;
-  Pal: HPALETTE;
-  DC: HDC;
-  OldPal: HPALETTE;
-begin
-  OldPal := 0;
-  BitmapInfo := ImagePtr;
-  BitmapInfoHeader := ImagePtr;
-  with BitmapInfoHeader^ do
-    if biClrUsed <> 0 then
-      ColorCount := biClrUsed
-    else if biBitCount > 8 then
-      ColorCount := 0
-    else
-      ColorCount := (1 shl biBitCount);
-
-  longint(DIBits) := longint(ImagePtr) +
-      SizeOf(TBitmapInfoHeader) + (ColorCount * SizeOf(TRgbQuad));
-
-  {Create the palette }
-  Pal := PaletteFromDIBColorTable(@BitmapInfo.bmiColors, ColorCount);
-  try
-    DC := GetDC(0);
-    if DC <> 0 then
-    try
-      if Pal <> 0 then
-      begin
-        OldPal := SelectPalette(DC, Pal, False);
-        RealizePalette(DC);
-      end;
-      try
-         Bitmap.Handle:=CreateDIBitmap(DC, BitmapInfo^.bmiHeader,
-             CBM_INIT, DIBits, BitmapInfo^, DIB_RGB_COLORS);
-      finally
-         if OldPal <> 0 then SelectPalette(DC, OldPal, False);
-      end;
-    finally
-      ReleaseDC(0, DC);
+      if ((BitmapInfo^.bmiHeader.biCompression and BI_BITFIELDS) <> 0) then
+        Inc(InfoSize, 12);
+    end else
+      Inc(InfoSize, sizeof(TRGBQuad) * (1 shl BitmapInfo^.bmiHeader.biBitCount));
+    Stream.SetSize(FileSize);
+    // Initialize file header
+    FillChar(BitmapFileHeader, sizeof(TBitmapFileHeader), 0);
+    with BitmapFileHeader do
+    begin
+      bfType := $4D42; // 'BM' = Windows BMP signature
+      bfSize := FileSize; // File size (not needed)
+      bfOffBits := sizeof(TBitmapFileHeader) + InfoSize; // Offset of pixel data
     end;
+    // Save file header
+    Stream.Write(BitmapFileHeader, sizeof(TBitmapFileHeader));
+    // Save TBitmapInfo structure and pixel data
+    Stream.Write(BitmapInfo^, DIBSize);
+
+    // Rewind and load bitmap from stream
+    Stream.Position := 0;
+    Bitmap.LoadFromStream(Stream);
   finally
-    if Pal <> 0 then DeleteObject(Pal);
+    Stream.Free;
   end;
 end;
 
@@ -172,7 +109,7 @@ begin
    inherited Create( AOwner );
    fBitmap := TBitmap.Create;
 end;
-// ----------------------------------------------------------------------------- 
+// -----------------------------------------------------------------------------
 
 destructor TDropBMPTarget.Destroy;
 begin
@@ -207,7 +144,7 @@ begin
     begin
       DIBData := GlobalLock(medium.HGlobal);
       try
-        CopyDIBToBitmap(fBitmap, DIBData);
+        CopyDIBToBitmap(fBitmap, DIBData, GlobalSize(Medium.HGlobal));
         result := true;
       finally
         GlobalUnlock(medium.HGlobal);

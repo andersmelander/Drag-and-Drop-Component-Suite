@@ -30,7 +30,7 @@ package DragDropD3;
 {$WRITEABLECONST ON}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $00400000}
-{$DESCRIPTION 'COM DragDrop Components'}
+{$DESCRIPTION 'Drag and Drop Component Suite'}
 {$DESIGNONLY}
 {$IMPLICITBUILD ON}
 

@@ -1,15 +1,13 @@
-package DragDropD4;
+package DragDropD5;
 
-{$R *.RES}
+{$R *.res}
 {$R 'DropSource.dcr'}
 {$R 'DropTarget.dcr'}
 {$R 'DropBMPSource.dcr'}
 {$R 'DropBMPTarget.dcr'}
-{$R 'DropURLSource.dcr'}
-{$R 'DropURLTarget.dcr'}
 {$R 'DropPIDLSource.dcr'}
 {$R 'DropPIDLTarget.dcr'}
-{$ALIGN ON}
+{$ALIGN 8}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
 {$DEBUGINFO ON}
@@ -31,11 +29,10 @@ package DragDropD4;
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
 {$DESCRIPTION 'Drag and Drop Component Suite'}
-{$DESIGNONLY}
 {$IMPLICITBUILD OFF}
 
 requires
-  vcl40;
+  vcl;
 
 contains
   DropSource in 'DropSource.pas',

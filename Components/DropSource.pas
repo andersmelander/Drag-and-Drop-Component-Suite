@@ -1,20 +1,18 @@
 unit DropSource;
 
 // -----------------------------------------------------------------------------
-// Project:         Drag and Drop Source Components
+// Project:         Drag and Drop Component Suite
 // Component Names: TDropTextSource, TDropFileSource,
 // Module:          DropSource
 // Description:     Implements Dragging & Dropping of text, files
 //                  FROM your application to another.
-// Version:	       3.6
-// Date:            21-APR-1999
-// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
+// Version:         3.7
+// Date:            22-JUL-1999
+// Target:          Win32, Delphi 3 - Delphi 5, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
-//                  Graham Wideman,  graham@sdsu.edu
-//                                   http://www.wideman-one.com
-// Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
+// Copyright        © 1997-99 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
@@ -23,40 +21,29 @@ unit DropSource;
 // 2. Thanks to Zbysek Hlinka for sugestions on Copying to Clipboard.
 // 3. Thanks to Jan Debis for spotting a small bug in TDropFileSource.
 // 4. Thanks to 'Scotto the Unwise' for spotting a Delphi4 compatibility bug.
+// 5. Thanks to Alexandre Bento Freire who spotted a bug in GetShellFolderOfPath().
 // -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-//  Compiler compatibility...
-// -----------------------------------------------------------------------------
-
-// Delphi 4.x
-{$IFDEF VER120}
-  {$DEFINE VER120_PLUS}
-{$ENDIF}
-
-// C++ Builder 4.x
-{$IFDEF VER125}
-  {$DEFINE VER120_PLUS}
-  {$DEFINE VER125_PLUS}
-{$ENDIF}
-// -----------------------------------------------------------------------------
 
 interface
-  uses
-    Controls, Windows, ActiveX, Classes, ShlObj, SysUtils, ClipBrd, Graphics,
-    Forms, CommCtrl;
 
-  const
-    MAXFORMATS = 20;
+uses
+  Controls, Windows, ActiveX, Classes, CommCtrl;
 
-  type
+{$include DragDrop.inc}
+
+const
+  MAXFORMATS = 20;
+
+type
 
   TInterfacedComponent = class(TComponent, IUnknown)
   private
     fRefCount: Integer;
   protected
     function QueryInterface(const IID: TGuid; out Obj): HRESULT;
-               {$IFDEF VER120_PLUS} reintroduce; {$ENDIF} stdcall;
+               {$IFDEF VER13_PLUS} override; {$ELSE}
+               {$IFDEF VER12_PLUS} reintroduce; {$ENDIF}{$ENDIF} stdcall;
     function _AddRef: Integer; stdcall;
     function _Release: Integer; stdcall;
   end;
@@ -189,6 +176,10 @@ interface
 
 implementation
 
+uses
+  ShlObj,
+  SysUtils,
+  ClipBrd;
 
 // -----------------------------------------------------------------------------
 //			Miscellaneous functions.
