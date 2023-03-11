@@ -411,7 +411,7 @@ resourcestring
 function GetRootFolderPIDL(const Files: TUnicodeStrings): AnsiString;
 var
   DeskTopFolder: IShellFolder;
-  WidePath: UnicodeString;
+  WidePath: string;
   PIDL: pItemIDList;
   PIDLs: TPIDLList;
   PIDL1, PIDL2: pItemIDList;

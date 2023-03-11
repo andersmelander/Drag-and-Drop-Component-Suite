@@ -53,32 +53,26 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TCustomUnicodeTextClipboardFormat = class(TCustomSimpleClipboardFormat)
   private
-    FText: UnicodeString;
+    FText: string;
   protected
     function ReadData(Value: pointer; Size: integer): boolean; override;
     function WriteData(Value: pointer; Size: integer): boolean; override;
     function GetSize: integer; override;
 
-    function GetText: UnicodeString;
-    procedure SetText(const Value: UnicodeString);
-    property Text: UnicodeString read FText write FText;
+    function GetText: string;
+    procedure SetText(const Value: string);
+    property Text: string read FText write FText;
   public
     procedure Clear; override;
     function HasData: boolean; override;
   end;
-
-  TCustomWideTextClipboardFormat = TCustomUnicodeTextClipboardFormat {$ifdef VER17_PLUS}deprecated {$IFDEF VER20_PLUS}'Use TCustomUnicodeTextClipboardFormat instead'{$ENDIF}{$endif};
 
 ////////////////////////////////////////////////////////////////////////////////
 //
 //              TCustomTextClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
-{$ifdef UNICODE}
   TCustomTextClipboardFormat = TCustomUnicodeTextClipboardFormat;
-{$else}
-  TCustomTextClipboardFormat = TCustomAnsiTextClipboardFormat;
-{$endif}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -114,11 +108,7 @@ type
 //              TTextClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
-{$ifdef UNICODE}
   TTextClipboardFormat = TUnicodeTextClipboardFormat;
-{$else}
-  TTextClipboardFormat = TAnsiTextClipboardFormat;
-{$endif}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -176,7 +166,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TTextDataFormat = class(TCustomDataFormat)
   private
-    FUnicodeText: UnicodeString;
+    FUnicodeText: string;
     FAnsiText: AnsiString;
     FNeedAnsi, FNeedUnicode: boolean;
     FLocale: DWORD;
@@ -184,8 +174,8 @@ type
     class procedure RegisterCompatibleFormats; override;
     function GetAnsiText: AnsiString;
     procedure SetAnsiText(const Value: AnsiString);
-    function GetUnicodeText: UnicodeString;
-    procedure SetUnicodeText(const Value: UnicodeString);
+    function GetUnicodeText: string;
+    procedure SetUnicodeText(const Value: string);
     function GetText: string;
     procedure SetText(const Value: string);
     function GetLocale: DWORD;
@@ -200,7 +190,7 @@ type
     function NeedsData: boolean; override;
     property AnsiText: AnsiString read GetAnsiText write SetAnsiText;
     property Text: string read GetText write SetText;
-    property UnicodeText: UnicodeString read GetUnicodeText write SetUnicodeText;
+    property UnicodeText: string read GetUnicodeText write SetUnicodeText;
     property Locale: DWORD read GetLocale write SetLocale;
   end;
 
@@ -238,16 +228,16 @@ type
     function GetText: string;
     function GetAnsiText: AnsiString;
     function GetLocale: DWORD;
-    function GetUnicodeText: UnicodeString;
+    function GetUnicodeText: string;
     procedure SetText(const Value: string);
     procedure SetAnsiText(const Value: AnsiString);
     procedure SetLocale(const Value: DWORD);
-    procedure SetUnicodeText(const Value: UnicodeString);
+    procedure SetUnicodeText(const Value: string);
   public
     constructor Create(aOwner: TComponent); override;
     destructor Destroy; override;
     property AnsiText: AnsiString read GetAnsiText write SetAnsiText;
-    property UnicodeText: UnicodeString read GetUnicodeText write SetUnicodeText;
+    property UnicodeText: string read GetUnicodeText write SetUnicodeText;
   published
     property Locale: DWORD read GetLocale write SetLocale default 0;
     property Text: string read GetText write SetText;
@@ -414,12 +404,12 @@ begin
   Result := Result*SizeOf(WideChar);
 end;
 
-function TCustomUnicodeTextClipboardFormat.GetText: UnicodeString;
+function TCustomUnicodeTextClipboardFormat.GetText: string;
 begin
   Result := FText;
 end;
 
-procedure TCustomUnicodeTextClipboardFormat.SetText(const Value: UnicodeString);
+procedure TCustomUnicodeTextClipboardFormat.SetText(const Value: string);
 begin
   FText := Value;
 end;
@@ -651,14 +641,10 @@ end;
 
 function TTextDataFormat.GetText: string;
 begin
-{$ifdef UNICODE}
   Result := UnicodeText;
-{$else}
-  Result := AnsiText;
-{$endif}
 end;
 
-function TTextDataFormat.GetUnicodeText: UnicodeString;
+function TTextDataFormat.GetUnicodeText: string;
 begin
   if (FNeedUnicode) and (not FNeedAnsi) then
   begin
@@ -673,11 +659,7 @@ end;
 
 procedure TTextDataFormat.SetText(const Value: string);
 begin
-{$ifdef UNICODE}
   SetUnicodeText(Value);
-{$else}
-  SetAnsiText(Value);
-{$endif}
 end;
 
 procedure TTextDataFormat.SetAnsiText(const Value: AnsiString);
@@ -691,7 +673,7 @@ begin
     FLocale := GetThreadLocale;
 end;
 
-procedure TTextDataFormat.SetUnicodeText(const Value: UnicodeString);
+procedure TTextDataFormat.SetUnicodeText(const Value: string);
 begin
   Changing;
   FUnicodeText := Value;
@@ -805,7 +787,7 @@ begin
   Result := FTextFormat.Text;
 end;
 
-function TDropTextSource.GetUnicodeText: UnicodeString;
+function TDropTextSource.GetUnicodeText: string;
 begin
   Result := FTextFormat.UnicodeText;
 end;
@@ -825,7 +807,7 @@ begin
   FTextFormat.Text := Value;
 end;
 
-procedure TDropTextSource.SetUnicodeText(const Value: UnicodeString);
+procedure TDropTextSource.SetUnicodeText(const Value: string);
 begin
   FTextFormat.UnicodeText := Value;
 end;

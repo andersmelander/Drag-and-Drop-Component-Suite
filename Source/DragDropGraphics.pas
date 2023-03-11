@@ -637,11 +637,11 @@ var
 begin
   Length := GetMetaFileBitsEx(MetaFile.hMF, 0, nil);
   if (Length = 0) then
-    _RaiseLastWin32Error;
+    RaiseLastOSError;
   GetMem(Bits, Length);
   try
     if (GetMetaFileBitsEx(MetaFile.hMF, Length, Bits) < Length) then
-      _RaiseLastWin32Error;
+      RaiseLastOSError;
     RefDC := GetDC(0);
     try
         Result := SetWinMetaFileBits(Length, Bits, RefDC, MetaFile);
@@ -649,7 +649,7 @@ begin
       ReleaseDC(0, RefDC);
     end;
     if (Result = 0) then
-      _RaiseLastWin32Error;
+      RaiseLastOSError;
   finally
     FreeMem(Bits);
   end;

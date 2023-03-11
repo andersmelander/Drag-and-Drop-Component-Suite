@@ -53,7 +53,7 @@ type
   TUnicodeURLClipboardFormat = class(TCustomUnicodeTextClipboardFormat)
   public
     function GetClipboardFormat: TClipFormat; override;
-    property URL: UnicodeString read GetText write SetText;
+    property URL: string read GetText write SetText;
   end;
 
   TURLWClipboardFormat = TUnicodeURLClipboardFormat {$ifdef VER17_PLUS}deprecated {$IFDEF VER20_PLUS}'Use TURLWClipboardFormat instead'{$ENDIF}{$endif};
@@ -63,12 +63,7 @@ type
 //              TURLClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
-
-{$ifdef UNICODE}
   TURLClipboardFormat = TUnicodeURLClipboardFormat;
-{$else}
-  TURLClipboardFormat = TAnsiURLClipboardFormat;
-{$endif}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -94,7 +89,7 @@ type
     procedure Clear; override;
     property URL: AnsiString read FURL write FURL;
     property Title: AnsiString read FTitle write FTitle;
-  end {$ifdef VER15_PLUS} deprecated {$endif};
+  end deprecated;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -130,7 +125,7 @@ type
     property Extra: AnsiString read FExtra write FExtra;
     property Height: integer read FHeight write FHeight;
     property Width: integer read FWidth write FWidth;
-  end {$ifdef VER15_PLUS} deprecated {$endif};
+  end deprecated;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -309,14 +304,14 @@ type
   private
     FURLFormat: TURLDataFormat;
   protected
-    function GetTitle: UnicodeString;
+    function GetTitle: string;
     function GetURL: AnsiString;
     function GetPreferredDropEffect: LongInt; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     property URL: AnsiString read GetURL;
-    property Title: UnicodeString read GetTitle;
+    property Title: string read GetTitle;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -330,8 +325,8 @@ type
   private
     FURLFormat: TURLDataFormat;
   protected
-    function GetTitle: UnicodeString;
-    procedure SetTitle(const Value: UnicodeString);
+    function GetTitle: string;
+    procedure SetTitle(const Value: string);
     function GetURL: AnsiString;
     procedure SetURL(const Value: AnsiString);
   public
@@ -339,7 +334,7 @@ type
     destructor Destroy; override;
   published
     property URL: AnsiString read GetURL write SetURL;
-    property Title: UnicodeString read GetTitle write SetTitle;
+    property Title: string read GetTitle write SetTitle;
   end;
 
 
@@ -1651,7 +1646,7 @@ begin
   inherited Destroy;
 end;
 
-function TDropURLTarget.GetTitle: UnicodeString;
+function TDropURLTarget.GetTitle: string;
 begin
   Result := FURLFormat.Title;
 end;
@@ -1688,12 +1683,12 @@ begin
   inherited Destroy;
 end;
 
-function TDropURLSource.GetTitle: UnicodeString;
+function TDropURLSource.GetTitle: string;
 begin
   Result := FURLFormat.Title;
 end;
 
-procedure TDropURLSource.SetTitle(const Value: UnicodeString);
+procedure TDropURLSource.SetTitle(const Value: string);
 begin
   FURLFormat.Title := Value;
 end;

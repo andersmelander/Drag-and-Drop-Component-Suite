@@ -70,7 +70,7 @@ type
     property Text: AnsiString read GetTextStr write SetTextStr;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property OnChanging: TNotifyEvent read FOnChanging write FOnChanging;
-  end;
+  end; // TODO : deprecated
 
   TAnsiStringList = class(TAnsiStrings)
   private
@@ -87,7 +87,7 @@ type
     procedure Insert(Index: Integer; const S: AnsiString); override;
     procedure Clear; override;
     procedure Delete(Index: Integer); override;
-  end;
+  end; // TODO : deprecated
 
 type
   TUnicodeStrings = class(TPersistent)
@@ -127,7 +127,7 @@ type
     property Text: UnicodeString read GetTextStr write SetTextStr;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property OnChanging: TNotifyEvent read FOnChanging write FOnChanging;
-  end;
+  end; // TODO : deprecate and replace with TStrings
 
   TUnicodeStringList = class(TUnicodeStrings)
   private
@@ -144,7 +144,7 @@ type
     procedure Insert(Index: Integer; const S: UnicodeString); override;
     procedure Clear; override;
     procedure Delete(Index: Integer); override;
-  end;
+  end; // TODO : deprecate and replace with TStringList
 
 type
   TUnicodeStringsAdapter = class(TUnicodeStrings)
@@ -163,13 +163,8 @@ type
   end;
 
 type
-{$ifdef UNICODE}
   TFileStrings = TUnicodeStrings;
   TFileStringList = TUnicodeStringList;
-{$else}
-  TFileStrings = TAnsiStrings;
-  TFileStringList = TAnsiStringList;
-{$endif}
 
 type
   TFileStringsAdapter = class(TFileStrings)
@@ -253,11 +248,7 @@ type
 //              TFilenameClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
-{$ifdef UNICODE}
   TFilenameClipboardFormat = TUnicodeFilenameClipboardFormat;
-{$else}
-  TFilenameClipboardFormat = TAnsiFilenameClipboardFormat;
-{$endif}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -308,11 +299,7 @@ type
 //              TFilenameMapClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
-{$ifdef UNICODE}
   TFilenameMapClipboardFormat = TUnicodeFilenameMapClipboardFormat;
-{$else}
-  TFilenameMapClipboardFormat = TAnsiFilenameMapClipboardFormat;
-{$endif}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -452,11 +439,7 @@ type
 //              TFileGroupDescriptorClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
-{$ifdef UNICODE}
   TFileGroupDescriptorClipboardFormat = TUnicodeFileGroupDescriptorClipboardFormat;
-{$else}
-  TFileGroupDescriptorClipboardFormat = TAnsiFileGroupDescriptorClipboardFormat;
-{$endif}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -583,13 +566,8 @@ type
       read FAnsiFileGroupDescriptorClipboardFormat;
     property UnicodeFileGroupDescriptorClipboardFormat: TUnicodeFileGroupDescriptorClipboardFormat
       read FUnicodeFileGroupDescriptorClipboardFormat;
-{$ifdef UNICODE}
     property FileGroupDescriptorClipboardFormat: TFileGroupDescriptorClipboardFormat
       read FUnicodeFileGroupDescriptorClipboardFormat;
-{$else}
-    property FileGroupDescriptorClipboardFormat: TFileGroupDescriptorClipboardFormat
-      read FAnsiFileGroupDescriptorClipboardFormat;
-{$endif}
     property OnGetStream: TOnGetStreamEvent read GetOnGetStream write SetOnGetStream;
   end;
 
@@ -2698,7 +2676,6 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 // Used internally to convert between FileDescriptors and filenames on-demand.
 ////////////////////////////////////////////////////////////////////////////////
-// TODO : Need Unicode/WideString support for pre D2009
 type
   TFileDescriptorToFilenameStrings = class(TStrings)
   private
