@@ -16,7 +16,8 @@ interface
 uses
   ComObj,
   Classes,
-  ActiveX;
+  ActiveX,
+  Windows;
 
 {$include DragDrop.inc}
 
@@ -91,7 +92,7 @@ type
     constructor Create(ComServer: TComServerObject; ComponentClass: TComponentClass;
       const ClassID: TGUID; const ClassName, Description, AFileClass,
       AFileExtension: string; Instancing: TClassInstancing);
-    procedure UpdateRegistry(Register: Boolean); override;
+    procedure UpdateRegistry(ARegister: Boolean); override;
     property FileClass: string read FFileClass write FFileClass;
     property FileExtension: string read FFileExtension write FFileExtension;
   end;
@@ -103,8 +104,8 @@ type
 //              Utility functions
 //
 ////////////////////////////////////////////////////////////////////////////////
-procedure DeleteDefaultRegValue(const Key: string);
-function DeleteEmptyRegKey(Key: string; DeleteTree: boolean = True): Boolean;
+procedure DeleteDefaultRegValue(const Key: string; RootKey: HKEY = HKEY_CLASSES_ROOT);
+function DeleteEmptyRegKey(Key: string; DeleteTree: boolean = True; RootKey: HKEY = HKEY_CLASSES_ROOT): Boolean;
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -116,19 +117,18 @@ function DeleteEmptyRegKey(Key: string; DeleteTree: boolean = True): Boolean;
 implementation
 
 uses
-  SysUtils,
-  Windows;
+  SysUtils;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
 //              Utility functions
 //
 ////////////////////////////////////////////////////////////////////////////////
-procedure DeleteDefaultRegValue(const Key: string);
+procedure DeleteDefaultRegValue(const Key: string; RootKey: HKEY);
 var
   SubKey: HKey;
 begin
-  if (RegOpenKey(HKEY_CLASSES_ROOT, PChar(Key), SubKey) = ERROR_SUCCESS) then
+  if (RegOpenKey(RootKey, PChar(Key), SubKey) = ERROR_SUCCESS) then
     try
       RegDeleteValue(SubKey, nil);
     finally
@@ -136,7 +136,7 @@ begin
     end;
 end;
 
-function DeleteEmptyRegKey(Key: string; DeleteTree: boolean = True): Boolean;
+function DeleteEmptyRegKey(Key: string; DeleteTree: boolean; RootKey: HKEY): Boolean;
 var
   SubKey: HKey;
   NumSubKeys, NumValues: DWORD;
@@ -145,7 +145,7 @@ begin
   p := nil;
   repeat
     Result := False;
-    if (RegOpenKey(HKEY_CLASSES_ROOT, PChar(Key), SubKey) = ERROR_SUCCESS) then
+    if (RegOpenKey(RootKey, PChar(Key), SubKey) = ERROR_SUCCESS) then
       try
         Result := (RegQueryInfoKey(SubKey, nil, nil, nil, @NumSubKeys, nil, nil,
           @NumValues, nil, nil, nil, nil) = ERROR_SUCCESS);
@@ -157,7 +157,7 @@ begin
 
     if (Result) then
     begin
-      Result := (RegDeleteKey(HKEY_CLASSES_ROOT, PChar(Key)) = ERROR_SUCCESS);
+      Result := (RegDeleteKey(RootKey, PChar(Key)) = ERROR_SUCCESS);
 
       if (Result and DeleteTree) then
       begin
@@ -398,18 +398,23 @@ begin
   Result := '';
 end;
 
-procedure TShellExtFactory.UpdateRegistry(Register: Boolean);
+procedure TShellExtFactory.UpdateRegistry(ARegister: Boolean);
+var
+  RegPrefix: string;
+  RootKey: HKEY;
 begin
-  if Register then
+  ComServer.GetRegRootAndPrefix(RootKey, RegPrefix);
+
+  if ARegister then
   begin
-    inherited UpdateRegistry(Register);
+    inherited UpdateRegistry(ARegister);
     if (FileExtension <> '') then
-      CreateRegKey(FileExtension, '', FileClass);
+      CreateRegKey(RegPrefix + FileExtension, '', FileClass, RootKey);
   end else
   begin
     if (FileExtension <> '') then
-      DeleteDefaultRegValue(FileExtension);
-    inherited UpdateRegistry(Register);
+      DeleteDefaultRegValue(RegPrefix + FileExtension, RootKey);
+    inherited UpdateRegistry(ARegister);
   end;
 end;
 

@@ -98,15 +98,15 @@ type
     function QueryContextMenu(Menu: HMENU; indexMenu, idCmdFirst, idCmdLast,
       uFlags: UINT): HResult; stdcall;
     function InvokeCommand(var lpici: TCMInvokeCommandInfo): HResult; stdcall;
-    function GetCommandString(idCmd, uType: UINT; pwReserved: PUINT;
+    function GetCommandString(idCmd: UINT_PTR; uType: UINT; pwReserved: PUINT;
       pszName: LPSTR; cchMax: UINT): HResult; stdcall;
 
     { IContextMenu2 }
-    function HandleMenuMsg(uMsg: UINT; WParam, LParam: Integer): HResult; stdcall;
+    function HandleMenuMsg(uMsg: UINT; wParam: WPARAM; lParam: LPARAM): HResult; stdcall;
 
     { IContextMenu3 }
-    function HandleMenuMsg2(uMsg: UINT; wParam, lParam: Integer;
-      var lpResult: Integer): HResult; stdcall;
+    function HandleMenuMsg2(uMsg: UINT; wParam: WPARAM; lParam: LPARAM;
+      var lpResult: LRESULT): HResult; stdcall;
 
   public
     constructor Create(AOwner: TComponent); override;
@@ -133,7 +133,7 @@ type
   protected
     function HandlerRegSubKey: string; virtual;
   public
-    procedure UpdateRegistry(Register: Boolean); override;
+    procedure UpdateRegistry(ARegister: Boolean); override;
   end;
 
 
@@ -199,7 +199,7 @@ begin
   inherited Destroy;
 end;
 
-function TDropContextMenu.GetCommandString(idCmd, uType: UINT;
+function TDropContextMenu.GetCommandString(idCmd: UINT_PTR; uType: UINT;
   pwReserved: PUINT; pszName: LPSTR; cchMax: UINT): HResult;
 var
   ItemIndex: integer;
@@ -432,8 +432,8 @@ begin
           //
           // 1) Using the MIIM_BITMAP item flag.
           //    This method has the disadvantage that it changes the apperance
-          //    of *all* menu items in the menu in order to room for the menu
-          //    item bitmap.
+          //    of *all* menu items in the menu in order to make room for the
+          //    menu item bitmap.
           //    One possible work around of this would be to use SetMenuInfo()
           //    API with the MNS_CHECKORBMP flag to alter the whole menu, but I
           //    don't think it's wise to alter a system menu in this way.
@@ -520,10 +520,9 @@ begin
     NextMenuID-FMenuOffset);
 end;
 
-function TDropContextMenu.HandleMenuMsg(uMsg: UINT; WParam,
-  LParam: Integer): HResult;
+function TDropContextMenu.HandleMenuMsg(uMsg: UINT; wParam: WPARAM; lParam: LPARAM): HResult;
 var
-  lpResult: Integer;
+  lpResult: LRESULT;
 begin
 {$ifopt D+}
   OutputDebugString('IContextMenu2.HandleMenuMsg');
@@ -532,8 +531,7 @@ begin
   Result := HandleMenuMsg2(uMsg, WParam, LParam, lpResult);
 end;
 
-function TDropContextMenu.HandleMenuMsg2(uMsg: UINT; wParam,
-  lParam: Integer; var lpResult: Integer): HResult;
+function TDropContextMenu.HandleMenuMsg2(uMsg: UINT; wParam: WPARAM; lParam: LPARAM; var lpResult: LRESULT): HResult;
 begin
   Result := S_OK;
 
@@ -1134,23 +1132,30 @@ begin
   Result := 'ContextMenuHandlers';
 end;
 
-procedure TDropContextMenuFactory.UpdateRegistry(Register: Boolean);
+procedure TDropContextMenuFactory.UpdateRegistry(ARegister: Boolean);
 var
+  RegPrefix: string;
+  RootKey: HKEY;
   ClassIDStr: string;
 begin
+  ComServer.GetRegRootAndPrefix(RootKey, RegPrefix);
+
   ClassIDStr := GUIDToString(ClassID);
-  
-  if Register then
+
+  if ARegister then
   begin
-    inherited UpdateRegistry(Register);
-    CreateRegKey(FileClass+'\shellex\'+HandlerRegSubKey+'\'+ClassName, '', ClassIDStr);
+    inherited UpdateRegistry(ARegister);
+    CreateRegKey(RegPrefix+FileClass+'\shellex\'+HandlerRegSubKey+'\'+ClassName, '', ClassIDStr, RootKey);
+    CreateRegKey(RegPrefix+'SystemFileAssociations\'+FileExtension+'\shellex\'+HandlerRegSubKey+'\'+ClassName, '', ClassIDStr, RootKey);
 
     if (Win32Platform = VER_PLATFORM_WIN32_NT) then
       with TRegistry.Create do
         try
-          RootKey := HKEY_LOCAL_MACHINE;
-          if OpenKey('SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved',
-            False) then
+          if (ComServer.PerUserRegistration) then
+            RootKey := HKEY_CURRENT_USER
+          else
+            RootKey := HKEY_LOCAL_MACHINE;
+          if OpenKey('SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved', False) then
             WriteString(ClassIDStr, Description);
         finally
           Free;
@@ -1160,17 +1165,21 @@ begin
     if (Win32Platform = VER_PLATFORM_WIN32_NT) then
       with TRegistry.Create do
         try
-          RootKey := HKEY_LOCAL_MACHINE;
-          if OpenKey('SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved',
-            False) then
+          if (ComServer.PerUserRegistration) then
+            RootKey := HKEY_CURRENT_USER
+          else
+            RootKey := HKEY_LOCAL_MACHINE;
+          if OpenKey('SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved', False) then
             DeleteKey(ClassIDStr);
         finally
           Free;
         end;
 
-    DeleteDefaultRegValue(FileClass+'\shellex\'+HandlerRegSubKey+'\'+ClassName);
-    DeleteEmptyRegKey(FileClass+'\shellex\'+HandlerRegSubKey+'\'+ClassName, True);
-    inherited UpdateRegistry(Register);
+    DeleteDefaultRegValue(RegPrefix+FileClass+'\shellex\'+HandlerRegSubKey+'\'+ClassName, RootKey);
+    DeleteEmptyRegKey(RegPrefix+FileClass+'\shellex\'+HandlerRegSubKey+'\'+ClassName, True, RootKey);
+    DeleteDefaultRegValue(RegPrefix+'SystemFileAssociations\'+FileExtension+'\shellex\'+HandlerRegSubKey+'\'+ClassName, RootKey);
+    DeleteEmptyRegKey(RegPrefix+'SystemFileAssociations\'+FileExtension+'\shellex\'+HandlerRegSubKey+'\'+ClassName, True, RootKey);
+    inherited UpdateRegistry(ARegister);
   end;
 end;
 
