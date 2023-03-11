@@ -2,6 +2,8 @@ unit FoobarMain;
 
 interface
 
+{$include dragdrop.inc} // Disables .NET warnings
+
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   Menus, StdCtrls, ExtCtrls;

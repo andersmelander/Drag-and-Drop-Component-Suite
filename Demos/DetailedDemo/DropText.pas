@@ -1,7 +1,9 @@
 unit DropText;
 
 interface
-                                                         
+
+{$include dragdrop.inc} // Disables .NET warnings
+
 uses
   DragDrop,
   DropSource,
@@ -104,7 +106,7 @@ begin
     exit;
 
   // Wait for user to move cursor before we start the drag/drop.
-  if (DragDetectPlus(TWinControl(Sender).Handle, Point(X,Y))) then
+  if (DragDetectPlus(TWinControl(Sender))) then
   begin
     Statusbar1.SimpleText := '';
     Edit1.SelLength := 0;
@@ -190,7 +192,7 @@ end;
 // before ANY OTHER processing...
 procedure TFormText.NewEdit2WindowProc(var Msg : TMessage);
 begin
-  if (TWMMouse(Msg).Msg = WM_LBUTTONDOWN) and
+  if (Msg.Msg = WM_LBUTTONDOWN) and
     MouseIsOverEdit2Selection(TWMMouse(Msg).XPos) then
   begin
     StartEdit2Drag; // Just a locally declared procedure.

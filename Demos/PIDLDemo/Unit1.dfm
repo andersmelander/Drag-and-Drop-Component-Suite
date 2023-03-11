@@ -1,14 +1,14 @@
 object Form1: TForm1
   Left = 216
   Top = 237
-  Width = 445
-  Height = 295
   Caption = 'TDropPidlSource & TDropPidlTarget demo'
+  ClientHeight = 232
+  ClientWidth = 465
   Color = clBtnFace
   Font.Charset = ANSI_CHARSET
   Font.Color = clWindowText
   Font.Height = -12
-  Font.Name = 'Arial'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = True
   Position = poScreenCenter
@@ -16,12 +16,12 @@ object Form1: TForm1
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96
-  TextHeight = 15
+  TextHeight = 14
   object ListView1: TListView
     Left = 0
     Top = 60
-    Width = 437
-    Height = 182
+    Width = 465
+    Height = 153
     Align = alClient
     Columns = <
       item
@@ -32,13 +32,14 @@ object Form1: TForm1
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = ListView1DblClick
+    OnDeletion = ListView1Deletion
     OnKeyPress = ListView1KeyPress
     OnMouseDown = ListView1MouseDown
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 437
+    Width = 465
     Height = 60
     Align = alTop
     BevelOuter = bvNone
@@ -46,13 +47,14 @@ object Form1: TForm1
     object Label1: TLabel
       Left = 43
       Top = 10
-      Width = 149
-      Height = 14
-      Caption = '©1997-99 Johnson && Melander'
+      Width = 150
+      Height = 13
+      Margins.Bottom = 0
+      Caption = #169'1997-99 Johnson && Melander'
       Font.Charset = ANSI_CHARSET
       Font.Color = clWindowText
       Font.Height = -11
-      Font.Name = 'Arial'
+      Font.Name = 'MS Shell Dlg 2'
       Font.Style = []
       ParentFont = False
     end
@@ -89,8 +91,8 @@ object Form1: TForm1
   end
   object StatusBar1: TStatusBar
     Left = 0
-    Top = 242
-    Width = 437
+    Top = 213
+    Width = 465
     Height = 19
     Panels = <>
     SimplePanel = True

@@ -5,12 +5,12 @@ unit DropTarget;
 // Description:     Implements the drop target base classes which allows your
 //                  application to accept data dropped on it from other
 //                  applications.
-// Version:         4.2
-// Date:            05-APR-2008
-// Target:          Win32, Delphi 5-2007
+// Version:         5.0
+// Date:            22-NOV-2009
+// Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2008 Anders Melander
+//                  © 2000-2009 Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -27,7 +27,7 @@ uses
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TControlList
+//              TControlList
 //
 ////////////////////////////////////////////////////////////////////////////////
 // List of TWinControl objects.
@@ -55,7 +55,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TCustomDropTarget
+//              TCustomDropTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Top level abstract base class for all drop target classes.
@@ -64,7 +64,7 @@ type
 type
   TScrollDirection = (sdUp, sdDown, sdLeft, sdRight);
   TScrollDirections = set of TScrollDirection;
-  TScrolDirections = TScrollDirections; // Deprecated!
+  TScrolDirections = TScrollDirections {$ifdef VER17_PLUS}deprecated{$endif};
 
   TDropTargetScrollEvent = procedure(Sender: TObject; Point: TPoint;
     var Scroll: TScrollDirections; var Interval: integer) of object;
@@ -121,6 +121,7 @@ type
     FOnStartAsyncTransfer: TNotifyEvent;
     FAllowAsync: boolean;
     FAutoRegister: boolean;
+    FEnabled: boolean;
   protected
     // IDropTarget  implementation
     function DragEnter(const DataObj: IDataObject; grfKeyState: Longint;
@@ -162,17 +163,17 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure Register(ATarget: TWinControl);
-{$ifdef TIME2HELP}
     procedure Unregister(ATarget: TWinControl = nil);
-{$else}
-    procedure Unregister(ATarget_with_default: TWinControl = nil); // V4: New
-{$endif}
     function FindTarget(p: TPoint): TWinControl; virtual; // V4: New
     function FindNearestTarget(p: TPoint): TWinControl; // V4: New
     procedure Assign(Source: TPersistent); override; // V4: New
-    function HasValidFormats(ADataObject: IDataObject): boolean; virtual; abstract; // V4: Improved
+    function HasValidFormats(const ADataObject: IDataObject): boolean; virtual; abstract; // V4: Improved
     function PasteFromClipboard: longint; virtual; // V4: Improved
     function CanPasteFromClipboard: boolean; virtual; // V4: New
+
+    procedure GetCompatibleClipboardFormats(const DataFormatClass: TDataFormatClass;
+      ClipboardFormats: TClipboardFormats); override;
+
     property DataObject: IDataObject read FDataObject;
     property Targets: TControlList read FTargets; // V4: New
     property NoScrollZone: TRect read FNoScrollZone write FNoScrollZone; // V4: New
@@ -180,6 +181,7 @@ type
   published
     property DragTypes: TDragTypes read FDragTypes write FDragTypes;
     property GetDataOnEnter: Boolean read FGetDataOnEnter write FGetDataOnEnter default False;
+    property Enabled: boolean read FEnabled write FEnabled default True;
     // Events...
     property OnEnter: TDropTargetEvent read FOnEnter write FOnEnter;
     property OnDragOver: TDropTargetEvent read FOnDragOver write FOnDragOver;
@@ -209,18 +211,18 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropTarget
+//              TDropTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Deprecated base class for all drop target components.
 // Replaced by the TCustomDropTarget class.
 ////////////////////////////////////////////////////////////////////////////////
   TDropTarget = class(TCustomDropTarget)
-  end;
+  end {$ifdef VER17_PLUS}deprecated {$IFDEF VER20_PLUS}'Use TCustomDropTarget instead'{$ENDIF}{$endif};
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropDummy
+//              TDropDummy
 //
 ////////////////////////////////////////////////////////////////////////////////
 // The sole purpose of this component is to enable drag images to be displayed
@@ -231,13 +233,13 @@ type
     procedure ClearData; override;
     function DoGetData: boolean; override;
   public
-    function HasValidFormats(ADataObject: IDataObject): boolean; override;
+    function HasValidFormats(const ADataObject: IDataObject): boolean; override;
   end;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TCustomDropMultiTarget
+//              TCustomDropMultiTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Drop target base class which can accept multiple formats.
@@ -258,7 +260,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function HasValidFormats(ADataObject: IDataObject): boolean; override;
+    function HasValidFormats(const ADataObject: IDataObject): boolean; override;
 {$ifdef TIME2HELP}
     property DataFormats: TDataFormats;
 {$else}
@@ -268,7 +270,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropEmptyTarget
+//              TDropEmptyTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Do-nothing target for use with TDataFormatAdapter and such
@@ -278,7 +280,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Misc.
+//              Misc.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -308,14 +310,14 @@ resourcestring
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Misc.
+//              Misc.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TControlList
+//              TControlList
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TControlList.Create;
@@ -368,7 +370,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TCustomDropTarget
+//              TCustomDropTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TCustomDropTarget.Create(AOwner: TComponent);
@@ -409,6 +411,7 @@ begin
   FAutoScroll := True;
   FAllowAsync := False;
   FAutoRegister := True;
+  FEnabled := True;
 end;
 
 destructor TCustomDropTarget.Destroy;
@@ -469,7 +472,7 @@ begin
     ** the drop source. We must return S_OK here in order for the drop to continue
     ** to generate DragOver events for this drop target (needed for drag images).
     *)
-    if HasValidFormats(FDataObject) then
+    if (Enabled) and (HasValidFormats(FDataObject)) then
     begin
 
       FScrollBars := [];
@@ -790,6 +793,8 @@ begin
 end;
 
 procedure TCustomDropTarget.DoDrop(ShiftState: TShiftState; Point: TPoint; var Effect: Longint);
+var
+  DesiredEffect: LongInt;
 begin
   if Assigned(FOnDrop) then
     FOnDrop(Self, ShiftState, Point, Effect);
@@ -863,9 +868,17 @@ begin
     // If the transfer was an optimized move operation (target deletes data),
     // we convert the move operation to a copy operation to prevent that the
     // source deletes the data.
-    if (FOptimizedMove) and (Effect = DROPEFFECT_MOVE) then
-      Effect := DROPEFFECT_COPY;
-    SetPerformedDropEffect(Effect);
+    // Since an optimized move requires that we report the fact that an
+    // optimized move is being performed back to the drop source, we should only
+    // convert the drop effect if we succeed in setting the performed drop
+    // effect on the drop source.
+    if (OptimizedMove) and (Effect = DROPEFFECT_MOVE) then
+      DesiredEffect := DROPEFFECT_COPY
+    else
+      DesiredEffect := Effect;
+
+    if (SetPerformedDropEffect(DesiredEffect)) then
+      Effect := DesiredEffect;
   end;
 end;
 
@@ -888,6 +901,9 @@ type
     constructor Create(ADropTarget: TCustomDropTarget;
       const ADataObject: IDataObject; AEffect: Longint);
     destructor Destroy; override;
+{$ifndef VER21_PLUS}
+    procedure Start;
+{$endif}
     property DropTarget: TCustomDropTarget read FDropTarget;
     property DataObject: IDataObject read FDataObject;
     property Effect: Longint read FEffect;
@@ -958,6 +974,13 @@ begin
   end;
 end;
 
+{$ifndef VER21_PLUS}
+procedure TDropTargetTransferThread.Start;
+begin
+  Resume;
+end;
+{$endif}
+
 procedure TCustomDropTarget.DoEndAsyncTransfer(Sender: TObject);
 begin
   // Reset async transfer flag and clean up once transfer completes and...
@@ -969,6 +992,12 @@ begin
   // ...Fire event.
   if Assigned(FOnEndAsyncTransfer) then
     FOnEndAsyncTransfer(Self);
+end;
+
+procedure TCustomDropTarget.GetCompatibleClipboardFormats(
+  const DataFormatClass: TDataFormatClass; ClipboardFormats: TClipboardFormats);
+begin
+  TDataFormatMap.GetClipboardFormats(DataFormatClass, ClipboardFormats, ddtTarget);
 end;
 
 function TCustomDropTarget.GetData(Effect: longInt): boolean;
@@ -989,7 +1018,7 @@ begin
   OutputDebugString(PChar(SysErrorMessage(h)));
 *)
   if (not AllowAsyncTransfer) or
-    (Failed(DataObject.QueryInterface(IAsyncOperation2, AsyncOperation))) or
+    (not Supports(DataObject, IAsyncOperation2, AsyncOperation)) or
     (Failed(AsyncOperation.GetAsyncMode(DoAsync))) then
     DoAsync := False;
 
@@ -1005,7 +1034,7 @@ begin
       FIsAsync := True;
       // Create the data transfer thread and launch it.
       with TDropTargetTransferThread.Create(Self, DataObject, Effect) do
-        Resume;
+        Start;
 
       Result := True;
     except
@@ -1142,27 +1171,27 @@ begin
   DoRegister(ATarget);
 end;
 
-procedure TCustomDropTarget.Unregister(ATarget_with_default: TWinControl = nil);
+procedure TCustomDropTarget.Unregister(ATarget: TWinControl = nil);
 var
   i: integer;
 begin
   // Recursively unregister all targets if ATarget is nil.
-  if (ATarget_with_default = nil) then
+  if (ATarget = nil) then
   begin
     for i := FTargets.Count-1 downto 0 do
       Unregister(FTargets[i]);
     exit;
   end;
 
-  i := FTargets.IndexOf(ATarget_with_default);
+  i := FTargets.IndexOf(ATarget);
   if (i = -1) then
     exit;
 
-  if (ATarget_with_default = FTarget) then
+  if (ATarget = FTarget) then
     FTarget := nil;
     // raise Exception.Create(sUnregisterActiveTarget);
 
-  DoUnregister(ATarget_with_default);
+  DoUnregister(ATarget);
 end;
 
 procedure TCustomDropTarget.DoUnregister(ATarget: TWinControl);
@@ -1474,6 +1503,8 @@ var
   ADataObject: IDataObject;
 begin
   // Get an IDataObject interface to the clipboard.
+  // Note: Don't use the objects FDataObject since this method can be called
+  // while a drag/drop is in progress.
   OleCheck(OleGetClipboard(ADataObject));
   try
     // Determine if clipboard has anything to offer.
@@ -1686,10 +1717,10 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropDummy
+//              TDropDummy
 //
 ////////////////////////////////////////////////////////////////////////////////
-function TDropDummy.HasValidFormats(ADataObject: IDataObject): boolean;
+function TDropDummy.HasValidFormats(const ADataObject: IDataObject): boolean;
 begin
   Result := False;
 end;
@@ -1707,7 +1738,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TCustomDropMultiTarget
+//              TCustomDropMultiTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TCustomDropMultiTarget.Create(AOwner: TComponent);
@@ -1729,7 +1760,7 @@ begin
   inherited Destroy;
 end;
 
-function TCustomDropMultiTarget.HasValidFormats(ADataObject: IDataObject): boolean;
+function TCustomDropMultiTarget.HasValidFormats(const ADataObject: IDataObject): boolean;
 var
   GetNum, GotNum: longInt;
   FormatEnumerator: IEnumFormatEtc;

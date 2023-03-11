@@ -2,6 +2,8 @@ unit main;
 
 interface
 
+{$include dragdrop.inc} // Disables .NET warnings
+
 uses
   DragDrop,
   DropTarget,

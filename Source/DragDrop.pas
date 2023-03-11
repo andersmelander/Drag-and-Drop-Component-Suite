@@ -3,24 +3,28 @@ unit DragDrop;
 // Project:         Drag and Drop Component Suite
 // Module:          DragDrop
 // Description:     Implements base classes and utility functions.
-// Version:         4.2
-// Date:            05-APR-2008
-// Target:          Win32, Delphi 5-2007
+// Version:         5.0
+// Date:            22-NOV-2009
+// Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2008 Anders Melander
+//                  © 2000-2009 Anders Melander
 // -----------------------------------------------------------------------------
 // TODO -oanme -cPortability : Replace all public use of HWND with THandle. BCB's HWND <> Delphi's HWND.
 
 interface
 
+{$include DragDrop.inc}
+
 uses
+{$ifndef VER17_PLUS}
+  Graphics,
+{$endif}
   Classes,
   Controls,
   Windows,
   ActiveX;
 
-{$include DragDrop.inc}
 
 {$ifdef VER135_PLUS}
 // shldisp.h only exists in C++Builder 5 and later.
@@ -60,6 +64,26 @@ uses
 
 
 const
+  DragDropSuiteVersion = 5.0;
+  DragDropSuiteVersionMajor = 5;
+  DragDropSuiteVersionMinor = 0;
+
+// Pre-unicode compatibility
+{$ifndef VER20_PLUS}
+type
+  UnicodeString = type WideString;
+{$endif}
+
+// Pre D2005 compatibility
+{$ifndef VER17_PLUS}
+type
+  TBitmap = class(Graphics.TBitmap)
+  public
+    procedure SetSize(NewWidth, NewHeight: integer);
+  end;
+{$endif}
+
+const
   {$EXTERNALSYM DROPEFFECT_NONE}
   {$EXTERNALSYM DROPEFFECT_COPY}
   {$EXTERNALSYM DROPEFFECT_MOVE}
@@ -72,37 +96,49 @@ const
   DROPEFFECT_SCROLL = ActiveX.DROPEFFECT_SCROLL;
 
 type
-  // TDragType enumerates the three possible drag/drop operations.
+  (*
+  ** TDragType enumerates the three possible drag/drop operations.
+  *)
   TDragType = (dtCopy, dtMove, dtLink);
   TDragTypes = set of TDragType;
 
 type
-  // TDataDirection is used by the clipboard format registration to specify
-  // if the clipboard format should be listed in get (read) format enumerations,
-  // set (write) format enumerations or both.
-  // ddRead : Destination (IDropTarget) can read data from IDataObject.
-  // ddWrite : Destination (IDropTarget) can write data to IDataObject.
+  (*
+  ** TDataDirection is used by TClipboardFormat to specify if the drop target
+  ** can read and/or write to the clipboard format.
+  **
+  ** ddRead     Destination (IDropTarget) can read data from IDataObject.
+  **            I.e. the target can read from the source.
+  ** ddWrite    Destination (IDropTarget) can write data to IDataObject.
+  **            I.e. the target can write to the source.
+  *)
   TDataDirection = (ddRead, ddWrite);
   TDataDirections = set of TDataDirection;
 
-const
-  ddReadWrite = [ddRead, ddWrite];
-
 type
-  // TConversionScope is used by the clipboard format registration to specify
-  // if a clipboard format conversion is supported by the drop source, the drop
-  // target or both.
-  // ddSource : Conversion is valid for drop source (IDropSource).
-  // ddTarget : Conversion is valid for drop target (IDropTarget).
-  TConversionScope = (csSource, csTarget);
-  TConversionScopes = set of TConversionScope;
+  (*
+  ** TConversionCapability is used by the clipboard format registration to
+  ** specify if a clipboard format conversion can provide and/or consume data.
+  **
+  ** ccWriteToDataFormat        The clipboard format can provide data to the
+  **                            data format.
+  ** ccReadFromDataFormat       The clipboard format can consume data from the
+  **                            data format.
+  *)
+  TConversionCapability = (ccWriteToDataFormat, ccReadFromDataFormat);
+  TConversionCapabilities = set of TConversionCapability;
 
 const
-  csSourceTarget = [csSource, csTarget];
+  // UnicodeBoost is used to give Unicode dataformat/clipboardformat conversions
+  // priority if Unicode is enabled.
+  // UnicodeBoost is -1 if Unicode is enabled and 0 if it isn't.
+  // AnsiBoost is the opposite of UnicodeBoost.
+  UnicodeBoost = {$ifdef UNICODE} -1 {$else} 0 {$endif};
+  AnsiBoost = {$ifdef UNICODE} 0 {$else} -1 {$endif};
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TInterfacedComponent
+//              TInterfacedComponent
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Top level base class for the drag/drop component hierachy.
@@ -123,7 +159,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TClipboardFormat
+//              TClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Abstract base class. Extracts or injects data of a specific low level format
@@ -131,65 +167,74 @@ type
 ////////////////////////////////////////////////////////////////////////////////
 type
   TCustomDataFormat = class;
+  TDataFormatClass = class of TCustomDataFormat;
 
   TClipboardFormat = class(TObject)
   private
-    FDataDirections: TDataDirections;
     FDataFormat: TCustomDataFormat;
   protected
     FFormatEtc: TFormatEtc;
     constructor CreateFormat(Atymed: Longint); virtual;
     constructor CreateFormatEtc(const AFormatEtc: TFormatEtc); virtual;
-    { Extracts data from the specified medium }
-    function DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean; virtual;
-    { Transfer data to the specified medium }
-    function DoSetData(const FormatEtcIn: TFormatEtc;
-      var AMedium: TStgMedium): boolean; virtual;
+    // Extract data from the specified medium
+    function DoGetData(const ADataObject: IDataObject; const AMedium: TStgMedium): boolean; virtual;
+    // Transfer data to the specified medium
+    function DoSetData(const FormatEtcIn: TFormatEtc; var AMedium: TStgMedium): boolean; virtual;
     function GetClipboardFormat: TClipFormat; virtual;
     procedure SetClipboardFormat(Value: TClipFormat); virtual;
     function GetClipboardFormatName: string; virtual;
     procedure SetClipboardFormatName(const Value: string); virtual;
     procedure SetFormatEtc(const Value: TFormatEtc);
+    // Determines which media the data object support
+    function GetValidMedia(const ADataObject: IDataObject): longInt; virtual;
+    class procedure RegisterCompatibleFormats; virtual;
+    // Register a data format that is handled by the Assign method
+    class procedure RegisterDataProvider(DataFormatClass: TDataFormatClass; Priority: integer = 0);
+    // Register a data format that is handled by the AssignTo method
+    class procedure RegisterDataConsumer(DataFormatClass: TDataFormatClass);
+    // Register a data format that is handled by both the Assign and the AssignTo method
+    class procedure RegisterDataConversion(DataFormatClass: TDataFormatClass;
+      Priority: integer = 0;
+      Capabilities: TConversionCapabilities = [ccWriteToDataFormat, ccReadFromDataFormat]);
   public
     constructor Create; virtual; abstract;
     destructor Destroy; override;
-    { Determines if the object can read from the specified data object }
-    function HasValidFormats(ADataObject: IDataObject): boolean; virtual;
-    { Determines if the object can read the specified format }
+    // Determines if the object can read from the specified data object
+    function HasValidFormats(const ADataObject: IDataObject): boolean; virtual;
+    // Determines if the object can read the specified format
     function AcceptFormat(const AFormatEtc: TFormatEtc): boolean; virtual;
-    { Extracts data from the specified IDataObject }
-    function GetData(ADataObject: IDataObject): boolean; virtual;
-    { Extracts data from the specified IDataObject via the specified medium }
-    function GetDataFromMedium(ADataObject: IDataObject;
+    // Extracts data from the specified IDataObject
+    function GetData(const ADataObject: IDataObject): boolean; virtual;
+    // Extracts data from the specified IDataObject via the specified medium
+    function GetDataFromMedium(const ADataObject: IDataObject;
       var AMedium: TStgMedium): boolean; virtual;
-    { Transfers data to the specified IDataObject }
-    function SetData(ADataObject: IDataObject; const FormatEtcIn: TFormatEtc;
+    // Transfers data to the specified IDataObject
+    function SetData(const ADataObject: IDataObject; const FormatEtcIn: TFormatEtc;
       var AMedium: TStgMedium): boolean; virtual;
-    { Transfers data to the specified medium }
+    // Transfers data to the specified medium
     function SetDataToMedium(const FormatEtcIn: TFormatEtc;
       var AMedium: TStgMedium): boolean;
-    { Copies data from the specified source format to the object }
+    // Copies data from the specified source format to the object
     function Assign(Source: TCustomDataFormat): boolean; virtual;
-    { Copies data from the object to the specified target format }
+    // Copies data from the object to the specified target format
     function AssignTo(Dest: TCustomDataFormat): boolean; virtual;
-    { Clears the objects data }
+    // Clears the objects data
     procedure Clear; virtual; abstract;
-    { Returns true if object can supply data }
+    // Returns true if object can supply data
     function HasData: boolean; virtual;
-    { Unregisters the clipboard format and all mappings involving it from the global database }
+    // Register all data formats that this class can read or write to
+    class procedure RegisterFormat; virtual;
+    // Unregisters the clipboard format and all mappings involving it from the global database
     class procedure UnregisterClipboardFormat;
-    { Returns the clipboard format value }
-    property ClipboardFormat: TClipFormat read GetClipboardFormat
-      write SetClipboardFormat;
-    { Returns the clipboard format name }
-    property ClipboardFormatName: string read GetClipboardFormatName
-      write SetClipboardFormatName;
-    { Provides access to the objects format specification }
+    // Specifies whether the IDropTarget can read and write to the IDataObject
+    class function DataDirection: TDataDirections; virtual;
+    // Returns the clipboard format value
+    property ClipboardFormat: TClipFormat read GetClipboardFormat write SetClipboardFormat;
+    // Returns the clipboard format name
+    property ClipboardFormatName: string read GetClipboardFormatName write SetClipboardFormatName;
+    // Provides access to the objects format specification
     property FormatEtc: TFormatEtc read FFormatEtc;
-    { Specifies whether the format can read and write data }
-    property DataDirections: TDataDirections read FDataDirections
-      write FDataDirections;
-    { Specifies the data format which owns and controls this clipboard format }
+    // Specifies the data format which owns and controls this clipboard format
     property DataFormat: TCustomDataFormat read FDataFormat write FDataFormat;
   end;
 
@@ -203,7 +248,7 @@ type
     FOwnsObjects: boolean;
     FDataFormat: TCustomDataFormat;
   protected
-    function GetFormat(Index: integer): TClipboardFormat;
+    function DoGetFormat(Index: integer): TClipboardFormat;
     function GetCount: integer;
   public
     constructor Create(ADataFormat: TCustomDataFormat; AOwnsObjects: boolean = True);
@@ -211,9 +256,11 @@ type
     procedure Clear;
     procedure Assign(Source: TClipboardFormats);
     function Add(ClipboardFormat: TClipboardFormat): integer;
-    function Contain(ClipboardFormatClass: TClipboardFormatClass): boolean;
-    function FindFormat(ClipboardFormatClass: TClipboardFormatClass): TClipboardFormat;
-    property Formats[Index: integer]: TClipboardFormat read GetFormat; default;
+    function FindFormat(ClipboardFormat: TClipFormat): TClipboardFormat; overload;
+    function FindFormat(ClipboardFormatClass: TClipboardFormatClass): TClipboardFormat; overload;
+    function GetFormat(ClipboardFormat: TClipFormat): TClipboardFormat; overload;
+    function GetFormat(ClipboardFormatClass: TClipboardFormatClass): TClipboardFormat; overload;
+    property Formats[Index: integer]: TClipboardFormat read DoGetFormat; default;
     property Count: integer read GetCount;
     property DataFormat: TCustomDataFormat read FDataFormat;
     property OwnsObjects: boolean read FOwnsObjects write FOwnsObjects;
@@ -221,7 +268,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDragDropComponent
+//              TDragDropComponent
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Base class for drag/drop components.
@@ -236,17 +283,23 @@ type
     // their descendants.
     property DataFormats: TDataFormats read FDataFormats;
   public
+    // Descendant classes override GetCompatibleClipboardFormats to fetch the
+    // clipboard formats that are compatible with the class.
+    procedure GetCompatibleClipboardFormats(const DataFormatClass: TDataFormatClass;
+      ClipboardFormats: TClipboardFormats); virtual;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TCustomFormat
+//              TCustomFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Abstract base class.
 // Renders the data of one or more TClipboardFormat objects to or from a
 // specific high level data format.
 ////////////////////////////////////////////////////////////////////////////////
+  TDataFormatDirection = (dfdConsumer, dfdProvider);
+
   TCustomDataFormat = class(TObject)
   private
     FCompatibleFormats: TClipboardFormats;
@@ -258,12 +311,27 @@ type
     function SupportsFormat(ClipboardFormat: TClipboardFormat): boolean;
     procedure DoOnChanging(Sender: TObject);
     procedure Changing; virtual;
+    procedure CreateCompatibleFormatsList;
+    { Register all clipboard formats that this data format can read and write to }
+    class procedure RegisterCompatibleFormats; virtual;
+    // Register a clipboard format that is handled by the Assign method
+    class procedure RegisterDataProvider(ClipboardFormatClass: TClipboardFormatClass; Priority: integer = 0);
+    // Register a clipboard format that is handled by the AssignTo method
+    class procedure RegisterDataConsumer(ClipboardFormatClass: TClipboardFormatClass);
+    // Register a clipboard format that is handled by both the Assign and the AssignTo method
+    class procedure RegisterDataConversion(ClipboardFormatClass: TClipboardFormatClass;
+      Priority: integer = 0;
+      Capabilities: TConversionCapabilities = [ccWriteToDataFormat, ccReadFromDataFormat]);
+
+    function GetCompatibleFormats: TClipboardFormats;
     property FormatList: TDataFormats read FFormatList;
   public
-    constructor Create(AOwner: TDragDropComponent); virtual;
+    constructor Create(AOwner: TDragDropComponent);  overload; virtual;
+    constructor Create(Dummy: pointer); overload; {$ifdef VER17_PLUS}deprecated {$IFDEF VER20_PLUS}'Use Create(TDataFormatDirection) instead of Create(nil)'{$ENDIF};{$endif}
+    constructor Create(Direction: TDataFormatDirection); overload; virtual;
     destructor Destroy; override;
     procedure Clear; virtual; abstract;
-    { Copies data between the specified clipboard format to the object }
+    { Copies data to and from the specified clipboard format object }
     function Assign(Source: TClipboardFormat): boolean; virtual;
     function AssignTo(Dest: TClipboardFormat): boolean; virtual;
     { Extracts data from the specified IDataObject }
@@ -273,22 +341,15 @@ type
     { Determines if the object needs/can use *more* data }
     function NeedsData: boolean; virtual;
     { Determines if the object can read from the specified data object }
-    function HasValidFormats(ADataObject: IDataObject): boolean; virtual;
+    function HasValidFormats(const ADataObject: IDataObject): boolean; virtual;
     { Determines if the object can read the specified format }
     function AcceptFormat(const FormatEtc: TFormatEtc): boolean; virtual;
     { Registers the data format in the data format list }
     class procedure RegisterDataFormat;
-    { Registers the specified clipboard format as being compatible with the data format }
-    class procedure RegisterCompatibleFormat(ClipboardFormatClass: TClipboardFormatClass;
-      Priority: integer = 0;
-      ConversionScopes: TConversionScopes = csSourceTarget;
-      DataDirections: TDataDirections = [ddRead]);
-    { Unregisters the specified clipboard format from the compatibility list }
-    class procedure UnregisterCompatibleFormat(ClipboardFormatClass: TClipboardFormatClass);
     { Unregisters data format and all mappings involving it from the global database }
     class procedure UnregisterDataFormat;
     { List of compatible source formats }
-    property CompatibleFormats: TClipboardFormats read FCompatibleFormats;
+    property CompatibleFormats: TClipboardFormats read GetCompatibleFormats;
     property Owner: TDragDropComponent read FOwner;
     property OnChanging: TNotifyEvent read FOnChanging write FOnChanging;
     // TODO : Add support for delayed rendering with DelayedRender property.
@@ -312,32 +373,49 @@ type
     property Count: integer read GetCount;
   end;
 
+{$ifndef VER17_PLUS}
+  TDataFormatClassListProxy = class
+  private
+    class function GetItem(Index: integer): TDataFormatClass;
+  public
+    property Items[Index: integer]: TDataFormatClass read GetItem; default;
+  end;
+{$endif}
+
   // TDataFormatClasses
   // List of TCustomDataFormat classes.
-  TDataFormatClass = class of TCustomDataFormat;
-
   TDataFormatClasses = class(TObject)
   private
     FList: TList;
-  protected
-    function GetFormat(Index: integer): TDataFormatClass;
-    function GetCount: integer;
+  {$ifdef VER185_PLUS}strict{$endif} private
+
     { Provides singleton access to the global data format database }
     class function Instance: TDataFormatClasses;
+  protected
+    class function GetFormat(Index: integer): TDataFormatClass; {$ifdef VER17_PLUS}static;{$endif}
+    class function GetCount: integer; {$ifdef VER17_PLUS}static;{$endif}
   public
     constructor Create;
     destructor Destroy; override;
-    function Add(DataFormat: TDataFormatClass): integer; virtual;
-    procedure Remove(DataFormat: TDataFormatClass); virtual;
-    property Formats[Index: integer]: TDataFormatClass read GetFormat; default;
-    property Count: integer read GetCount;
+    class function Add(DataFormat: TDataFormatClass): integer; // virtual;
+    class procedure Remove(DataFormat: TDataFormatClass); // virtual;
+{$ifdef VER17_PLUS}
+    class property Formats[Index: integer]: TDataFormatClass read GetFormat;
+    class property Count: integer read GetCount;
+{$else}
+    class function Count: integer;
+    class function Formats: TDataFormatClassListProxy;
+{$endif}
   end;
 
   // TDataFormatMap
   // Format conversion database. Contains mappings between TClipboardFormat
   // and TCustomDataFormat.
   // Used internally by TCustomDropMultiTarget and TCustomDropMultiSource.
+  TDragDropTier = (ddtSource, ddtTarget);
+
   TDataFormatMap = class(TObject)
+  private
     FList: TList;
   protected
     function FindMap(DataFormatClass: TDataFormatClass; ClipboardFormatClass: TClipboardFormatClass): integer;
@@ -350,14 +428,13 @@ type
     procedure Add(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass;
       Priority: integer = 0;
-      ConversionScopes: TConversionScopes = csSourceTarget;
-      DataDirections: TDataDirections = [ddRead]);
+      Capabilities: TConversionCapabilities = [ccWriteToDataFormat, ccReadFromDataFormat]);
     procedure Delete(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass);
     procedure DeleteByClipboardFormat(ClipboardFormatClass: TClipboardFormatClass);
     procedure DeleteByDataFormat(DataFormatClass: TDataFormatClass);
-    procedure GetSourceByDataFormat(DataFormatClass: TDataFormatClass;
-      ClipboardFormats: TClipboardFormats; ConversionScope: TConversionScope);
+    class procedure GetClipboardFormats(const DataFormatClass: TDataFormatClass;
+      ClipboardFormats: TClipboardFormats; Tier: TDragDropTier);
     function CanMap(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass): boolean;
 
@@ -365,8 +442,7 @@ type
     procedure RegisterFormatMap(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass;
       Priority: integer = 0;
-      ConversionScopes: TConversionScopes = csSourceTarget;
-      DataDirections: TDataDirections = [ddRead]);
+      Capabilities: TConversionCapabilities = [ccWriteToDataFormat, ccReadFromDataFormat]);
     { Unregisters the specified format mapping }
     procedure UnregisterFormatMap(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass);
@@ -374,7 +450,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDataFormatAdapter
+//              TDataFormatAdapter
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Helper component used to add additional data formats to a drop source or
@@ -387,16 +463,16 @@ type
     FDragDropComponent: TDragDropComponent;
     FDataFormat: TCustomDataFormat;
     FDataFormatClass: TDataFormatClass;
+    FDataFormatClassName: string; // only used at design time
     FEnabled: boolean;
+  protected
     function GetDataFormatName: string;
     procedure SetDataFormatName(const Value: string);
-  protected
     procedure SetDataFormatClass(const Value: TDataFormatClass);
     procedure SetDragDropComponent(const Value: TDragDropComponent);
     function GetEnabled: boolean;
     procedure SetEnabled(const Value: boolean);
-    procedure Notification(AComponent: TComponent;
-      Operation: TOperation); override;
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     procedure Loaded; override;
   public
     constructor Create(AOwner: TComponent); override;
@@ -414,7 +490,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Drag Drop helper interfaces
+//              Drag Drop helper interfaces
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Requires Windows 2000 or later.
@@ -472,7 +548,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Async data transfer interfaces
+//              Async data transfer interfaces
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Requires Windows 2000 or later.
@@ -507,13 +583,14 @@ type
     function EndOperation(hResult: HRESULT; const pbcReserved: IBindCtx;
       dwEffects: DWORD): HResult; stdcall;
   end;
+
   IAsyncOperation2 = interface(IAsyncOperation)
     [SID_IAsyncOperation]
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TRawClipboardFormat & TRawDataFormat
+//              TRawClipboardFormat & TRawDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // These clipboard and data format classes are special in that they don't
@@ -540,21 +617,21 @@ type
   private
     FMedium: TStgMedium;
   protected
-    function DoGetData(ADataObject: IDataObject;
+    function DoGetData(const ADataObject: IDataObject;
       const AMedium: TStgMedium): boolean; override;
     function DoSetData(const FormatEtcIn: TFormatEtc;
       var AMedium: TStgMedium): boolean; override;
     procedure SetClipboardFormatName(const Value: string); override;
     function GetClipboardFormat: TClipFormat; override;
-    function GetString: string;
-    procedure SetString(const Value: string);
+    function GetString: AnsiString;
+    procedure SetString(const Value: AnsiString);
   public
     constructor Create; override;
     constructor CreateFormatEtc(const AFormatEtc: TFormatEtc); override;
     function Assign(Source: TCustomDataFormat): boolean; override;
     function AssignTo(Dest: TCustomDataFormat): boolean; override;
     procedure Clear; override;
-    // Methods to handle the corresponding TRawDataFormat functioinality.
+    // Methods to handle the corresponding TRawDataFormat functionality.
     procedure ClearData;
     function HasData: boolean; override;
     function NeedsData: boolean;
@@ -564,12 +641,12 @@ type
     procedure CopyToStgMedium(var AMedium: TStgMedium);
     property Medium: TStgMedium read FMedium write FMedium;
     // Debug info:
-    property AsString: string read GetString write SetString;
+    property AsString: AnsiString read GetString write SetString;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Utility functions
+//              Utility functions
 //
 ////////////////////////////////////////////////////////////////////////////////
 function DropEffectToDragType(DropEffect: longInt; var DragType: TDragType): boolean;
@@ -602,7 +679,7 @@ procedure _RaiseLastWin32Error;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Global variables
+//              Global variables
 //
 ////////////////////////////////////////////////////////////////////////////////
 var
@@ -615,7 +692,7 @@ var
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Misc drop target related constants
+//              Misc drop target related configuration
 //
 ////////////////////////////////////////////////////////////////////////////////
 var
@@ -663,7 +740,19 @@ var
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Misc drag drop API related constants
+//              Shutdown handling
+//
+////////////////////////////////////////////////////////////////////////////////
+var
+  // DragDropShutdown is set to True in the finalization section of this unit
+  // and is used to avoid a one-time memory leak.
+  // Once DragDropShutdown is True, the TDataFormatClasses and TDataFormatMap
+  // singleton objects have been freed and should no longer be used.
+  DragDropShutdown: boolean = False;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              Misc drag drop API related constants
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -678,6 +767,35 @@ const
   DVASPECT_LINK = 4; // use to indicate format is a "Shortcut" to the data (FILECONTENTS, FILEDESCRIPTOR, etc)
 {$endif}
 
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              Wide string functions from WideStrUtils unit
+//
+////////////////////////////////////////////////////////////////////////////////
+// WideStrUtils is included with D2006 and later.
+// We could also have wrapped the StrCpyNW API
+////////////////////////////////////////////////////////////////////////////////
+function WStrLCopy(Dest: PWideChar; const Source: PWideChar; MaxLen: Cardinal): PWideChar;
+function WStrPLCopy(Dest: PWideChar; const Source: WideString; MaxLen: Cardinal): PWideChar;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              Tiburón
+//
+////////////////////////////////////////////////////////////////////////////////
+{$ifdef VER200}
+// TODO : Temporary
+function StringToWideChar(const Source: UnicodeString; Dest: PWideChar; DestSize: Integer): PWideChar;
+{$endif}
+
+{$ifndef VER20_PLUS}
+const
+  CP_THREAD_ACP = 3; // current thread's ANSI code page
+  DefaultSystemCodePage = CP_THREAD_ACP;
+{$endif}
+
+
 (*******************************************************************************
 **
 **			IMPLEMENTATION
@@ -688,7 +806,7 @@ implementation
 uses
 {$ifdef DEBUG}
   ComObj,
-{$endif}  
+{$endif}
   DragDropFormats, // Used by TRawClipboardFormat
   DropSource,
   DropTarget,
@@ -699,7 +817,6 @@ uses
 
 resourcestring
   sImplementationRequired = 'Internal error: %s.%s needs implementation';
-  sInvalidOwnerType = '%s is not a valid owner for %s. Owner must be derived from %s';
   sFormatNameReadOnly = '%s.ClipboardFormat is read-only';
   sNoCopyStgMedium = 'A required system function (URLMON.CopyStgMedium) was not available on this system. Operation aborted.';
   sBadConstructor = 'The %s class can not be instantiated with the default constructor';
@@ -708,7 +825,59 @@ resourcestring
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TInterfacedComponent
+//              Pre D2005 support
+//
+////////////////////////////////////////////////////////////////////////////////
+{$ifndef VER17_PLUS}
+procedure TBitmap.SetSize(NewWidth, NewHeight: integer);
+begin
+  Width := NewWidth;
+  Height := NewHeight;
+end;
+{$endif}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              Tiburón
+//
+////////////////////////////////////////////////////////////////////////////////
+{$IFDEF VER200}
+function StringToWideChar(const Source: UnicodeString; Dest: PWideChar; DestSize: Integer): PWideChar;
+begin
+  StrPLCopy(Dest, Source, DestSize);
+  Result := Dest;
+end;
+{$ENDIF}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              Wide string functions from WideStrUtils unit
+//
+////////////////////////////////////////////////////////////////////////////////
+function WStrLCopy(Dest: PWideChar; const Source: PWideChar; MaxLen: Cardinal): PWideChar;
+var
+  Src : PWideChar;
+begin
+  Result := Dest;
+  Src := Source;
+  while (Src^ <> #$00) and (MaxLen > 0) do
+  begin
+    Dest^ := Src^;
+    Inc(Src);
+    Inc(Dest);
+    Dec(MaxLen);
+  end;
+  Dest^ := #$00;
+end;
+
+function WStrPLCopy(Dest: PWideChar; const Source: WideString; MaxLen: Cardinal): PWideChar;
+begin
+  Result := WStrLCopy(Dest, PWideChar(Source), MaxLen);
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TInterfacedComponent
 //
 ////////////////////////////////////////////////////////////////////////////////
 function TInterfacedComponent.QueryInterface(const IID: TGuid; out Obj): HRESULT;
@@ -733,8 +902,10 @@ begin
   else
     Result := E_NOINTERFACE;
 {$ifdef DEBUG}
+(*
   OutputDebugString(PChar(format('%s.QueryInterface(%s): %d (%d)',
     [ClassName, GuidToString(IID), Result, ord(pointer(Obj) <> nil)])));
+*)
 {$endif}
 end;
 
@@ -771,7 +942,19 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TClipboardFormat
+//              TDragDropComponent
+//
+////////////////////////////////////////////////////////////////////////////////
+procedure TDragDropComponent.GetCompatibleClipboardFormats(const DataFormatClass: TDataFormatClass;
+  ClipboardFormats: TClipboardFormats);
+begin
+  ClipboardFormats.Clear;
+end;
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 destructor TClipboardFormat.Destroy;
@@ -784,7 +967,6 @@ end;
 constructor TClipboardFormat.CreateFormat(Atymed: Longint);
 begin
   inherited Create;
-  FDataDirections := [ddRead];
   FFormatEtc.cfFormat := ClipboardFormat;
   FFormatEtc.ptd := nil;
   FFormatEtc.dwAspect := DVASPECT_CONTENT;
@@ -795,11 +977,31 @@ end;
 constructor TClipboardFormat.CreateFormatEtc(const AFormatEtc: TFormatEtc);
 begin
   inherited Create;
-  FDataDirections := [ddRead];
   FFormatEtc := AFormatEtc;
 end;
 
-function TClipboardFormat.HasValidFormats(ADataObject: IDataObject): boolean;
+function TClipboardFormat.GetValidMedia(const ADataObject: IDataObject): longInt;
+var
+  Mask: longInt;
+  AFormatEtc: TFormatEtc;
+begin
+  // Because some IDataObject.QueryGetData implementations (e.g. Outlook
+  // Express) can't handle multiple TYMED values specified in the same
+  // FormatEtc, we have to try each in turn.
+  Mask := $0000001;
+  AFormatEtc := FormatEtc;
+  Result := 0;
+  while (Mask <> 0) and (Mask <= FormatEtc.tymed) do
+  begin
+    AFormatEtc.tymed := FormatEtc.tymed and Mask;
+    if (AFormatEtc.tymed <> 0) then
+      if (Succeeded(ADataObject.QueryGetData(AFormatEtc))) then
+        Result := Result or Mask;
+    Mask := Mask shl 1;
+  end;
+end;
+
+function TClipboardFormat.HasValidFormats(const ADataObject: IDataObject): boolean;
 var
   Mask: longInt;
   AFormatEtc: TFormatEtc;
@@ -810,13 +1012,43 @@ begin
   Mask := $0000001;
   AFormatEtc := FormatEtc;
   Result := False;
-  while (Result = False) and (Mask <> 0) and (Mask <= FormatEtc.tymed) do
+  while (not Result) and (Mask <> 0) and (Mask <= FormatEtc.tymed) do
   begin
     AFormatEtc.tymed := FormatEtc.tymed and Mask;
     if (AFormatEtc.tymed <> 0) then
       Result := (Succeeded(ADataObject.QueryGetData(AFormatEtc)));
     Mask := Mask shl 1;
   end;
+  // We could have used Result := (GetValidMedia(ADataObjecy) <> 0), but the
+  // above is a bit more efficient.
+end;
+
+class procedure TClipboardFormat.RegisterCompatibleFormats;
+begin
+  // Override this class method in descendant classes to call
+  // RegisterDataProvider and RegisterDataConsumer
+end;
+
+class procedure TClipboardFormat.RegisterDataConsumer(DataFormatClass: TDataFormatClass);
+begin
+  RegisterDataConversion(DataFormatClass, MaxInt, [ccWriteToDataFormat]);
+end;
+
+class procedure TClipboardFormat.RegisterDataProvider(
+  DataFormatClass: TDataFormatClass; Priority: integer);
+begin
+  RegisterDataConversion(DataFormatClass, Priority, [ccReadFromDataFormat]);
+end;
+
+class procedure TClipboardFormat.RegisterDataConversion(DataFormatClass: TDataFormatClass;
+  Priority: integer; Capabilities: TConversionCapabilities);
+begin
+  TDataFormatMap.Instance.RegisterFormatMap(DataFormatClass, Self, Priority, Capabilities);
+end;
+
+class procedure TClipboardFormat.RegisterFormat;
+begin
+  RegisterCompatibleFormats;
 end;
 
 function TClipboardFormat.AcceptFormat(const AFormatEtc: TFormatEtc): boolean;
@@ -837,7 +1069,7 @@ begin
   Result := False;
 end;
 
-function TClipboardFormat.DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
+function TClipboardFormat.DoGetData(const ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
 begin
   Result := False;
 end;
@@ -848,25 +1080,37 @@ begin
   Result := False;
 end;
 
-function TClipboardFormat.GetData(ADataObject: IDataObject): boolean;
+function TClipboardFormat.GetData(const ADataObject: IDataObject): boolean;
 var
   Medium: TStgMedium;
+  AFormatEtc: TFormatEtc;
 begin
   Clear;
   FillChar(Medium, SizeOf(Medium), 0);
-  if (Succeeded(ADataObject.GetData(FFormatEtc, Medium))) then
+  AFormatEtc := FFormatEtc;
+  // Make sure we only ask for data on a media supported by the data object.
+  // Apparently some data objects (e.g. Bluesoleil Shell Integration) fail if
+  // we ask for more than they can deliver.
+  AFormatEtc.tymed := GetValidMedia(ADataObject);
+
+  if (Succeeded(ADataObject.GetData(AFormatEtc, Medium))) then
     Result := GetDataFromMedium(ADataObject, Medium)
   else
     Result := False;
 end;
 
-function TClipboardFormat.GetDataFromMedium(ADataObject: IDataObject;
+class function TClipboardFormat.DataDirection: TDataDirections;
+begin
+  Result := [ddRead];
+end;
+
+function TClipboardFormat.GetDataFromMedium(const ADataObject: IDataObject;
   var AMedium: TStgMedium): boolean;
 begin
   Result := False;
   try
     Clear;
-    if ((AMedium.tymed AND FFormatEtc.tymed) <> 0) then
+    if (AMedium.tymed and FFormatEtc.tymed <> 0) then
       Result := DoGetData(ADataObject, AMedium);
   finally
     ReleaseStgMedium(AMedium);
@@ -889,7 +1133,7 @@ begin
   Result := DoSetData(FormatEtcIn, AMedium);
 end;
 
-function TClipboardFormat.SetData(ADataObject: IDataObject;
+function TClipboardFormat.SetData(const ADataObject: IDataObject;
   const FormatEtcIn: TFormatEtc; var AMedium: TStgMedium): boolean;
 begin
   // Transfer data to medium
@@ -907,12 +1151,13 @@ end;
 
 class procedure TClipboardFormat.UnregisterClipboardFormat;
 begin
-  TDataFormatMap.Instance.DeleteByClipboardFormat(Self);
+  if (not DragDropShutdown) then
+    TDataFormatMap.Instance.DeleteByClipboardFormat(Self);
 end;
 
 function TClipboardFormat.GetClipboardFormat: TClipFormat;
 begin
-  // This should have been a virtual abstract class method, but this isn't supported by C++Builder.
+  // This should have been a virtual abstract class method, but that isn't supported by C++Builder.
   raise Exception.CreateFmt(sImplementationRequired, [ClassName, 'GetClipboardFormat']);
 end;
 
@@ -950,7 +1195,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TClipboardFormats
+//              TClipboardFormats
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TClipboardFormats.Create(ADataFormat: TCustomDataFormat;
@@ -990,19 +1235,44 @@ begin
   Result := nil;
 end;
 
-function TClipboardFormats.Contain(ClipboardFormatClass: TClipboardFormatClass): boolean;
-begin
-  Result := (FindFormat(ClipboardFormatClass) <> nil);
-end;
-
 function TClipboardFormats.GetCount: integer;
 begin
   Result := FList.Count;
 end;
 
-function TClipboardFormats.GetFormat(Index: integer): TClipboardFormat;
+function TClipboardFormats.GetFormat(ClipboardFormat: TClipFormat): TClipboardFormat;
+begin
+  Result := FindFormat(ClipboardFormat);
+  if (Result = nil) then
+    raise Exception.CreateFmt('Clipboard format %d does not exist in %s''s list of copatible formats',
+      [ClipboardFormat, DataFormat.ClassName]);
+end;
+
+function TClipboardFormats.GetFormat(ClipboardFormatClass: TClipboardFormatClass): TClipboardFormat;
+begin
+  Result := FindFormat(ClipboardFormatClass);
+  if (Result = nil) then
+    raise Exception.CreateFmt('Clipboard format %s does not exist in %s''s list of copatible formats',
+      [ClipboardFormatClass.ClassName, DataFormat.ClassName]);
+end;
+
+function TClipboardFormats.DoGetFormat(Index: integer): TClipboardFormat;
 begin
   Result := TClipboardFormat(FList[Index]);
+end;
+
+function TClipboardFormats.FindFormat(ClipboardFormat: TClipFormat): TClipboardFormat;
+var
+  i: integer;
+begin
+  // Search list for an object of the specified type
+  for i := 0 to Count-1 do
+    if (Formats[i].ClipboardFormat = ClipboardFormat) then
+    begin
+      Result := Formats[i];
+      exit;
+    end;
+  Result := nil;
 end;
 
 procedure TClipboardFormats.Assign(Source: TClipboardFormats);
@@ -1035,45 +1305,43 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TCustomDataFormat
+//              TCustomDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
-constructor TCustomDataFormat.Create(AOwner: TDragDropComponent);
-var
-  ConversionScope: TConversionScope;
+constructor TCustomDataFormat.Create(Dummy: pointer);
 begin
-  if (AOwner <> nil) then
-  begin
-    if (AOwner is TCustomDropMultiSource) then
-      ConversionScope := csSource
-    else if (AOwner is TCustomDropMultiTarget) then
-      ConversionScope := csTarget
-    else
-      raise Exception.CreateFmt(sInvalidOwnerType, [AOwner.ClassName, ClassName,
-        'TCustomDropMultiSource or TCustomDropMultiTarget']);
-  end else
-    // TODO : This sucks! All this ConversionScope stuff should be redesigned.
-    ConversionScope := csTarget;
-    
+  Create(dfdConsumer);
+end;
+
+constructor TCustomDataFormat.Create(AOwner: TDragDropComponent);
+begin
+  inherited Create;
   FOwner := AOwner;
 
-  FCompatibleFormats := TClipboardFormats.Create(Self, True);
-  // Populate list with all the clipboard formats that have been registered as
-  // compatible with this data format.
-  TDataFormatMap.Instance.GetSourceByDataFormat(TDataFormatClass(ClassType),
-    FCompatibleFormats, ConversionScope);
+  if (Owner <> nil) then
+    // Add object to owners list of data formats.
+    Owner.DataFormats.Add(Self);
+end;
 
-  // Add object to owners list of data formats.
-  if (FOwner <> nil) then
-    FOwner.DataFormats.Add(Self);
+constructor TCustomDataFormat.Create(Direction: TDataFormatDirection);
+const
+  DirectionToScope: array[TDataFormatDirection] of TDragDropTier =
+    (ddtSource, ddtTarget);
+begin
+  Create(TDragDropComponent(nil));
+
+  CreateCompatibleFormatsList;
+  // Populate the compatible formats list
+  TDataFormatMap.GetClipboardFormats(TDataFormatClass(Self.ClassType),
+    FCompatibleFormats, DirectionToScope[Direction]);
 end;
 
 destructor TCustomDataFormat.Destroy;
 begin
   FCompatibleFormats.Free;
   // Remove object from owners list of target formats
-  if (FOwner <> nil) then
-    FOwner.DataFormats.Remove(Self);
+  if (Owner <> nil) then
+    Owner.DataFormats.Remove(Self);
   inherited Destroy;
 end;
 
@@ -1089,6 +1357,30 @@ begin
   // Called when derived class(es) couldn't convert to the destination format.
   // Try to let destination format convert from this format instead.
   Result := Dest.Assign(Self);
+end;
+
+procedure TCustomDataFormat.CreateCompatibleFormatsList;
+begin
+  if (FCompatibleFormats = nil) then
+    FCompatibleFormats := TClipboardFormats.Create(Self, True);
+end;
+
+function TCustomDataFormat.GetCompatibleFormats: TClipboardFormats;
+begin
+  if (FCompatibleFormats = nil) then
+  begin
+    // With no owner we can't determine if this object is to be used for
+    // reading or writing - or both.
+    ASSERT(Owner <> nil);
+
+    // Create and populate list on demand
+    CreateCompatibleFormatsList;
+
+    // Populate list with all the clipboard formats that have been registered as
+    // compatible with this data format.
+    Owner.GetCompatibleClipboardFormats(TDataFormatClass(Self.ClassType), FCompatibleFormats);
+  end;
+  Result := FCompatibleFormats;
 end;
 
 function TCustomDataFormat.GetData(DataObject: IDataObject): boolean;
@@ -1125,7 +1417,7 @@ begin
   Result := not HasData;
 end;
 
-function TCustomDataFormat.HasValidFormats(ADataObject: IDataObject): boolean;
+function TCustomDataFormat.HasValidFormats(const ADataObject: IDataObject): boolean;
 var
   i: integer;
 begin
@@ -1157,33 +1449,50 @@ end;
 
 class procedure TCustomDataFormat.RegisterDataFormat;
 begin
-  TDataFormatClasses.Instance.Add(Self);
+  if (not DragDropShutdown) then
+  begin
+    TDataFormatClasses.Add(Self);
+    RegisterCompatibleFormats;
+  end;
 end;
 
-class procedure TCustomDataFormat.RegisterCompatibleFormat(ClipboardFormatClass: TClipboardFormatClass;
-  Priority: integer; ConversionScopes: TConversionScopes;
-  DataDirections: TDataDirections);
+class procedure TCustomDataFormat.RegisterDataProvider(ClipboardFormatClass: TClipboardFormatClass; Priority: integer);
+begin
+  RegisterDataConversion(ClipboardFormatClass, Priority, [ccWriteToDataFormat]);
+end;
+
+class procedure TCustomDataFormat.RegisterDataConversion(ClipboardFormatClass: TClipboardFormatClass;
+  Priority: integer; Capabilities: TConversionCapabilities);
 begin
   // Register format mapping.
-  TDataFormatMap.Instance.RegisterFormatMap(Self, ClipboardFormatClass,
-    Priority, ConversionScopes, DataDirections);
+  if (not DragDropShutdown) then
+    TDataFormatMap.Instance.RegisterFormatMap(Self, ClipboardFormatClass,
+      Priority, Capabilities);
+end;
+
+class procedure TCustomDataFormat.RegisterDataConsumer(ClipboardFormatClass: TClipboardFormatClass);
+begin
+  RegisterDataConversion(ClipboardFormatClass, MaxInt, [ccReadFromDataFormat]);
+end;
+
+class procedure TCustomDataFormat.RegisterCompatibleFormats;
+begin
+  // Override this class method in descendant classes to call
+  // RegisterDataProvider and RegisterDataConsumer
 end;
 
 function TCustomDataFormat.SupportsFormat(ClipboardFormat: TClipboardFormat): boolean;
 begin
-  Result := CompatibleFormats.Contain(TClipboardFormatClass(ClipboardFormat.ClassType));
-end;
-
-class procedure TCustomDataFormat.UnregisterCompatibleFormat(ClipboardFormatClass: TClipboardFormatClass);
-begin
-  // Unregister format mapping
-  TDataFormatMap.Instance.UnregisterFormatMap(Self, ClipboardFormatClass);
+  Result := (CompatibleFormats.FindFormat(ClipboardFormat.ClipboardFormat) <> nil);
 end;
 
 class procedure TCustomDataFormat.UnregisterDataFormat;
 begin
-  TDataFormatMap.Instance.DeleteByDataFormat(Self);
-  TDataFormatClasses.Instance.Remove(Self);
+  if (not DragDropShutdown) then
+  begin
+    TDataFormatMap.Instance.DeleteByDataFormat(Self);
+    TDataFormatClasses.Remove(Self);
+  end;
 end;
 
 procedure TCustomDataFormat.DoOnChanging(Sender: TObject);
@@ -1198,9 +1507,10 @@ begin
 end;
 
 
+
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDataFormats
+//              TDataFormats
 //
 ////////////////////////////////////////////////////////////////////////////////
 function TDataFormats.Add(DataFormat: TCustomDataFormat): integer;
@@ -1248,18 +1558,22 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDataFormatClasses
+//              TDataFormatClasses
 //
 ////////////////////////////////////////////////////////////////////////////////
-function TDataFormatClasses.Add(DataFormat: TDataFormatClass): integer;
+var
+  FDataFormatClasses: TDataFormatClasses = nil;
+
+class function TDataFormatClasses.Add(DataFormat: TDataFormatClass): integer;
 begin
-  Result := FList.IndexOf(DataFormat);
+  Result := Instance.FList.IndexOf(DataFormat);
   if (Result = -1) then
-    Result := FList.Add(DataFormat);
+    Result := Instance.FList.Add(DataFormat);
 end;
 
 constructor TDataFormatClasses.Create;
 begin
+  ASSERT(FDataFormatClasses = nil);
   inherited Create;
   FList := TList.Create;
 end;
@@ -1268,41 +1582,60 @@ destructor TDataFormatClasses.Destroy;
 var
   i: integer;
 begin
+  ASSERT(FDataFormatClasses = self);
   for i := FList.Count-1 downto 0 do
     Remove(TDataFormatClass(FList[i]));
   FList.Free;
   inherited Destroy;
+  FDataFormatClasses := nil;
 end;
 
-function TDataFormatClasses.GetCount: integer;
+class function TDataFormatClasses.GetCount: integer;
 begin
-  Result := FList.Count;
+  Result := Instance.FList.Count;
 end;
 
-function TDataFormatClasses.GetFormat(Index: integer): TDataFormatClass;
+class function TDataFormatClasses.GetFormat(Index: integer): TDataFormatClass;
 begin
-  Result := TDataFormatClass(FList[Index]);
+  Result := TDataFormatClass(Instance.FList[Index]);
 end;
-
-var
-  FDataFormatClasses: TDataFormatClasses = nil;
 
 class function TDataFormatClasses.Instance: TDataFormatClasses;
 begin
   if (FDataFormatClasses = nil) then
+  begin
+    if (DragDropShutdown) then
+      OutputDebugString('DragDrop.TDataFormatClasses recreated during shutdown');
     FDataFormatClasses := TDataFormatClasses.Create;
+  end;
   Result := FDataFormatClasses;
 end;
 
-procedure TDataFormatClasses.Remove(DataFormat: TDataFormatClass);
+class procedure TDataFormatClasses.Remove(DataFormat: TDataFormatClass);
 begin
-  FList.Remove(DataFormat);
+  Instance.FList.Remove(DataFormat);
 end;
 
+{$ifndef VER17_PLUS}
+class function TDataFormatClasses.Count: integer;
+begin
+  Result := TDataFormatClasses.GetCount;
+end;
+
+class function TDataFormatClasses.Formats: TDataFormatClassListProxy;
+begin
+  Result := TDataFormatClassListProxy(Self); // Dirty hack!
+end;
+
+class function TDataFormatClassListProxy.GetItem(Index: integer): TDataFormatClass;
+begin
+  Result := TDataFormatClasses(Self).GetFormat(Index); // Dirty hack!
+end;
+{$endif}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDataFormatMap
+//              TDataFormatMap
 //
 ////////////////////////////////////////////////////////////////////////////////
 type
@@ -1311,14 +1644,17 @@ type
     DataFormat: TDataFormatClass;
     ClipboardFormat: TClipboardFormatClass;
     Priority: integer;
-    ConversionScopes: TConversionScopes;
-    DataDirections: TDataDirections;
+    Capabilities: TConversionCapabilities;
   end;
 
   PFormatMap = ^TFormatMap;
 
+var
+  FDataFormatMap: TDataFormatMap = nil;
+
 constructor TDataFormatMap.Create;
 begin
+  ASSERT(FDataFormatMap = nil);
   inherited Create;
   FList := TList.Create;
 end;
@@ -1327,12 +1663,14 @@ destructor TDataFormatMap.Destroy;
 var
   i: integer;
 begin
+  ASSERT(FDataFormatMap = self);
   // Zap any mapings which hasn't been unregistered
   // yet (actually an error condition)
   for i := FList.Count-1 downto 0 do
     Dispose(FList[i]);
   FList.Free;
   inherited Destroy;
+  FDataFormatMap := nil;
 end;
 
 procedure TDataFormatMap.Sort;
@@ -1377,7 +1715,7 @@ end;
 
 procedure TDataFormatMap.Add(DataFormatClass: TDataFormatClass;
   ClipboardFormatClass: TClipboardFormatClass; Priority: integer;
-  ConversionScopes: TConversionScopes; DataDirections: TDataDirections);
+  Capabilities: TConversionCapabilities);
 var
   FormatMap: PFormatMap;
   OldMap: integer;
@@ -1389,20 +1727,20 @@ begin
     // Add new mapping...
     New(FormatMap);
     FList.Add(FormatMap);
-    FormatMap^.ConversionScopes := ConversionScopes;
-    FormatMap^.DataDirections := DataDirections;
+    FormatMap^.ClipboardFormat := ClipboardFormatClass;
+    FormatMap^.DataFormat := DataFormatClass;
+    FormatMap^.Capabilities := Capabilities;
+    FormatMap^.Priority := 0;
   end else
   begin
     // Replace old mapping...
     FormatMap := FList[OldMap];
     FList.Move(OldMap, FList.Count-1);
-    FormatMap^.ConversionScopes := FormatMap^.ConversionScopes + ConversionScopes;
-    FormatMap^.DataDirections := FormatMap^.DataDirections + DataDirections;
+    FormatMap^.Capabilities := FormatMap^.Capabilities + Capabilities;
   end;
 
-  FormatMap^.ClipboardFormat := ClipboardFormatClass;
-  FormatMap^.DataFormat := DataFormatClass;
-  FormatMap^.Priority := Priority;
+  if (ccReadFromDataFormat in Capabilities) then
+    FormatMap^.Priority := Priority;
   // ...and sort list
   Sort;
 end;
@@ -1467,33 +1805,36 @@ begin
   Result := -1;
 end;
 
-procedure TDataFormatMap.GetSourceByDataFormat(DataFormatClass: TDataFormatClass;
-  ClipboardFormats: TClipboardFormats; ConversionScope: TConversionScope);
+class procedure TDataFormatMap.GetClipboardFormats(const DataFormatClass: TDataFormatClass;
+  ClipboardFormats: TClipboardFormats; Tier: TDragDropTier);
 var
   i: integer;
   ClipboardFormat: TClipboardFormat;
+  FormatMap: PFormatMap;
 begin
   // Clear the list...
   ClipboardFormats.Clear;
   // ...and populate it with *instances* of all the clipbard
   // formats associated with the specified target format and
   // registered with the specified data direction.
-  for i := 0 to FList.Count-1 do
-    if (ConversionScope in PFormatMap(FList[i])^.ConversionScopes) and
-      (PFormatMap(FList[i])^.DataFormat.InheritsFrom(DataFormatClass)) then
+  for i := 0 to Instance.FList.Count-1 do
+  begin
+    FormatMap := PFormatMap(Instance.FList[i]);
+    if (FormatMap.DataFormat.InheritsFrom(DataFormatClass)) and
+      (((Tier = ddtSource) and ((ccReadFromDataFormat in FormatMap.Capabilities) or (ddWrite in FormatMap.ClipboardFormat.DataDirection))) or
+       ((Tier = ddtTarget) and ((ccWriteToDataFormat in FormatMap.Capabilities) or (ddRead in FormatMap.ClipboardFormat.DataDirection)))) then
     begin
-      ClipboardFormat := PFormatMap(FList[i])^.ClipboardFormat.Create;
-      ClipboardFormat.DataDirections := PFormatMap(FList[i])^.DataDirections;
+      ClipboardFormat := FormatMap.ClipboardFormat.Create;
       ClipboardFormats.Add(ClipboardFormat);
     end;
+  end;
 end;
 
 procedure TDataFormatMap.RegisterFormatMap(DataFormatClass: TDataFormatClass;
   ClipboardFormatClass: TClipboardFormatClass; Priority: integer;
-  ConversionScopes: TConversionScopes; DataDirections: TDataDirections);
+  Capabilities: TConversionCapabilities);
 begin
-  Add(DataFormatClass, ClipboardFormatClass, Priority, ConversionScopes,
-    DataDirections);
+  Add(DataFormatClass, ClipboardFormatClass, Priority, Capabilities);
 end;
 
 procedure TDataFormatMap.UnregisterFormatMap(DataFormatClass: TDataFormatClass;
@@ -1502,19 +1843,20 @@ begin
   Delete(DataFormatClass, ClipboardFormatClass);
 end;
 
-var
-  FDataFormatMap: TDataFormatMap = nil;
-
 class function TDataFormatMap.Instance: TDataFormatMap;
 begin
   if (FDataFormatMap = nil) then
+  begin
+    if (DragDropShutdown) then
+      OutputDebugString('DragDrop.TDataFormatMap recreated during shutdown');
     FDataFormatMap := TDataFormatMap.Create;
+  end;
   Result := FDataFormatMap;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDataFormatAdapter
+//              TDataFormatAdapter
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TDataFormatAdapter.Create(AOwner: TComponent);
@@ -1532,6 +1874,9 @@ end;
 
 function TDataFormatAdapter.GetDataFormatName: string;
 begin
+  if (csDesigning in ComponentState) then
+    Result := FDataFormatClassName
+  else
   if Assigned(FDataFormatClass) then
     Result := FDataFormatClass.ClassName
   else
@@ -1576,19 +1921,24 @@ var
   i: integer;
   ADataFormatClass: TDataFormatClass;
 begin
-  ADataFormatClass := nil;
-  if (Value <> '') then
+  if (csDesigning in ComponentState) then
+    FDataFormatClassName := Value
+  else
   begin
-    for i := 0 to TDataFormatClasses.Instance.Count-1 do
-      if (AnsiCompareText(TDataFormatClasses.Instance[i].ClassName, Value) = 0) then
-      begin
-        ADataFormatClass := TDataFormatClasses.Instance[i];
-        break;
-      end;
-    if (ADataFormatClass = nil) then
-      raise Exception.CreateFmt(sUnregisteredDataFormat, [Value]);
+    ADataFormatClass := nil;
+    if (Value <> '') then
+    begin
+      for i := 0 to TDataFormatClasses.Count-1 do
+        if (AnsiCompareText(TDataFormatClasses.Formats[i].ClassName, Value) = 0) then
+        begin
+          ADataFormatClass := TDataFormatClasses.Formats[i];
+          break;
+        end;
+      if (ADataFormatClass = nil) then
+        raise Exception.CreateFmt(sUnregisteredDataFormat, [Value]);
+    end;
+    DataFormatClass := ADataFormatClass;
   end;
-  DataFormatClass := ADataFormatClass;
 end;
 
 procedure TDataFormatAdapter.SetDragDropComponent(const Value: TDragDropComponent);
@@ -1619,7 +1969,7 @@ begin
   if (csDesigning in ComponentState) then
   begin
     FEnabled := Value and Assigned(FDragDropComponent) and
-      Assigned(FDataFormatClass);
+      (FDataFormatClassName <> '');
   end else
   if (Value) then
   begin
@@ -1641,7 +1991,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TRawClipboardFormat
+//              TRawClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TRawClipboardFormat.Create;
@@ -1685,9 +2035,9 @@ end;
 
 procedure TRawClipboardFormat.Clear;
 begin
-  // Since TRawDataFormat performs storage for TRawDataFormat we only allow
-  // TRawDataFormat to clear. To accomplish this TRawDataFormat ignores calls to
-  // the clear method and instead introduces the ClearData method.
+  // Since TRawClipboardFormat performs storage for TRawDataFormat we only allow
+  // TRawDataFormat to clear. To accomplish this TRawClipboardFormat ignores
+  // calls to the clear method and instead introduces the ClearData method.
 end;
 
 procedure TRawClipboardFormat.ClearData;
@@ -1716,7 +2066,7 @@ begin
   CopyStgMedium(FMedium, AMedium);
 end;
 
-function TRawClipboardFormat.DoGetData(ADataObject: IDataObject;
+function TRawClipboardFormat.DoGetData(const ADataObject: IDataObject;
   const AMedium: TStgMedium): boolean;
 begin
   Result := CopyStgMedium(AMedium, FMedium);
@@ -1731,7 +2081,7 @@ begin
   // This doesn't seem to be nescessary on any version of Win2K, but if they
   // say it must be done then I'll better do it...
   if (FMedium.tymed = TYMED_ISTREAM) then
-    IStream(FMedium.stm).Seek(0, STREAM_SEEK_SET, PLargeuint(nil)^);
+    IStream(FMedium.stm).Seek(0, STREAM_SEEK_SET, PLargeint(nil)^);
 end;
 
 function TRawClipboardFormat.DoSetData(const FormatEtcIn: TFormatEtc;
@@ -1740,14 +2090,13 @@ begin
   Result := CopyStgMedium(FMedium, AMedium);
 end;
 
-function TRawClipboardFormat.GetString: string;
+function TRawClipboardFormat.GetString: AnsiString;
 begin
-  with TTextClipboardFormat.Create do
+  with TAnsiStringClipboardFormat.Create do
     try
-      TrimZeroes := False;
       FFormatEtc := Self.FFormatEtc;
       if GetDataFromMedium(nil, FMedium) then
-        Result := Text
+        Result := Data
       else
         Result := '';
     finally
@@ -1755,13 +2104,12 @@ begin
     end;
 end;
 
-procedure TRawClipboardFormat.SetString(const Value: string);
+procedure TRawClipboardFormat.SetString(const Value: AnsiString);
 begin
-  with TTextClipboardFormat.Create do
+  with TAnsiStringClipboardFormat.Create do
     try
-      TrimZeroes := False;
       FFormatEtc := Self.FFormatEtc;
-      Text := Value;
+      Data := Value;
       SetDataToMedium(FormatEtc, FMedium);
     finally
       Free;
@@ -1771,7 +2119,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TRawDataFormat
+//              TRawDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 procedure TRawDataFormat.Clear;
@@ -1812,7 +2160,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Utility functions
+//              Utility functions
 //
 ////////////////////////////////////////////////////////////////////////////////
 procedure _RaiseLastWin32Error;
@@ -1881,6 +2229,9 @@ var
   StartTime: DWORD;
 const
   PM_QS_INPUT = QS_INPUT shl 16;
+  PM_QS_KEY = QS_KEY shl 16;
+  PM_QS_MOUSEMOVE = QS_MOUSEMOVE shl 16;
+  PM_QS_MOUSEBUTTON = QS_MOUSEBUTTON shl 16;
 begin
   Result := False;
 
@@ -1925,7 +2276,13 @@ begin
     while (not Result) do
     begin
       // Wait for mouse or keyboard events.
-      while (not PeekMessage(Msg, 0, 0, 0, PM_REMOVE or PM_QS_INPUT)) and
+      // - but do not eat mouse button messages (so we don't break popup menus etc).
+      if (PeekMessage(Msg, 0, WM_LBUTTONDOWN, WM_MBUTTONDBLCLK, PM_NOREMOVE)) then
+        // Mouse button was changed - bail out.
+        break;
+
+      while (not PeekMessage(Msg, 0, WM_LBUTTONDOWN, WM_MBUTTONDBLCLK, PM_NOREMOVE)) and
+       (not PeekMessage(Msg, 0, 0, 0, PM_REMOVE or PM_QS_KEY or PM_QS_MOUSEMOVE)) and
         (GetCapture = Handle) do
       begin
         // If there are no events for 500mS start drag without further ado.
@@ -1959,11 +2316,6 @@ begin
 
         // Some operation cancelled our mouse capture.
         WM_CANCELMODE:
-          break;
-
-        // Mouse button was released.
-        WM_RBUTTONUP,
-        WM_LBUTTONUP:
           break;
 
         // Application is shutting down.
@@ -2078,44 +2430,65 @@ begin
 end;
 
 function GetClipboardFormatNameStr(Value: TClipFormat): string;
-var
-  len: integer;
+
+  function GetNamedClipboardFormatName(Value: TClipFormat): string;
+  var
+    len: integer;
+  begin
+    SetLength(Result, 255);
+    len := GetClipboardFormatName(Value, PChar(Result), 255);
+    SetLength(Result, len);
+  end;
+
+const
+  sClipNames: array[CF_TEXT..CF_MAX-1] of string =
+    ('CF_TEXT', 'CF_BITMAP', 'CF_METAFILEPICT', 'CF_SYLK', 'CF_DIF', 'CF_TIFF',
+    'CF_OEMTEXT', 'CF_DIB', 'CF_PALETTE', 'CF_PENDATA', 'CF_RIFF', 'CF_WAVE',
+    'CF_UNICODETEXT', 'CF_ENHMETAFILE', 'CF_HDROP', 'CF_LOCALE');
 begin
-  SetLength(Result, 255);
-  len := GetClipboardFormatName(Value, PChar(Result), 255);
-  SetLength(Result, len);
+  case Value of
+    CF_TEXT..CF_MAX-1: Result := sClipNames[Value];
+    17: Result := 'CF_DIBV5';
+    18: Result := 'CF_MAX_XP';
+    128: Result := 'CF_OWNERDISPLAY';
+    129: Result := 'CF_DSPTEXT';
+    130: Result := 'CF_DSPBITMAP';
+    131: Result := 'CF_DSPMETAFILEPICT';
+    142: Result := 'CF_DSPENHMETAFILE';
+  else
+    Result := GetNamedClipboardFormatName(Value);
+  end;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Initialization/Finalization
+//              Initialization/Finalization
 //
 ////////////////////////////////////////////////////////////////////////////////
+var
+  NeedOleUninitialize: boolean = False;
+
 initialization
-  OleInitialize(nil);
+  NeedOleUninitialize := Succeeded(OleInitialize(nil));
   ShGetMalloc(ShellMalloc);
-  GetClipboardFormatNameStr(0); // Avoid GetClipboardFormatNameStr getting eliminated by linker. This is so we can use it in debugger 
+  GetClipboardFormatNameStr(0); // Avoid GetClipboardFormatNameStr getting eliminated by linker. This is so we can use it in debugger
 
 finalization
-  // Note: Due to unit finalization order, the following two objects will be
-  // recreated after this units finalization has executed.
-  // This results in a one-time memory leak and should not be harmfull.
+  DragDropShutdown := True;
+  // Note: Due to unit finalization order, is is possible for the following two
+  // objects to be recreated after this units' finalization has executed.
+  // If that happens it will result in a harmless one-time memory leak.
   if (FDataFormatMap <> nil) then
-  begin
     FDataFormatMap.Free;
-    FDataFormatMap := nil;
-  end;
   if (FDataFormatClasses <> nil) then
-  begin
     FDataFormatClasses.Free;
-    FDataFormatClasses := nil;
-  end;
 
   ShellMalloc := nil;
 
   if (URLMONDLL <> 0) then
     FreeLibrary(URLMONDLL);
 
-  OleUninitialize;
+  if (NeedOleUninitialize) then
+    OleUninitialize;
 end.
 

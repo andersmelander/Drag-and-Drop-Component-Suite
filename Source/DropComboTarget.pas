@@ -3,12 +3,12 @@ unit DropComboTarget;
 // Project:         Drag and Drop Component Suite
 // Module:          DropComboTarget
 // Description:     Implements a swiss-army-knife drop target component.
-// Version:         4.2
-// Date:            05-APR-2008
-// Target:          Win32, Delphi 5-2007
+// Version:         5.0
+// Date:            22-NOV-2009
+// Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2008 Anders Melander
+//                  © 2000-2009 Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -41,7 +41,7 @@ const
 type
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropComboTarget
+//              TDropComboTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
   TDropComboTarget = class(TCustomDropMultiTarget)
@@ -57,19 +57,19 @@ type
   protected
     procedure DoAcceptFormat(const DataFormat: TCustomDataFormat;
       var Accept: boolean); override;
-    function GetFiles: TStrings;
+    function GetFiles: TUnicodeStrings;
     function GetTitle: string;
-    function GetURL: string;
+    function GetURL: AnsiString;
     function GetBitmap: TBitmap;
     function GetMetaFile: TMetaFile;
     function GetText: string;
-    function GetFileMaps: TStrings;
+    function GetFileMaps: TUnicodeStrings;
     function GetStreams: TStreamList;
   public
     constructor Create(AOwner: TComponent); override;
-    property Files: TStrings read GetFiles;
-    property FileMaps: TStrings read GetFileMaps;
-    property URL: string read GetURL;
+    property Files: TUnicodeStrings read GetFiles;
+    property FileMaps: TUnicodeStrings read GetFileMaps;
+    property URL: AnsiString read GetURL;
     property Title: string read GetTitle;
     property Bitmap: TBitmap read GetBitmap;
     property MetaFile: TMetaFile read GetMetaFile;
@@ -78,22 +78,16 @@ type
   published
     property OnAcceptFormat;
     property Formats: TComboFormatTypes read FFormats write FFormats default AllComboFormats;
+    property OptimizedMove default True;
   end;
 
-  (*
-  **   *** WARNING ***
-  **
-  ** The TDropMultiTarget component has been renamed to TDropComboTarget and
-  ** will be removed shortly. See the readme.txt file for instruction on how to
-  ** replace TDropMultiTarget with TDropComboTarget.
-  *)
-  TDropMultiTarget = class(TDropComboTarget);
+
 
 implementation
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropComboTarget
+//              TDropComboTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TDropComboTarget.Create(AOwner: TComponent);
@@ -141,12 +135,12 @@ begin
   Result := FBitmapFormat.Bitmap;
 end;
 
-function TDropComboTarget.GetFileMaps: TStrings;
+function TDropComboTarget.GetFileMaps: TUnicodeStrings;
 begin
   Result := FFileMapFormat.FileMaps;
 end;
 
-function TDropComboTarget.GetFiles: TStrings;
+function TDropComboTarget.GetFiles: TUnicodeStrings;
 begin
   Result := FFileFormat.Files;
 end;
@@ -171,7 +165,7 @@ begin
   Result := FURLFormat.Title;
 end;
 
-function TDropComboTarget.GetURL: string;
+function TDropComboTarget.GetURL: AnsiString;
 begin
   Result := FURLFormat.URL;
 end;

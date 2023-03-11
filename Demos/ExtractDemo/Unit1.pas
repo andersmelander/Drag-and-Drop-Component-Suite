@@ -2,6 +2,8 @@ unit Unit1;
 
 interface
 
+{$include dragdrop.inc} // Disables .NET warnings
+
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   ComCtrls, ActiveX, ShellApi, ShlObj, Buttons, ExtCtrls, DropSource,
@@ -49,8 +51,8 @@ implementation
 ////////////////////////////////////////////////////////////////////////////////
 procedure MakeBlankFile(const Name: string);
 var
-  f			: TextFile;
-  path			: string;
+  f: TextFile;
+  path: string;
 begin
   path := ExtractFilePath(name);
   if (path <> '') then
@@ -95,7 +97,7 @@ end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
 var
-  i			: integer;
+  i: integer;
 begin
   // Before we exit, we make sure that we aren't leaving any extracted
   // files behind. Since it is the drop target's responsibility to
@@ -134,15 +136,14 @@ end;
 procedure TFormMain.ListView1MouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 var
-  i			,
-  j			: integer;
-  s			: string;
+  i, j: integer;
+  s: string;
 begin
   // If no files selected then exit...
   if (Listview1.SelCount = 0) then
     exit;
 
-  if (DragDetectPlus(TWinControl(Sender).Handle, Point(X,Y))) then
+  if (DragDetectPlus(TWinControl(Sender))) then
   begin
 
     // Clear any filenames left from a previous drag operation...
@@ -228,7 +229,7 @@ end;
 procedure TFormMain.DropFileSource1AfterDrop(Sender: TObject;
   DragResult: TDragResult; Optimized: Boolean);
 var
-  i, j			: integer;
+  i, j: integer;
 begin
   // If the user performed a move operation, we now delete the selected files
   // from the archive.

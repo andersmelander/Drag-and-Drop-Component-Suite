@@ -25,7 +25,7 @@ type
   ** in order to get reference counting working properly.
   *)
   TDataModuleDragDropHandler = class(TDataModule, IUnknown, IShellExtInit,
-    IContextMenu)
+    IContextMenu, IContextMenu2, IContextMenu3)
     PopupMenu1: TPopupMenu;
     MenuEncrypt: TMenuItem;
     MenuLine1: TMenuItem;
@@ -35,9 +35,9 @@ type
   private
     procedure EncryptFile(const Filename: string);
   public
-    // Aggregate IShellExtInit and IContextMenu to the TDropContextMenu component.
+    // Aggregate IShellExtInit and IContextMenu to the TDragDropHandler component.
     property DragDropHandler: TDragDropHandler read DragDropHandler1
-      implements IShellExtInit, IContextMenu;
+      implements IShellExtInit, IContextMenu, IContextMenu2, IContextMenu3;
   end;
 
 implementation
@@ -59,6 +59,9 @@ const
 resourcestring
   // Name of the file class we wish to operate on.
   // Drag Drop handler shell extensions normally always operate on directories.
+  // In order to extend the support to the desktop and root directories we
+  // should also register under the "Folder" and "Drive" file classes. For
+  // simplicity we don't do that in this example.
   sFileClass = 'Directory';
   // We do not need to register a file extension, so we specify an empty string
   // as the extension and thus disable the registration and unregistration of
@@ -76,7 +79,7 @@ resourcestring
 procedure TDataModuleDragDropHandler.EncryptFile(const Filename: string);
 var
   Source, Target: TFileStream;
-  Buffer: array[0..255] of char;
+  Buffer: array[0..255] of byte;
   Size: integer;
   i: integer;
 begin
@@ -96,7 +99,7 @@ begin
 
         // XOR all bytes in chunk.
         for i := 0 to Size-1 do
-          Buffer[i] := char(ord(Buffer[i]) XOR $AA);
+          Buffer[i] := Buffer[i] XOR $AA;
 
         // Write the encryted data to the target.
         Target.Write(Buffer, Size);
@@ -131,13 +134,13 @@ procedure TDataModuleDragDropHandler.DragDropHandler1Popup(Sender: TObject);
   end;
 
 begin
-  // TDropContextMenu component now contains the files being dragged.
+  // TDragDropHandler component now contains the files being dragged.
 
   // Insert source filename(s) into menu.
   if (DragDropHandler1.Files.Count = 1) then
-    MenuEncrypt.Caption := Format(MenuEncrypt.Caption,
-      [ExtractFileName(DragDropHandler1.Files[0])])
-  else if (DragDropHandler1.Files.Count > 1) then
+    MenuEncrypt.Caption := Format(MenuEncrypt.Caption, [ExtractFileName(DragDropHandler1.Files[0])])
+  else
+  if (DragDropHandler1.Files.Count > 1) then
     MenuEncrypt.Caption := Format(MenuEncrypt.Caption, [sManyFiles])
   else
     ClearItem(PopupMenu1.Items);

@@ -1,19 +1,19 @@
 object FormAutoScroll: TFormAutoScroll
   Left = 251
   Top = 176
-  Width = 436
-  Height = 443
   Caption = 'Custom auto scroll demo'
+  ClientHeight = 409
+  ClientWidth = 428
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'Arial'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = False
   OnCreate = FormCreate
   PixelsPerInch = 96
-  TextHeight = 14
+  TextHeight = 13
   object Panel1: TPanel
     Left = 0
     Top = 0
@@ -76,7 +76,7 @@ object FormAutoScroll: TFormAutoScroll
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clBlue
       Font.Height = -11
-      Font.Name = 'Arial'
+      Font.Name = 'MS Shell Dlg 2'
       Font.Style = [fsBold]
       ParentFont = False
       TabOrder = 1
@@ -98,6 +98,7 @@ object FormAutoScroll: TFormAutoScroll
       Top = 4
       Width = 420
       Height = 137
+      Margins.Bottom = 0
       Align = alClient
       Caption = 
         'This application demonstrates custom auto scroll margins.'#13#10#13#10'Sta' +
@@ -110,6 +111,7 @@ object FormAutoScroll: TFormAutoScroll
         'o be calculated relative to the data area of the grid.'
       ShowAccelChar = False
       WordWrap = True
+      ExplicitHeight = 117
     end
   end
   object DropTextTarget1: TDropTextTarget

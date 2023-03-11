@@ -29,18 +29,34 @@ type
     IContextMenu, IContextMenu2, IContextMenu3)
     DropContextMenu1: TDropContextMenu;
     PopupMenu1: TPopupMenu;
-    MenuTest1: TMenuItem;
-    MenuLineEnd: TMenuItem;
-    MenuLineBegin: TMenuItem;
-    MenuTest2: TMenuItem;
-    MenuSub1: TMenuItem;
-    MenuSub2: TMenuItem;
+    N1: TMenuItem;
+    test1: TMenuItem;
+    submenu1: TMenuItem;
+    Item1: TMenuItem;
+    Item21: TMenuItem;
+    N3: TMenuItem;
+    Itemwithglyphfrombitmap1: TMenuItem;
+    Itemwithglyphfromimagelist1: TMenuItem;
+    Disableditem1: TMenuItem;
+    Disableditem2: TMenuItem;
+    N4: TMenuItem;
+    Checkeditem1: TMenuItem;
+    Radioitem1: TMenuItem;
+    Breakitem1: TMenuItem;
+    Barbreakitem1: TMenuItem;
+    Glyphfromimagelist1: TMenuItem;
+    N2: TMenuItem;
     ImageList1: TImageList;
+    Itemwithaccelerator1: TMenuItem;
+    Anotheritemwithanaccelerator1: TMenuItem;
+    Yetanotheritemwithyouknowwhat1: TMenuItem;
+    Followedbyaregularitem1: TMenuItem;
+    Anthelastitem1: TMenuItem;
     procedure MenuTest1Click(Sender: TObject);
   private
   protected
   public
-    // Aggregate IShellExtInit and IContextMenu to the TDropContextMenu component.
+    // Aggregate IShellExtInit and IContextMenu* to the TDropContextMenu component.
     property ContextMenuHandler: TDropContextMenu read DropContextMenu1
       implements IShellExtInit, IContextMenu, IContextMenu2, IContextMenu3;
   end;
@@ -93,8 +109,8 @@ resourcestring
 
 procedure TDataModuleContextMenuHandler.MenuTest1Click(Sender: TObject);
 begin
-  ShowMessage('You clicked on '+TMenuItem(Sender).Caption+
-    ' with the following files selected:'+#13+#13+
+  ShowMessage('You clicked on "'+TMenuItem(Sender).Caption+
+    '" with the following files selected:'+#13+#13+
     DropContextMenu1.Files.Text);
 end;
 

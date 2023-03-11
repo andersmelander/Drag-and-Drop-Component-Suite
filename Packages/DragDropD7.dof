@@ -112,10 +112,10 @@ RootDir=
 [Version Info]
 IncludeVerInfo=1
 AutoIncBuild=1
-MajorVer=4
-MinorVer=2
-Release=5
-Build=31
+MajorVer=5
+MinorVer=0
+Release=6
+Build=36
 Debug=0
 PreRelease=0
 Special=0
@@ -126,18 +126,19 @@ CodePage=1252
 [Version Info Keys]
 CompanyName=Anders Melander
 FileDescription=Drag and Drop Component Suite
-FileVersion=4.2.5.31
+FileVersion=5.0.6.36
 InternalName=DragDrop
-LegalCopyright=Copyright © 1997-2008 Anders Melander
+LegalCopyright=Copyright © 1997-2009 Anders Melander
 LegalTrademarks=
 OriginalFilename=DragDrop
 ProductName=DragDrop
-ProductVersion=4.0.0.0
+ProductVersion=5.0.0.0
 Comments=This is freeware. Use as you please, but please give me credit.
 mailto=anders@melander.dk
 URL=http://melander.dk
 [Excluded Packages]
 c:\development\delphi7\Bin\DCLIB70.bpl=Borland InterBase Express Components
+D:\Projects\Library\DragDrop\5.0\DragDrop\Library\Delphi 7\DragDropD7.bpl=Drag and Drop Component Suite
 [HistoryLists\hlDebugSourcePath]
 Count=1
 Item0=D:\Development\Delphi6\Source\Indy;C:\Development\Delphi6\Source\Rtl\Common\

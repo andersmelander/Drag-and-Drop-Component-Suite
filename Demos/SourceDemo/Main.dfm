@@ -8,7 +8,7 @@ object Form1: TForm1
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'MS Sans Serif'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = True
   Position = poScreenCenter
@@ -27,7 +27,7 @@ object Form1: TForm1
     object Label1: TLabel
       Left = 3
       Top = 13
-      Width = 246
+      Width = 256
       Height = 13
       Caption = 'Drag files from this Listbox onto Windows Explorer ...'
     end
@@ -67,13 +67,46 @@ object Form1: TForm1
     ColumnClick = False
     MultiSelect = True
     ReadOnly = True
+    PopupMenu = PopupMenu1
     TabOrder = 2
     ViewStyle = vsReport
+    OnDragOver = ListView1DragOver
     OnMouseDown = ListView1MouseDown
   end
   object DropFileSource1: TDropFileSource
     DragTypes = [dtCopy, dtMove, dtLink]
+    OnGetDragImage = DropFileSource1GetDragImage
+    ShowImage = True
     Left = 355
     Top = 224
+  end
+  object DropDummy1: TDropDummy
+    DragTypes = []
+    Target = Owner
+    Left = 276
+    Top = 224
+  end
+  object PopupMenu1: TPopupMenu
+    AutoPopup = False
+    Left = 192
+    Top = 136
+    object Just1: TMenuItem
+      Caption = 'Just'
+    end
+    object a1: TMenuItem
+      Caption = 'a'
+    end
+    object test1: TMenuItem
+      Caption = 'test'
+    end
+    object of1: TMenuItem
+      Caption = 'of'
+    end
+    object popup1: TMenuItem
+      Caption = 'popup'
+    end
+    object menu1: TMenuItem
+      Caption = 'menu'
+    end
   end
 end

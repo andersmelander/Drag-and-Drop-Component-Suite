@@ -8,7 +8,7 @@ object Form1: TForm1
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'MS Sans Serif'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = True
   Position = poScreenCenter
@@ -26,7 +26,7 @@ object Form1: TForm1
     object Label1: TLabel
       Left = 8
       Top = 16
-      Width = 248
+      Width = 257
       Height = 13
       Caption = 'Drop files from Windows Explorer onto this Listview...'
     end

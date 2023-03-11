@@ -9,10 +9,9 @@ object FormSource: TFormSource
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'MS Sans Serif'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = False
-  Position = poDefaultPosOnly
   Visible = True
   OnCreate = FormCreate
   PixelsPerInch = 96
@@ -84,7 +83,8 @@ object FormSource: TFormSource
           'ce window and '
         
           'drop on the target window. You can also do this between multiple' +
-          ' instances of this '
+          ' instances of '
+        'this '
         'application.')
       ParentColor = True
       ReadOnly = True
@@ -99,7 +99,6 @@ object FormSource: TFormSource
   end
   object DropTextSource1: TDropTextSource
     DragTypes = [dtCopy]
-    Locale = 0
     Left = 16
     Top = 32
   end

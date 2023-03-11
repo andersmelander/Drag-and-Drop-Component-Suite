@@ -51,3 +51,4 @@ In addition to basic drag/drop operations, the unit demonstrates:
 - "Delete on paste".
 - Providing feedback over controls which aren't drop targets.
 
+Note: This demo uses the ShellCtrls unit which doesn't support Delphi 5.

@@ -3,12 +3,12 @@ unit DragDropGraphics;
 // Project:         Drag and Drop Component Suite.
 // Module:          DragDropGraphics
 // Description:     Implements Dragging and Dropping of graphic data.
-// Version:         4.2
-// Date:            05-APR-2008
-// Target:          Win32, Delphi 5-2007
+// Version:         5.0
+// Date:            22-NOV-2009
+// Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2008 Anders Melander
+//                  © 2000-2009 Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -27,7 +27,7 @@ uses
 type
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TGDIClipboardFormat
+//              TGDIClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Base class for GDI clipboard formats (TYMED_GDI).
@@ -39,7 +39,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TPaletteClipboardFormat
+//              TPaletteClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Only used internally by TBitmapClipboardFormat - Not registered
@@ -47,18 +47,18 @@ type
   TPaletteClipboardFormat = class(TGDIClipboardFormat)
   private
     FPalette: hPalette;
+  protected
   public
     function GetClipboardFormat: TClipFormat; override;
-    function DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean; override;
-    function DoSetData(const FormatEtcIn: TFormatEtc;
-      var Medium: TStgMedium): boolean; override;
+    function DoGetData(const ADataObject: IDataObject; const AMedium: TStgMedium): boolean; override;
+    function DoSetData(const FormatEtcIn: TFormatEtc; var Medium: TStgMedium): boolean; override;
     procedure Clear; override;
     property Palette: hPalette read FPalette write FPalette;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TCustomBitmapClipboardFormat
+//              TCustomBitmapClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TCustomBitmapClipboardFormat = class(TGDIClipboardFormat)
@@ -74,29 +74,27 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TBitmapClipboardFormat
+//              TBitmapClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TBitmapClipboardFormat = class(TCustomBitmapClipboardFormat)
   protected
-    function DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean; override;
-    function DoSetData(const FormatEtcIn: TFormatEtc;
-      var AMedium: TStgMedium): boolean; override;
+    function DoGetData(const ADataObject: IDataObject; const AMedium: TStgMedium): boolean; override;
+    function DoSetData(const FormatEtcIn: TFormatEtc; var AMedium: TStgMedium): boolean; override;
   public
     function GetClipboardFormat: TClipFormat; override;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDIBClipboardFormat
+//              TDIBClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TDIBClipboardFormat = class(TCustomBitmapClipboardFormat)
   private
   protected
-    function DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean; override;
-    function DoSetData(const FormatEtcIn: TFormatEtc;
-      var AMedium: TStgMedium): boolean; override;
+    function DoGetData(const ADataObject: IDataObject; const AMedium: TStgMedium): boolean; override;
+    function DoSetData(const FormatEtcIn: TFormatEtc; var AMedium: TStgMedium): boolean; override;
   public
     constructor Create; override;
     function GetClipboardFormat: TClipFormat; override;
@@ -104,7 +102,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TCustomMetaFileClipboardFormat
+//              TCustomMetaFileClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TCustomMetaFileClipboardFormat = class(TClipboardFormat)
@@ -120,39 +118,40 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TMetaFileClipboardFormat
+//              TMetaFileClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TMetaFileClipboardFormat = class(TCustomMetaFileClipboardFormat)
   private
   protected
-    function DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean; override;
+    function DoGetData(const ADataObject: IDataObject; const AMedium: TStgMedium): boolean; override;
   public
     function GetClipboardFormat: TClipFormat; override;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TEnhMetaFileClipboardFormat
+//              TEnhMetaFileClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TEnhMetaFileClipboardFormat = class(TCustomMetaFileClipboardFormat)
   private
   protected
-    function DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean; override;
+    function DoGetData(const ADataObject: IDataObject; const AMedium: TStgMedium): boolean; override;
   public
     function GetClipboardFormat: TClipFormat; override;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TBitmapDataFormat
+//              TBitmapDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TBitmapDataFormat = class(TCustomDataFormat)
   private
     FBitmap: TBitmap;
   protected
+    class procedure RegisterCompatibleFormats; override;
   public
     constructor Create(AOwner: TDragDropComponent); override;
     destructor Destroy; override;
@@ -166,13 +165,14 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TMetaFileDataFormat
+//              TMetaFileDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TMetaFileDataFormat = class(TCustomDataFormat)
   private
     FMetaFile: TMetaFile;
   protected
+    class procedure RegisterCompatibleFormats; override;
   public
     constructor Create(AOwner: TDragDropComponent); override;
     destructor Destroy; override;
@@ -185,7 +185,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropBMPTarget
+//              TDropBMPTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
   TDropBMPTarget = class(TCustomDropMultiTarget)
@@ -201,7 +201,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropBMPSource
+//              TDropBMPSource
 //
 ////////////////////////////////////////////////////////////////////////////////
   TDropBMPSource = class(TCustomDropMultiSource)
@@ -219,7 +219,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropMetaFileTarget
+//              TDropMetaFileTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
   TDropMetaFileTarget = class(TCustomDropMultiTarget)
@@ -235,7 +235,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropImageTarget
+//              TDropImageTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
   TDropImageTarget = class(TCustomDropMultiTarget)
@@ -254,7 +254,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Misc.
+//              Misc.
 //
 ////////////////////////////////////////////////////////////////////////////////
 procedure CopyDIBToBitmap(Bitmap: TBitmap; BitmapInfo: PBitmapInfo; DIBSize: integer);
@@ -264,7 +264,7 @@ function GetHGlobalDIBFromBitmap(Bitmap: TBitmap): HGlobal;
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 //
-//			IMPLEMENTATION
+//              	IMPLEMENTATION
 //
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -275,7 +275,7 @@ uses
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Misc.
+//              Misc.
 //
 ////////////////////////////////////////////////////////////////////////////////
 procedure CopyDIBToBitmap(Bitmap: TBitmap; BitmapInfo: PBitmapInfo; DIBSize: integer);
@@ -333,7 +333,7 @@ begin
     DIBSize := Stream.Size - SizeOf(TBitmapFileHeader);
 
     // Allocate memory for DIB data.
-    Result := GlobalAlloc(GMEM_MOVEABLE or GMEM_SHARE, DIBSize);
+    Result := GlobalAlloc(GMEM_MOVEABLE or GMEM_ZEROINIT, DIBSize);
     if (Result = 0) then
       exit;
 
@@ -363,7 +363,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TGDIClipboardFormat
+//              TGDIClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TGDIClipboardFormat.Create;
@@ -374,7 +374,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TPaletteClipboardFormat
+//              TPaletteClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 function TPaletteClipboardFormat.GetClipboardFormat: TClipFormat;
@@ -391,7 +391,7 @@ begin
   end;
 end;
 
-function TPaletteClipboardFormat.DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
+function TPaletteClipboardFormat.DoGetData(const ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
 begin
   if (AMedium.hBitmap <> 0) then
   begin
@@ -422,7 +422,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TBitmapClipboardFormat
+//              TBitmapClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TCustomBitmapClipboardFormat.CreateFormat(Atymed: Longint);
@@ -448,7 +448,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TBitmapClipboardFormat
+//              TBitmapClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 function TBitmapClipboardFormat.GetClipboardFormat: TClipFormat;
@@ -456,7 +456,7 @@ begin
   Result := CF_BITMAP;
 end;
 
-function TBitmapClipboardFormat.DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
+function TBitmapClipboardFormat.DoGetData(const ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
 var
   Palette: TPaletteClipboardFormat;
 begin
@@ -512,7 +512,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDIBClipboardFormat
+//              TDIBClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TDIBClipboardFormat.Create;
@@ -528,7 +528,7 @@ begin
 end;
 
 // http://x5.dejanews.com/[ST_rn=ps]/getdoc.xp?AN=382056726.2&CONTEXT=925473183.2090336317&hitnum=0
-function TDIBClipboardFormat.DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
+function TDIBClipboardFormat.DoGetData(const ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
 var
   BitmapInfo: PBitmapInfo;
   BitmapFileHeader: TBitmapFileHeader;
@@ -597,7 +597,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TCustomMetaFileClipboardFormat
+//              TCustomMetaFileClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TCustomMetaFileClipboardFormat.Create;
@@ -621,7 +621,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TMetaFileClipboardFormat
+//              TMetaFileClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 function TMetaFileClipboardFormat.GetClipboardFormat: TClipFormat;
@@ -655,7 +655,7 @@ begin
   end;
 end;
 
-function TMetaFileClipboardFormat.DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
+function TMetaFileClipboardFormat.DoGetData(const ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
 var
   pMetaFile: PMetaFilePict;
 begin
@@ -672,7 +672,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TEnhMetaFileClipboardFormat
+//              TEnhMetaFileClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 function TEnhMetaFileClipboardFormat.GetClipboardFormat: TClipFormat;
@@ -680,7 +680,7 @@ begin
   Result := CF_ENHMETAFILE;
 end;
 
-function TEnhMetaFileClipboardFormat.DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
+function TEnhMetaFileClipboardFormat.DoGetData(const ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
 begin
   Result := (AMedium.hEnhMetaFile <> 0);
   if (Result) then
@@ -690,7 +690,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TBitmapDataFormat
+//              TBitmapDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TBitmapDataFormat.Create(AOwner: TDragDropComponent);
@@ -761,9 +761,18 @@ begin
 end;
 
 
+class procedure TBitmapDataFormat.RegisterCompatibleFormats;
+begin
+  inherited RegisterCompatibleFormats;
+
+  RegisterDataConversion(TDIBClipboardFormat, 0);
+  RegisterDataConversion(TBitmapClipboardFormat, 1);
+  RegisterDataConversion(TPaletteClipboardFormat, 1);
+end;
+
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TMetaFileDataFormat
+//              TMetaFileDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TMetaFileDataFormat.Create(AOwner: TDragDropComponent);
@@ -813,9 +822,17 @@ begin
 end;
 
 
+class procedure TMetaFileDataFormat.RegisterCompatibleFormats;
+begin
+  inherited RegisterCompatibleFormats;
+
+  RegisterDataProvider(TEnhMetaFileClipboardFormat, 0);
+  RegisterDataProvider(TMetaFileClipboardFormat, 1);
+end;
+
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropBMPTarget
+//              TDropBMPTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TDropBMPTarget.Create(AOwner: TComponent);
@@ -838,7 +855,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropBMPSource
+//              TDropBMPSource
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TDropBMPSource.Create(AOwner: TComponent);
@@ -869,7 +886,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropMetaFileTarget
+//              TDropMetaFileTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TDropMetaFileTarget.Create(AOwner: TComponent);
@@ -892,7 +909,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropMetaFileTarget
+//              TDropMetaFileTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TDropImageTarget.Create(AOwner: TComponent);
@@ -934,7 +951,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Initialization/Finalization
+//              Initialization/Finalization
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -943,26 +960,12 @@ initialization
   TBitmapDataFormat.RegisterDataFormat;
   TMetaFileDataFormat.RegisterDataFormat;
   // Clipboard format registration
-  TBitmapDataFormat.RegisterCompatibleFormat(TDIBClipboardFormat, 0, csSourceTarget, [ddRead]);
-  TBitmapDataFormat.RegisterCompatibleFormat(TBitmapClipboardFormat, 1, csSourceTarget, [ddRead]);
-  TBitmapDataFormat.RegisterCompatibleFormat(TPaletteClipboardFormat, 1, csSourceTarget, [ddRead]);
-  TMetaFileDataFormat.RegisterCompatibleFormat(TEnhMetaFileClipboardFormat, 0, [csTarget], [ddRead]);
-  TMetaFileDataFormat.RegisterCompatibleFormat(TMetaFileClipboardFormat, 1, [csTarget], [ddRead]);
+  TDIBClipboardFormat.RegisterFormat;
+  TBitmapClipboardFormat.RegisterFormat;
+  TPaletteClipboardFormat.RegisterFormat;
+  TEnhMetaFileClipboardFormat.RegisterFormat;
+  TMetaFileClipboardFormat.RegisterFormat;
 
 finalization
-  // It is not nescessary to unregister *both* the TClipboardFormats and
-  // the TTargetFormat, but we do it here to demo how the unregister
-  // methods are used.
-
-  // Clipboard format unregistration
-  TDIBClipboardFormat.UnregisterClipboardFormat;
-  TBitmapClipboardFormat.UnregisterClipboardFormat;
-  TPaletteClipboardFormat.UnregisterClipboardFormat;
-  TEnhMetaFileClipboardFormat.UnregisterClipboardFormat;
-  TMetaFileClipboardFormat.UnregisterClipboardFormat;
-
-  // Target format unregistration
-  TBitmapDataFormat.UnregisterDataFormat;
-  TMetaFileDataFormat.UnregisterDataFormat;
 end.
 

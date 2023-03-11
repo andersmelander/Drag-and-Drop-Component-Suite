@@ -1,7 +1,6 @@
 object FormFileList: TFormFileList
   Left = 279
   Top = 136
-  AutoScroll = False
   Caption = 'Shell Drop Handler Demo'
   ClientHeight = 453
   ClientWidth = 470
@@ -9,11 +8,10 @@ object FormFileList: TFormFileList
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'MS Sans Serif'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   Menu = MainMenu1
   OldCreateOrder = False
-  Position = poDefaultPosOnly
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   PixelsPerInch = 96

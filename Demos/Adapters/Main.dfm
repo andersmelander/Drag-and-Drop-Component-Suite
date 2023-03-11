@@ -1,7 +1,6 @@
 object FormMain: TFormMain
   Left = 269
   Top = 106
-  AutoScroll = False
   Caption = 'TDataFormatAdapter demo'
   ClientHeight = 306
   ClientWidth = 518
@@ -9,10 +8,9 @@ object FormMain: TFormMain
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'MS Sans Serif'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = False
-  Position = poDefaultPosOnly
   PixelsPerInch = 96
   TextHeight = 13
   object Panel1: TPanel
@@ -30,6 +28,7 @@ object FormMain: TFormMain
       Top = 2
       Width = 514
       Height = 53
+      Margins.Bottom = 0
       Align = alClient
       AutoSize = False
       Caption = 
@@ -108,32 +107,27 @@ object FormMain: TFormMain
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clBlue
     Font.Height = -11
-    Font.Name = 'MS Sans Serif'
+    Font.Name = 'MS Shell Dlg 2'
     Font.Style = []
     ParentFont = False
     TabOrder = 4
   end
   object DropTextTarget1: TDropTextTarget
-    Dragtypes = [dtCopy, dtLink]
-    GetDataOnEnter = False
+    DragTypes = [dtCopy, dtLink]
     OnDrop = DropTextTarget1Drop
-    ShowImage = True
     Target = Owner
-    AllowAsyncTransfer = False
     Left = 24
     Top = 32
   end
   object DataFormatAdapterFile: TDataFormatAdapter
     DragDropComponent = DropTextTarget1
     DataFormatName = 'TFileDataFormat'
-    Enabled = True
     Left = 76
     Top = 32
   end
   object DataFormatAdapterURL: TDataFormatAdapter
     DragDropComponent = DropTextTarget1
     DataFormatName = 'TURLDataFormat'
-    Enabled = True
     Left = 116
     Top = 32
   end

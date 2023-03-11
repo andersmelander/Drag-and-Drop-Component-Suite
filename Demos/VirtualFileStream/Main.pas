@@ -2,9 +2,12 @@ unit Main;
 
 interface
 
+{$include dragdrop.inc} // Disables .NET warnings
+
 uses
-  DragDrop, DropSource, DropTarget, DragDropFormats, ActiveX,
-  Windows, Classes, Controls, Forms, ExtCtrls, StdCtrls, ComCtrls, Menus;
+  DragDrop, DropSource, DropTarget, DragDropFile, ActiveX,
+  Windows, Classes, Controls, Forms, ExtCtrls, StdCtrls, ComCtrls, Menus,
+  ActnList;
 
 type
 ////////////////////////////////////////////////////////////////////////////////
@@ -25,6 +28,9 @@ type
     MenuCopy: TMenuItem;
     MenuPaste: TMenuItem;
     Label1: TLabel;
+    ActionList1: TActionList;
+    ActionCopy: TAction;
+    ActionPaste: TAction;
     procedure OnMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure FormCreate(Sender: TObject);
@@ -37,9 +43,10 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure ListView1MouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
-    procedure PopupMenu1Popup(Sender: TObject);
-    procedure MenuCopyClick(Sender: TObject);
-    procedure MenuPasteClick(Sender: TObject);
+    procedure ActionCopyExecute(Sender: TObject);
+    procedure ActionPasteExecute(Sender: TObject);
+    procedure ActionPasteUpdate(Sender: TObject);
+    procedure ActionCopyUpdate(Sender: TObject);
   private
     procedure OnGetStream(Sender: TFileContentsStreamOnDemandClipboardFormat;
       Index: integer; out AStream: IStream);
@@ -54,6 +61,7 @@ implementation
 {$R *.DFM}
 
 uses
+  DragDropFormats, 
   ComObj;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -107,11 +115,13 @@ end;
 
 procedure TFormMain.DropEmptyTarget1Drop(Sender: TObject;
   ShiftState: TShiftState; Point: TPoint; var Effect: Integer);
+type
+  PLargeint = ^Largeint;
 var
   OldCount: integer;
   Item: TListItem;
-  s: string;
-  p: PChar;
+  Buffer: AnsiString;
+  p: PAnsiChar;
   i: integer;
   Stream: IStream;
   StatStg: TStatStg;
@@ -149,11 +159,11 @@ begin
           // Assume that stream is at EOF, so set it to BOF.
           // See comment in TCustomSimpleClipboardFormat.DoSetData (in
           // DragDropFormats.pas) for an explanation of this.
-          Stream.Seek(0, STREAM_SEEK_SET, PLargeuint(nil)^);
+          Stream.Seek(0, STREAM_SEEK_SET, PLargeint(nil)^);
 
           // If a really big hunk of data has been dropped on us we display a
           // small part of it since there isn't much point in trying to display
-          // it all in the limted space we have available.
+          // it all in the limited space we have available.
           // Additionally, it would be *really* bad for performce if we tried to
           // allocated a too big buffer and read sequentially into it. Tests has
           // shown that allocating a 10Mb buffer and trying to read data into it
@@ -165,8 +175,8 @@ begin
           if (BufferSize > MaxBufferSize) then
             BufferSize := MaxBufferSize;
 
-          SetLength(s, BufferSize);
-          p := PChar(s);
+          SetLength(Buffer, BufferSize);
+          p := PAnsiChar(Buffer);
           Chunk := BufferSize;
           FirstChunk := True;
           while (Total > 0) do
@@ -183,9 +193,9 @@ begin
             begin
               // Display a small fraction of the first chunk.
               if (FirstChunk) then
-                Item.SubItems.Add(copy(s, 1, 1024));
+                Item.SubItems.Add(Copy(Buffer, 1, 1024));
 
-              p := PChar(s);
+              p := PAnsiChar(Buffer);
               // In a real-world application we would write the buffer to disk
               // now. E.g.:
               //   FileStream.WriteBuffer(p^, BufferSize-Chunk);
@@ -195,7 +205,7 @@ begin
           end;
           // Display a small fraction of the first chunk.
           if (FirstChunk) then
-            Item.SubItems.Add(copy(s, 1, 1024));
+            Item.SubItems.Add(Copy(Buffer, 1, 1024));
 
         end else
           Item.SubItems.Add('***failed to read content***');
@@ -216,93 +226,13 @@ begin
   // FileGroupDescriptor formats in the storage medium we require (IStream).
   // Normally a drop is accepted if just one of our formats is supported.
   with TVirtualFileStreamDataFormat(DataFormatAdapterTarget.DataFormat) do
-    if not(FileContentsClipboardFormat.HasValidFormats(DropEmptyTarget1.DataObject) or
-      FileGroupDescritorClipboardFormat.HasValidFormats(DropEmptyTarget1.DataObject)) then
+    if not(FileContentsClipboardFormat.HasValidFormats(DropEmptyTarget1.DataObject) and
+      (AnsiFileGroupDescriptorClipboardFormat.HasValidFormats(DropEmptyTarget1.DataObject) or
+       UnicodeFileGroupDescriptorClipboardFormat.HasValidFormats(DropEmptyTarget1.DataObject))) then
       Effect := DROPEFFECT_NONE;
 end;
 
-procedure TFormMain.DropEmptySource1AfterDrop(Sender: TObject;
-  DragResult: TDragResult; Optimized: Boolean);
-begin
-  // Clear the listview if items were moved.
-  // Note: If we drag-move from and drop onto ourself, this would cause the
-  // listview to clear after we have successfully transfered the data. To avoid
-  // this (and to avoid files being accidentally deleted), our drop target
-  // doesn't accept move operations. If you want it to be able to accept move
-  // operations, you'll have to avoid the above situation somehow. I'll leave it
-  // up to you to figure out how to do that.
-  if (DragResult = drDropMove) then
-    ListView1.Items.Clear;
-end;
-
-procedure TFormMain.OnGetStream(Sender: TFileContentsStreamOnDemandClipboardFormat;
-  Index: integer; out AStream: IStream);
-var
-  Stream: TMemoryStream;
-  s: string;
-  i: integer;
-  SelIndex: integer;
-  Found: boolean;
-begin
-  // This event handler is called by TFileContentsStreamOnDemandClipboardFormat
-  // when the drop target requests data from the drop source (that's us).
-  Stream := TMemoryStream.Create;
-  try
-    AStream := nil;
-    // Find the listview item which corresponds to the requested data item.
-    SelIndex := 0;
-    Found := False;
-    for i := 0 to ListView1.Items.Count-1 do
-      if (ListView1.Items[i].Selected) then
-      begin
-        if (SelIndex = Index) then
-        begin
-          // Get the data stored in the listview item and...
-          s := ListView1.Items[i].SubItems[0];
-          Found := True;
-          break;
-        end;
-        inc(SelIndex);
-      end;
-    if (not Found) then
-      exit;
-
-    // ...Write the file contents to a regular stream...
-    Stream.Write(PChar(s)^, Length(s));
-
-    (*
-    ** Stream.Position must be equal to Stream.Size or the Windows clipboard
-    ** will fail to read from the stream. This requirement is completely
-    ** undocumented.
-    *)
-    // Stream.Position := 0;
-
-    // ...and return the stream back to the target as an IStream. Note that the
-    // target is responsible for deleting the stream (via reference counting).
-    AStream := TFixedStreamAdapter.Create(Stream, soOwned);
-  except
-    Stream.Free;
-    raise;
-  end;
-end;
-
-procedure TFormMain.PopupMenu1Popup(Sender: TObject);
-var
-  DataObject: IDataObject;
-begin
-  MenuCopy.Enabled := (ListView1.SelCount > 0);
-  // Open the clipboard as an IDataObject
-  OleCheck(OleGetClipboard(DataObject));
-  try
-    // Enable paste menu if the clipboard contains data in any of
-    // the supported formats.
-    MenuPaste.Enabled := DropEmptyTarget1.HasValidFormats(DataObject);
-  finally
-    DataObject := nil;
-  end;
-end;
-
-procedure TFormMain.MenuCopyClick(Sender: TObject);
+procedure TFormMain.ActionCopyExecute(Sender: TObject);
 var
   i: integer;
 begin
@@ -326,9 +256,112 @@ begin
   *)
 end;
 
-procedure TFormMain.MenuPasteClick(Sender: TObject);
+procedure TFormMain.ActionCopyUpdate(Sender: TObject);
+begin
+  TAction(Sender).Enabled := (ListView1.SelCount > 0);
+end;
+
+procedure TFormMain.ActionPasteExecute(Sender: TObject);
 begin
   DropEmptyTarget1.PasteFromClipboard;
+end;
+
+procedure TFormMain.ActionPasteUpdate(Sender: TObject);
+(*
+var
+  DataObject: IDataObject;
+*)
+begin
+  (*
+  ** The following shows two diffent methods of determining if the clipboard
+  ** contains any data that we can paste. The two methods are in fact identical.
+  ** Only the second method is used.
+  *)
+
+  (*
+  ** Method 1: Get the clipboard data object and test against it.
+  *)
+  (*
+  // Open the clipboard as an IDataObject
+  OleCheck(OleGetClipboard(DataObject));
+  try
+    // Enable paste menu if the clipboard contains data in any of
+    // the supported formats.
+    MenuPaste.Enabled := DropEmptyTarget1.HasValidFormats(DataObject);
+  finally
+    DataObject := nil;
+  end;
+  *)
+
+  (*
+  ** Method 2: Let the component do it for us.
+  *)
+  MenuPaste.Enabled := DropEmptyTarget1.CanPasteFromClipboard;
+end;
+
+procedure TFormMain.DropEmptySource1AfterDrop(Sender: TObject;
+  DragResult: TDragResult; Optimized: Boolean);
+begin
+  // Clear the listview if items were moved.
+  // Note: If we drag-move from and drop onto ourself, this would cause the
+  // listview to clear after we have successfully transfered the data. To avoid
+  // this (and to avoid files being accidentally deleted), our drop target
+  // doesn't accept move operations. If you want it to be able to accept move
+  // operations, you'll have to avoid the above situation somehow. I'll leave it
+  // up to you to figure out how to do that.
+  if (DragResult = drDropMove) then
+    ListView1.Items.Clear;
+end;
+
+procedure TFormMain.OnGetStream(Sender: TFileContentsStreamOnDemandClipboardFormat;
+  Index: integer; out AStream: IStream);
+var
+  Stream: TMemoryStream;
+  Data: AnsiString;
+  i: integer;
+  SelIndex: integer;
+  Found: boolean;
+begin
+  // This event handler is called by TFileContentsStreamOnDemandClipboardFormat
+  // when the drop target requests data from the drop source (that's us).
+  Stream := TMemoryStream.Create;
+  try
+    AStream := nil;
+    // Find the listview item which corresponds to the requested data item.
+    SelIndex := 0;
+    Found := False;
+    for i := 0 to ListView1.Items.Count-1 do
+      if (ListView1.Items[i].Selected) then
+      begin
+        if (SelIndex = Index) then
+        begin
+          // Get the data stored in the listview item and...
+          Data := ListView1.Items[i].SubItems[0];
+          Found := True;
+          break;
+        end;
+        inc(SelIndex);
+      end;
+    if (not Found) then
+      exit;
+
+    // ...Write the file contents to a regular stream...
+    Stream.Write(PAnsiChar(Data)^, Length(Data));
+
+    (*
+    ** Stream.Position must be equal to Stream.Size or the Windows clipboard
+    ** will fail to read from the stream. This requirement is completely
+    ** undocumented.
+    *)
+    // Stream.Position := 0;
+
+    // ...and return the stream back to the target as an IStream. Note that the
+    // target is responsible for deleting the stream (via reference counting).
+    AStream := TFixedStreamAdapter.Create(Stream, soOwned);
+  except
+    Stream.Free;
+    raise;
+  end;
 end;
 
 end.

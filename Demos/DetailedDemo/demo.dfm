@@ -4,7 +4,7 @@ object FormDemo: TFormDemo
   ActiveControl = ButtonText
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
-  Caption = 'Drag '#39'n'#39' Drop  Demo'
+  Caption = 'Drag and Drop Demo'
   ClientHeight = 380
   ClientWidth = 292
   Color = clBtnFace
@@ -102,7 +102,7 @@ object FormDemo: TFormDemo
         Width = 121
         Height = 14
         Alignment = taCenter
-        Caption = 'Copyright (c) 1997-2002.'
+        Caption = 'Copyright (c) 1997-2008.'
         Color = clGray
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWhite
@@ -113,11 +113,11 @@ object FormDemo: TFormDemo
         ParentFont = False
       end
       object Label4: TLabel
-        Left = 28
+        Left = 96
         Top = 20
-        Width = 79
+        Width = 76
         Height = 14
-        Caption = 'Angus Johnson:'
+        Caption = 'Angus Johnson'
         Color = clGray
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWhite
@@ -142,30 +142,13 @@ object FormDemo: TFormDemo
         ParentColor = False
         ParentFont = False
       end
-      object Label6: TLabel
-        Left = 127
-        Top = 20
-        Width = 100
-        Height = 14
-        Cursor = crHandPoint
-        Caption = 'ajohnson@rpi.net.au'
-        Color = clGray
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clBlue
-        Font.Height = -11
-        Font.Name = 'Arial'
-        Font.Style = [fsUnderline]
-        ParentColor = False
-        ParentFont = False
-        OnClick = Label6Click
-      end
       object Label7: TLabel
         Left = 127
         Top = 35
-        Width = 118
+        Width = 85
         Height = 14
         Cursor = crHandPoint
-        Caption = 'http://www.melander.dk'
+        Caption = 'http://melander.dk'
         Color = clGray
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clBlue
@@ -186,7 +169,7 @@ object FormDemo: TFormDemo
       BevelOuter = bvNone
       BorderWidth = 1
       BorderStyle = bsSingle
-      Caption = 'Drag '#39'n'#39' Drop  Demo'
+      Caption = 'Drag and Drop Demo'
       Color = clGray
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWhite

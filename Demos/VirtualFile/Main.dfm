@@ -10,26 +10,27 @@ object FormMain: TFormMain
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'Arial'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = False
-  Position = poDefaultPosOnly
   OnCreate = FormCreate
   PixelsPerInch = 96
-  TextHeight = 14
+  TextHeight = 13
   object Label1: TLabel
     Left = 8
     Top = 8
     Width = 42
-    Height = 14
+    Height = 13
+    Margins.Bottom = 0
     Caption = '&Filename'
     FocusControl = EditFilename
   end
   object Label2: TLabel
     Left = 8
     Top = 64
-    Width = 37
-    Height = 14
+    Width = 39
+    Height = 13
+    Margins.Bottom = 0
     Caption = '&Content'
     FocusControl = MemoContents
   end
@@ -37,7 +38,7 @@ object FormMain: TFormMain
     Left = 8
     Top = 24
     Width = 353
-    Height = 22
+    Height = 21
     TabOrder = 0
     Text = 'ThisIsNotReallyAFile.txt'
   end
@@ -47,7 +48,8 @@ object FormMain: TFormMain
     Width = 353
     Height = 81
     Lines.Strings = (
-      'This is the contents of our virtual file.'
+      'This is the content of our virtual file.'
+      ''
       
         'It can be anything, not only text, but also binary data - It'#39's u' +
         'p to you.')
@@ -55,42 +57,45 @@ object FormMain: TFormMain
   end
   object Panel2: TPanel
     Left = 0
-    Top = 171
+    Top = 167
     Width = 373
-    Height = 59
+    Height = 63
     Align = alBottom
     BevelOuter = bvNone
     BorderWidth = 4
     Caption = ' '
     TabOrder = 2
     object Label3: TLabel
-      Left = 53
+      Left = 61
       Top = 4
-      Width = 316
-      Height = 51
+      Width = 308
+      Height = 55
+      Margins.Bottom = 0
       Align = alClient
       Caption = 
-        'Drag to and from the icon on the left.'#13#10'You can drag to and from' +
-        ' applications such as Netscape, IE, Explorer, Word, Outlook and ' +
-        'many others.'
+        'Drag to and from the icon on the left.'#13'You can drag to and from ' +
+        'applications such as Firefox, Internet Explorer, Explorer, Word,' +
+        ' Outlook and many others.'
       ShowAccelChar = False
       WordWrap = True
+      ExplicitWidth = 307
+      ExplicitHeight = 39
     end
     object PanelDragDrop: TPanel
       Left = 4
       Top = 4
-      Width = 49
-      Height = 51
+      Width = 57
+      Height = 55
       Align = alLeft
       BevelInner = bvLowered
       BevelOuter = bvNone
-      BorderWidth = 2
+      BorderWidth = 4
       Caption = ' '
       TabOrder = 0
       object Image1: TImage
-        Left = 3
-        Top = 3
-        Width = 43
+        Left = 5
+        Top = 5
+        Width = 47
         Height = 45
         Cursor = crHandPoint
         Align = alClient
@@ -129,15 +134,15 @@ object FormMain: TFormMain
   object DropDummy1: TDropDummy
     DragTypes = []
     Target = Owner
-    Left = 96
-    Top = 120
+    Left = 60
+    Top = 148
   end
   object ImageList1: TImageList
     DrawingStyle = dsTransparent
     Height = 32
     Width = 32
-    Left = 136
-    Top = 120
+    Left = 160
+    Top = 52
     Bitmap = {
       494C010101000400040020002000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000800000002000000001002000000000000040
@@ -674,32 +679,45 @@ object FormMain: TFormMain
       FC1FFFFF00000000000000000000000000000000000000000000000000000000
       000000000000}
   end
-  object PopupMenu1: TPopupMenu
-    OnPopup = PopupMenu1Popup
-    Left = 176
-    Top = 120
-    object MenuCopy: TMenuItem
-      Caption = 'Copy'
-      OnClick = MenuCopyClick
-    end
-    object MenuPaste: TMenuItem
-      Caption = 'Paste'
-      OnClick = MenuPasteClick
-    end
-  end
   object DropEmptySource1: TDropEmptySource
     DragTypes = [dtCopy]
     Images = ImageList1
     ShowImage = True
-    Left = 16
-    Top = 120
+    Left = 60
+    Top = 52
   end
   object DropEmptyTarget1: TDropEmptyTarget
     DragTypes = [dtCopy, dtLink]
     OnDrop = DropFileTarget1Drop
     Target = PanelDragDrop
     OptimizedMove = True
-    Left = 56
-    Top = 120
+    Left = 60
+    Top = 100
+  end
+  object PopupMenu1: TPopupMenu
+    Left = 268
+    Top = 52
+    object MenuCopy: TMenuItem
+      Action = ActionCopy
+    end
+    object MenuPaste: TMenuItem
+      Action = ActionPaste
+    end
+  end
+  object ActionList1: TActionList
+    Left = 264
+    Top = 100
+    object ActionCopy: TAction
+      Caption = 'Copy'
+      ShortCut = 16451
+      OnExecute = ActionCopyExecute
+      OnUpdate = ActionCopyUpdate
+    end
+    object ActionPaste: TAction
+      Caption = 'Paste'
+      ShortCut = 16470
+      OnExecute = ActionPasteExecute
+      OnUpdate = ActionPasteUpdate
+    end
   end
 end

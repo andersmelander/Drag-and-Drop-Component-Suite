@@ -1,7 +1,6 @@
 object FormMain: TFormMain
   Left = 250
   Top = 194
-  AutoScroll = False
   Caption = 'ComboTarget Demo'
   ClientHeight = 371
   ClientWidth = 489
@@ -9,12 +8,12 @@ object FormMain: TFormMain
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'Arial'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = False
   Position = poScreenCenter
   PixelsPerInch = 96
-  TextHeight = 14
+  TextHeight = 13
   object PageControl1: TPageControl
     Left = 0
     Top = 129
@@ -31,8 +30,8 @@ object FormMain: TFormMain
       object MemoText: TMemo
         Left = 0
         Top = 0
-        Width = 639
-        Height = 333
+        Width = 481
+        Height = 232
         Align = alClient
         TabOrder = 0
       end
@@ -56,7 +55,7 @@ object FormMain: TFormMain
         Width = 481
         Height = 166
         Align = alClient
-        ItemHeight = 14
+        ItemHeight = 13
         TabOrder = 0
       end
       object ListBoxMaps: TListBox
@@ -65,7 +64,7 @@ object FormMain: TFormMain
         Width = 481
         Height = 63
         Align = alBottom
-        ItemHeight = 14
+        ItemHeight = 13
         TabOrder = 1
       end
     end
@@ -76,8 +75,8 @@ object FormMain: TFormMain
       object ScrollBox2: TScrollBox
         Left = 0
         Top = 0
-        Width = 639
-        Height = 333
+        Width = 481
+        Height = 232
         Align = alClient
         BorderStyle = bsNone
         TabOrder = 0
@@ -97,16 +96,18 @@ object FormMain: TFormMain
       object Label1: TLabel
         Left = 12
         Top = 20
-        Width = 20
-        Height = 14
+        Width = 19
+        Height = 13
+        Margins.Bottom = 0
         Caption = 'URL'
         FocusControl = EditURLURL
       end
       object Label2: TLabel
         Left = 12
         Top = 44
-        Width = 19
-        Height = 14
+        Width = 20
+        Height = 13
+        Margins.Bottom = 0
         Caption = 'Title'
         FocusControl = EditURLTitle
       end
@@ -114,14 +115,14 @@ object FormMain: TFormMain
         Left = 48
         Top = 16
         Width = 573
-        Height = 22
+        Height = 21
         TabOrder = 0
       end
       object EditURLTitle: TEdit
         Left = 48
         Top = 40
         Width = 573
-        Height = 22
+        Height = 21
         TabOrder = 1
       end
     end
@@ -158,8 +159,8 @@ object FormMain: TFormMain
       object ScrollBox1: TScrollBox
         Left = 0
         Top = 0
-        Width = 639
-        Height = 333
+        Width = 481
+        Height = 232
         Align = alClient
         BorderStyle = bsNone
         TabOrder = 0
@@ -198,6 +199,7 @@ object FormMain: TFormMain
         Top = 4
         Width = 296
         Height = 113
+        Margins.Bottom = 0
         Align = alClient
         Caption = 
           'This application demonstrates the TComboTarget component.  TComb' +
@@ -205,6 +207,7 @@ object FormMain: TFormMain
           't multiple unrelated data formats.  Drop data anywhere in this w' +
           'indow to have it displayed in the pane below.'
         WordWrap = True
+        ExplicitHeight = 65
       end
     end
     object Panel1: TPanel
@@ -224,6 +227,8 @@ object FormMain: TFormMain
         Align = alClient
         Caption = ' Accept the following formats '
         TabOrder = 0
+        ExplicitLeft = -2
+        ExplicitTop = -2
         object CheckBoxText: TCheckBox
           Left = 12
           Top = 20

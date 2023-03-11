@@ -58,4 +58,3 @@ with it:
 
       tregsvr -u ContextMenuHandlerShellExt.dll
 
-

@@ -1,20 +1,20 @@
 object FormMain: TFormMain
   Left = 288
   Top = 227
-  Width = 581
-  Height = 395
   Caption = 'Async Data Transfer Demo - Drop target'
+  ClientHeight = 361
+  ClientWidth = 573
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'Arial'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = False
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96
-  TextHeight = 14
+  TextHeight = 13
   object StatusBar1: TStatusBar
     Left = 0
     Top = 342
@@ -32,7 +32,6 @@ object FormMain: TFormMain
     Width = 573
     Height = 15
     Align = alBottom
-    Min = 0
     Max = 1000000
     Step = 1024
     TabOrder = 1
@@ -46,37 +45,72 @@ object FormMain: TFormMain
     BevelOuter = bvLowered
     Caption = ' '
     TabOrder = 2
-    object Label1: TLabel
-      Left = 109
-      Top = 1
-      Width = 463
-      Height = 103
-      Align = alClient
-      Caption = 
-        'This example demonstrates how to receive and process a drop in a' +
-        ' thread.'#13#10'The advantage of using a thread is that the target app' +
-        'lication isn'#39't blocked while the data is being transferred from ' +
-        'the source.'#13#10#13#10'Note that this approach is normally only used whe' +
-        'n transferring large amounts of data or when the drop source or ' +
-        'drop target is very slow.'
-      ShowAccelChar = False
-      WordWrap = True
-    end
     object PanelTarget: TPanel
       Left = 1
       Top = 1
-      Width = 108
+      Width = 160
       Height = 103
       Align = alLeft
       BevelOuter = bvNone
-      Caption = 'Drop here'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clBlue
-      Font.Height = -13
-      Font.Name = 'Arial'
-      Font.Style = []
-      ParentFont = False
+      BorderWidth = 4
       TabOrder = 0
+      object Label4: TLabel
+        Left = 4
+        Top = 4
+        Width = 152
+        Height = 95
+        Margins.Bottom = 0
+        Align = alClient
+        Alignment = taCenter
+        Caption = 'Drop here'
+        Color = 16758920
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clBlack
+        Font.Height = -13
+        Font.Name = 'MS Shell Dlg 2'
+        Font.Style = []
+        ParentColor = False
+        ParentFont = False
+        ShowAccelChar = False
+        Transparent = False
+        Layout = tlCenter
+        WordWrap = True
+        ExplicitWidth = 57
+        ExplicitHeight = 16
+      end
+    end
+    object Panel6: TPanel
+      Left = 161
+      Top = 1
+      Width = 411
+      Height = 103
+      Align = alClient
+      BevelOuter = bvNone
+      BorderWidth = 4
+      TabOrder = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 185
+      ExplicitHeight = 117
+      object Label1: TLabel
+        Left = 4
+        Top = 4
+        Width = 403
+        Height = 95
+        Margins.Bottom = 0
+        Align = alClient
+        Caption = 
+          'This example demonstrates how to receive and process a drop in a' +
+          ' thread.'#13#10'The advantage of using a thread is that the target app' +
+          'lication isn'#39't blocked while the data is being transferred from ' +
+          'the source.'#13#10#13#10'Note that this approach is normally only used whe' +
+          'n transferring large amounts of data or when the drop source or ' +
+          'drop target is very slow.'
+        ShowAccelChar = False
+        WordWrap = True
+        ExplicitWidth = 171
+        ExplicitHeight = 156
+      end
     end
   end
   object Panel2: TPanel
@@ -118,11 +152,15 @@ object FormMain: TFormMain
       BorderWidth = 8
       Caption = ' '
       TabOrder = 1
+      DesignSize = (
+        464
+        222)
       object Label2: TLabel
         Left = 26
         Top = 24
         Width = 423
         Height = 93
+        Margins.Bottom = 0
         Anchors = [akLeft, akTop, akRight]
         AutoSize = False
         Caption = 
@@ -138,6 +176,7 @@ object FormMain: TFormMain
         Top = 136
         Width = 427
         Height = 85
+        Margins.Bottom = 0
         Anchors = [akLeft, akTop, akRight]
         AutoSize = False
         Caption = 
@@ -191,5 +230,11 @@ object FormMain: TFormMain
     Target = PanelTarget
     Left = 40
     Top = 160
+  end
+  object DropDummy1: TDropDummy
+    DragTypes = []
+    Target = Owner
+    Left = 40
+    Top = 236
   end
 end

@@ -2,6 +2,8 @@ unit demo;
 
 interface
 
+{$include dragdrop.inc} // Disables .NET warnings
+
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, Buttons, ExtCtrls;
@@ -16,14 +18,12 @@ type
     Label2: TLabel;
     Label4: TLabel;
     Label5: TLabel;
-    Label6: TLabel;
     Label7: TLabel;
     Panel3: TPanel;
     ButtonURL: TBitBtn;
     procedure ButtonTextClick(Sender: TObject);
     procedure ButtonFileClick(Sender: TObject);
     procedure ButtonExitClick(Sender: TObject);
-    procedure Label6Click(Sender: TObject);
     procedure ButtonURLClick(Sender: TObject);
     procedure Label1Click(Sender: TObject);
   private
@@ -78,17 +78,6 @@ end;
 procedure TFormDemo.ButtonExitClick(Sender: TObject);
 begin
   Close;
-end;
-
-procedure TFormDemo.Label6Click(Sender: TObject);
-begin
-  Screen.Cursor := crAppStart;
-  try
-    Application.ProcessMessages; {otherwise cursor change will be missed}
-    ShellExecute(0, nil, PChar('mailto:'+TLabel(Sender).Caption), nil, nil, SW_NORMAL);
-  finally
-    Screen.Cursor := crDefault;
-  end;
 end;
 
 procedure TFormDemo.Label1Click(Sender: TObject);

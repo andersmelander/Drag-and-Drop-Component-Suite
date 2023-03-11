@@ -2,8 +2,7 @@
 // This project does not use a type library.
 library ContextMenuHandlerShellExt;
 
-{%File 'readme.txt'}
-
+{$R 'About.res' 'About.rc'}
 uses
   ComServ,
   ContextMenuHandlerMain in 'ContextMenuHandlerMain.pas' {DataModuleContextMenuHandler: TDataModule};

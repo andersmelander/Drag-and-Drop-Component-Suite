@@ -47,7 +47,7 @@ procedure TForm1.MemoSourceMouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
   // Wait for user to move cursor before we start the drag/drop.
-  if (DragDetectPlus(TWinControl(Sender).Handle, Point(X,Y))) then
+  if (DragDetectPlus(TWinControl(Sender))) then
   begin
     DropTextSource1.Text := MemoSource.Lines.Text;
     DropTextSource1.Execute;
@@ -85,25 +85,25 @@ procedure TForm1.DropTextTarget1Enter(Sender: TObject;
   ShiftState: TShiftState; Point: TPoint; var Effect: Integer);
 begin
   // Highlight the current drop target.
-  // Use the TDropTarget.Target property to determine which control is
+  // Use the TCustomDropTarget.Target property to determine which control is
   // the current drop target:
-  (TDropTarget(Sender).Target as TMemo).Color := clRed;
+  (TCustomDropTarget(Sender).Target as TMemo).Color := clRed;
 end;
 
 procedure TForm1.DropTextTarget1Leave(Sender: TObject);
 begin
   // Remove highlight.
-  (TDropTarget(Sender).Target as TMemo).Color := clWindow;
+  (TCustomDropTarget(Sender).Target as TMemo).Color := clWindow;
 end;
 
 procedure TForm1.DropTextTarget1Drop(Sender: TObject;
   ShiftState: TShiftState; Point: TPoint; var Effect: Integer);
 begin
   // Copy dragged text from target component into target control.
-  (TDropTarget(Sender).Target as TMemo).Lines.Text := TDropTextTarget(Sender).Text;
+  (TCustomDropTarget(Sender).Target as TMemo).Lines.Text := TDropTextTarget(Sender).Text;
 
   // Remove highlight.
-  (TDropTarget(Sender).Target as TMemo).Color := clWindow;
+  (TCustomDropTarget(Sender).Target as TMemo).Color := clWindow;
 end;
 
 procedure TForm1.FormMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -117,7 +117,7 @@ begin
     if (Components[i] is TMemo) then
       TMemo(Components[i]).Color := clWindow;
 
-  // Demo of TDropTarget.FindTarget:
+  // Demo of TCustomDropTarget.FindTarget:
   // Highlight the control under the cursor if it is a drop target.
   Control := DropTextTarget1.FindTarget((Sender as TWinControl).ClientToScreen(Point(X,Y)));
   if (Control <> nil) and (Control is TMemo) then

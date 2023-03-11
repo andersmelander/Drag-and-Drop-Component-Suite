@@ -1,0 +1,10 @@
+[FileVersion]
+Version=7.0
+[Linker]
+ExeDescription=Drag and Drop Component Suite
+[Directories]
+OutputDir=..\Library\Delphi 2006
+UnitOutputDir=..\Library\Delphi 2006
+PackageDLLOutputDir=..\Library\Delphi 2006
+PackageDCPOutputDir=..\Library\Delphi 2006
+SearchPath=$(DELPHI)\Lib\Debug;..\Source

@@ -9,14 +9,14 @@ object FormMain: TFormMain
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'Arial'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = False
   ShowHint = True
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96
-  TextHeight = 14
+  TextHeight = 13
   object ProgressBar1: TProgressBar
     Left = 0
     Top = 342
@@ -41,6 +41,8 @@ object FormMain: TFormMain
       item
         Width = 200
       end>
+    ParentFont = True
+    UseSystemFont = False
   end
   object ListViewFiles: TListView
     Left = 0
@@ -100,14 +102,14 @@ object FormMain: TFormMain
       item
         Control = ComboAddress
         ImageIndex = -1
-        MinHeight = 22
+        MinHeight = 21
         Text = 'Address:'
         Width = 567
       end>
     object ToolBarMain: TToolBar
-      Left = 10
+      Left = 12
       Top = 34
-      Width = 555
+      Width = 553
       Height = 30
       AutoSize = True
       ButtonHeight = 30
@@ -173,7 +175,7 @@ object FormMain: TFormMain
       end
     end
     object AnimateThrobber: TAnimate
-      Left = 0
+      Left = 2
       Top = 0
       Width = 569
       Height = 32
@@ -181,11 +183,10 @@ object FormMain: TFormMain
       Transparent = False
     end
     object ComboAddress: TComboBox
-      Left = 58
+      Left = 59
       Top = 66
-      Width = 507
-      Height = 22
-      ItemHeight = 14
+      Width = 506
+      Height = 21
       TabOrder = 2
       OnCloseUp = ComboAddressCloseUp
       OnKeyDown = ComboAddressKeyDown
@@ -2079,23 +2080,16 @@ object FormMain: TFormMain
     end
   end
   object IdFTP1: TIdFTP
-    OnWork = IdFTP1Work
-    OnWorkBegin = IdFTP1WorkBegin
-    OnWorkEnd = IdFTP1WorkEnd
+    IPVersion = Id_IPv4
     AutoLogin = True
     Passive = True
-    Password = 'anders@aztech.dk'
+    Password = 'homer@simpson.org'
     Username = 'anonymous'
     ProxySettings.ProxyType = fpcmNone
     ProxySettings.Port = 0
     ReadTimeout = 30000
     Left = 40
     Top = 240
-  end
-  object IdAntiFreeze1: TIdAntiFreeze
-    Active = False
-    Left = 40
-    Top = 272
   end
   object ImageListExplorer: TImageList
     ShareImages = True

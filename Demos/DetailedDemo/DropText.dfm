@@ -10,7 +10,7 @@ object FormText: TFormText
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'Arial'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   Icon.Data = {
     0000010001001010100000000000280100001600000028000000100000002000
@@ -28,7 +28,7 @@ object FormText: TFormText
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96
-  TextHeight = 14
+  TextHeight = 13
   object Memo1: TMemo
     Left = 11
     Top = 181
@@ -58,7 +58,7 @@ object FormText: TFormText
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
-    Font.Name = 'Arial'
+    Font.Name = 'MS Shell Dlg 2'
     Font.Style = [fsBold]
     ParentFont = False
     TabOrder = 5
@@ -68,7 +68,7 @@ object FormText: TFormText
     Left = 11
     Top = 256
     Width = 439
-    Height = 22
+    Height = 21
     AutoSelect = False
     TabOrder = 4
     Text = 
@@ -82,8 +82,10 @@ object FormText: TFormText
     Width = 461
     Height = 19
     Panels = <>
+    ParentFont = True
     SimplePanel = True
     SizeGrip = False
+    UseSystemFont = False
   end
   object Memo2: TMemo
     Left = 11
@@ -112,7 +114,7 @@ object FormText: TFormText
     Left = 11
     Top = 118
     Width = 439
-    Height = 22
+    Height = 21
     Cursor = crHandPoint
     AutoSelect = False
     TabOrder = 1
@@ -143,7 +145,7 @@ object FormText: TFormText
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWhite
     Font.Height = -16
-    Font.Name = 'Arial'
+    Font.Name = 'MS Shell Dlg 2'
     Font.Style = [fsBold]
     ParentFont = False
     TabOrder = 7
@@ -151,7 +153,6 @@ object FormText: TFormText
   object DropSource1: TDropTextSource
     DragTypes = [dtCopy]
     OnFeedback = DropSourceFeedback
-    Locale = 0
     Left = 16
     Top = 51
   end

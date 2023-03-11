@@ -4,13 +4,13 @@
 // Description:     This include file contains common defines used by the
 //                  library.
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
-// Copyright        © 1997-2008 Anders Melander
+// Copyright        © 1997-2009 Anders Melander
 // -----------------------------------------------------------------------------
 
 
 // -----------------------------------------------------------------------------
-//			Detect compiler version
-//                      Supports D1 - D2008, Win32
+//                      Detect compiler version
+//                      Supports D1 - D2010, Win32
 // -----------------------------------------------------------------------------
 
 // Delphi 1.x
@@ -28,6 +28,7 @@
 
 // C++Builder 1.x
 {$IFDEF VER93}
+  {$DEFINE BCB}
   {$DEFINE VER9x}
   {$DEFINE VER93_PLUS}
   {$DEFINE VER_OK}
@@ -41,6 +42,7 @@
 
 // C++Builder 3.x
 {$IFDEF VER110}
+  {$DEFINE BCB}
   {$DEFINE VER11_PLUS}
   {$DEFINE VER_OK}
 {$ENDIF}
@@ -53,36 +55,29 @@
 
 // C++Builder 4.x
 {$IFDEF VER125}
+  {$DEFINE BCB}
   {$DEFINE VER125_PLUS}
   {$DEFINE VER_OK}
 {$ENDIF}
 
 // Delphi 5.x
-{$IFDEF VER130}
-  {$DEFINE VER13_PLUS}
-  {$DEFINE VER_OK}
-{$ENDIF}
-
 // C++Builder 5.x
 {$IFDEF VER130}
+  {$DEFINE VER13_PLUS}
   {$IFDEF BCB}
     {$DEFINE VER135_PLUS}
-    {$DEFINE VER_OK}
   {$ENDIF}
+  {$DEFINE VER_OK}
 {$ENDIF}
 
 // Delphi 6.x
-{$IFDEF VER140}
-  {$DEFINE VER14_PLUS}
-  {$DEFINE VER_OK}
-{$ENDIF}
-
 // C++Builder 6.x
 {$IFDEF VER140}
+  {$DEFINE VER14_PLUS}
   {$IFDEF BCB}
     {$DEFINE VER145_PLUS}
-    {$DEFINE VER_OK}
   {$ENDIF}
+  {$DEFINE VER_OK}
 {$ENDIF}
 
 // Delphi 7.x
@@ -120,13 +115,19 @@
   {$DEFINE VER_OK}
 {$ENDIF}
 
-// Delphi 2008 (Tiburón)
+// Delphi 2009
 {$IFDEF VER200}
   {$DEFINE VER20_PLUS}
   {$DEFINE VER_OK}
 {$ENDIF}
 
-// Unknown compiler version - assume D2008 compatible for Unicode or D2007 for Ansi
+// Delphi 2010
+{$IFDEF VER210}
+  {$DEFINE VER21_PLUS}
+  {$DEFINE VER_OK}
+{$ENDIF}
+
+// Unknown compiler version - assume D2009 compatible for Unicode or D2007 for Ansi
 {$IFNDEF VER_OK}
   {$ifdef UNICODE}
     {$DEFINE VER20_PLUS}
@@ -137,6 +138,9 @@
   {$UNDEF VER_OK}
 {$ENDIF}
 
+{$IFDEF VER21_PLUS}
+  {$DEFINE VER20_PLUS}
+{$ENDIF}
 {$IFDEF VER20_PLUS}
   {$DEFINE VER19_PLUS}
 {$ENDIF}
@@ -191,11 +195,11 @@
 
 
 // -----------------------------------------------------------------------------
-//			Required compiler directives
+//              Required compiler directives
 // -----------------------------------------------------------------------------
 
-{$BOOLEVAL OFF}		// Short circuit boolean evaluation.
-{$EXTENDEDSYNTAX ON}	// Enable Delphi Pascal extensions.
+{$BOOLEVAL OFF}         // Short circuit boolean evaluation.
+{$EXTENDEDSYNTAX ON}    // Enable Delphi Pascal extensions.
 {$LONGSTRINGS ON}       // String = AnsiString.
 {$ALIGN ON}             // Aligned data. Required by COM.
 {$ifdef BCB}
@@ -203,7 +207,7 @@
 {$endif}
 
 // The following are not realy nescessary, but they are good practice.
-{$TYPEDADDRESS ON}	// @ operator returns typed pointer.
+{$TYPEDADDRESS ON}      // @ operator returns typed pointer.
 {$WRITEABLECONST OFF}   // Typed consts are R/O.
 
 // Disable platform warnings. This library is only supported on Windows.
@@ -216,14 +220,5 @@
 {$WARN UNSAFE_TYPE OFF}
 {$WARN UNSAFE_CODE OFF}
 {$WARN UNSAFE_CAST OFF}
-{$endif}
-
-// Unicode/WideString string list
-{$ifdef VER18_PLUS} // Class helpers required
-  {$ifndef UNICODE} // Tiburon probably has its own Wide String list
-    {$ifndef DESIGNTIME} // For some reason the class helper fails to link at design time.
-      {$define DD_WIDESTRINGLIST}
-    {$endif}
-  {$endif}
 {$endif}
 

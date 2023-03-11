@@ -4,12 +4,33 @@ interface
 
 uses
   RingbufferStream,
-  DragDrop, DropSource, DragDropFormats,
+  DragDrop, DropSource, DragDropFile,
+  // Indy 10 required
+  IdBaseComponent, IdComponent, IdTCPConnection, IdTCPClient,
+  IdExplicitTLSClientServerBase, IdFTP,
   Messages, Dialogs,
   ActiveX, Windows, Classes, Controls, Forms, StdCtrls, ComCtrls, ExtCtrls,
-  Buttons, ImgList, ToolWin, ActnList, IdAntiFreezeBase, IdAntiFreeze,
-  IdBaseComponent, IdComponent, IdTCPConnection, IdTCPClient,
-  IdExplicitTLSClientServerBase, IdFTP;
+  Buttons, ImgList, ToolWin, ActnList;
+
+{$include DragDrop.inc}
+
+{$ifdef VER20_PLUS}
+// Work around for interface breaking changes between different Indy 10 releases... Pffft!
+type
+  TIndyWorkCountInt = int64;
+{$else}
+type
+  TIndyWorkCountInt = integer;
+
+  // Hack to make it possible to load new indy FTP component with old indy version
+  TIPVersion = (Id_IPv4, Id_IPv6);
+  TIdFTP = class(IdFTP.TIdFTP)
+  private
+    FDummyVersion: TIPVersion;
+  published
+    property IPVersion: TIPVersion write FDummyVersion;
+  end;
+{$endif}
 
 const
   MSG_PROGRESS = WM_USER;
@@ -53,7 +74,6 @@ type
     ActionUp: TAction;
     ActionHome: TAction;
     IdFTP1: TIdFTP;
-    IdAntiFreeze1: TIdAntiFreeze;
     ImageListExplorer: TImageList;
     Timer1: TTimer;
     procedure DropEmptySource1Drop(Sender: TObject; DragType: TDragType;
@@ -84,13 +104,11 @@ type
     procedure ListViewFilesDblClick(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
     procedure IdFTP1Work(Sender: TObject; AWorkMode: TWorkMode;
-      const AWorkCount: Integer);
+      AWorkCount: TIndyWorkCountInt);
     procedure IdFTP1WorkBegin(Sender: TObject; AWorkMode: TWorkMode;
-      const AWorkCountMax: Integer);
+      AWorkCountMax: TIndyWorkCountInt);
     procedure IdFTP1WorkEnd(Sender: TObject; AWorkMode: TWorkMode);
     procedure ActionHomeUpdate(Sender: TObject);
-  private
-    function GetTransferInProgress: boolean;
   private
     FHistoryList: TStringList;
     FHistoryIndex: Integer;
@@ -104,17 +122,21 @@ type
     FTransferCount: integer;
     FBusyCount: integer;
     FCurrentFileSize: int64;
+    FIndyFtpAbortWarningShown: boolean;
+    function GetTransferInProgress: boolean;
     function GetBusy: boolean;
     procedure SetStatus(const Value: TDragDropStage);
     procedure SetProgress(Count, MaxCount: integer);
     procedure OnGetStream(Sender: TFileContentsStreamOnDemandClipboardFormat;
       Index: integer; out AStream: IStream);
 
+  protected
     procedure MsgProgress(var Message: TMessage); message MSG_PROGRESS;
     procedure MsgStatus(var Message: TMessage); message MSG_STATUS;
     procedure MsgTransfer(var Message: TMessage); message MSG_TRANSFER;
     procedure MsgBrowse(var Message: TMessage); message MSG_BROWSE;
 
+  public
     procedure Browse(const Address: string; Options: TBrowseOptions = [boBrowse]);
     procedure AddSourceFile(const Filename: string);
     procedure BeginBusy;
@@ -124,8 +146,6 @@ type
     property Status: TDragDropStage read FStatus write SetStatus;
     property Busy: boolean read GetBusy;
     property TransferInProgress: boolean read GetTransferInProgress;
-  protected
-  public
   end;
 
 var
@@ -137,6 +157,7 @@ implementation
 {$R Throbber.res}
 
 uses
+  DragDropFormats,
   IdURI,
   IdFTPList,
   IdAllFTPListParsers,
@@ -146,7 +167,16 @@ uses
   SysUtils, StrUtils;
 
 const
-  sAddressHome = 'ftp://gatekeeper.dec.com/';
+  sAddressHome = 'ftp://ftp.microsoft.com/';
+  // Another good test site is:
+  sAddressHomeAlt = 'ftp://gatekeeper.dec.com/';
+
+resourcestring
+  sIndyFtpAbortWarning =
+    'Note: Due to a bug in Indy (the TCP/IP library used in this demo), aborting the'+#13+
+    'FTP transfer will most likely mess up the FTP session, causing various error if'+#13+
+    'another transfer is initiated.'+#13+#13+
+    'A work around for this problem is unfortunately beyond the scope of this demo.';
 
 type
   TBrowseKind = (bkAddress, bkUp, bkRefresh);
@@ -187,6 +217,7 @@ var
 begin
   FHistoryList := TStringList.Create;
   FHistoryIndex := -1;
+  ComboAddress.Items.Add(sAddressHomeAlt);
 
   // Setup event handler to let a drop target request data from our drop source.
   (DataFormatAdapterSource.DataFormat as TVirtualFileStreamDataFormat).OnGetStream := OnGetStream;
@@ -204,6 +235,13 @@ begin
   SetLength(FTempPath, GetTempPath(Length(FTempPath), PChar(FTempPath)));
 
   AnimateThrobber.ResName := 'AVI_THROBBER';
+
+  // I assign the Indy FTP events manually in order to get them validated at
+  // compile time. The reason is that Indy has a habit of changing the
+  // method/event signatures between minor releases.
+  IdFTP1.OnWorkBegin := IdFTP1WorkBegin;
+  IdFTP1.OnWork := IdFTP1Work;
+  IdFTP1.OnWorkEnd := IdFTP1WorkEnd;
 end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
@@ -236,7 +274,7 @@ begin
   // The content will be extracted by the target on-demand.
   i := TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileNames.Add(Filename);
   // Set the size and timestamp attributes of the filename we just added.
-  with PFileDescriptor(TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileDescriptors[i])^ do
+  with TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileDescriptors[i]^ do
   begin
     if (ModifiedDate <> 0) then
       ftLastWriteTime := DateTimeToFileTime(ModifiedDate)
@@ -343,20 +381,22 @@ procedure TFormMain.OnGetStream(Sender: TFileContentsStreamOnDemandClipboardForm
 var
   RingBuffer: TRingBuffer;
   ReadStream: TStream;
-  FileDescriptor: PFileDescriptor;
+  FileDescriptor: PFileDescriptorW;
   FileSize: int64;
 begin
-  AStream := nil;
-
-  FileDescriptor := PFileDescriptor(TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileDescriptors[Index]);
-  FileSize := int64(FileDescriptor.nFileSizeLow) or (int64(FileDescriptor.nFileSizeHigh) shr 32);
-
+  // This event handler is called by TFileContentsStreamOnDemandClipboardFormat
+  // when the drop target (e.g. Explorer) requests data from the drop source (that's us).
+  //
   // Warning:
   // This method will be called in the context of the transfer thread during an
   // asynchronous transfer. See TFormMain.OnProgress for a comment on this.
 
-  // This event handler is called by TFileContentsStreamOnDemandClipboardFormat
-  // when the drop target requests data from the drop source (that's us).
+  AStream := nil;
+
+  FileDescriptor := TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileDescriptors[Index];
+  FileSize := int64(FileDescriptor.nFileSizeLow) or (int64(FileDescriptor.nFileSizeHigh) shl 32);
+
+
   Status := dsGetStream;
 
   RingBuffer := TRingBuffer.Create(16, 1024*64);
@@ -374,7 +414,7 @@ procedure TFormMain.MsgTransfer(var Message: TMessage);
 var
   Index: integer;
   Filename: string;
-  FileDescriptor: PFileDescriptor;
+  FileDescriptor: PFileDescriptorW;
   RingBuffer: TRingBuffer;
 begin
   Index := Message.WParam;
@@ -388,11 +428,11 @@ begin
 
   BeginTransfer;
   try
-    FileDescriptor := PFileDescriptor(TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileDescriptors[Index]);
-    FCurrentFileSize := int64(FileDescriptor.nFileSizeLow) or (int64(FileDescriptor.nFileSizeHigh) shr 32);
+    FileDescriptor := TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileDescriptors[Index];
+    FCurrentFileSize := int64(FileDescriptor.nFileSizeLow) or (int64(FileDescriptor.nFileSizeHigh) shl 32);
     Filename := TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileNames[Index];
 
-    // Note: For this demo only low 32 bits of file size is used for progress bar
+    // Note: For this demo only lower 32 bits of file size is used for progress bar
     ProgressBar1.Max := FCurrentFileSize and $FFFFFFFF;
     ProgressBar1.Position := 0;
     ProgressBar1.Show;
@@ -405,7 +445,6 @@ begin
 
       IdFTP1.Get(Filename, FWriteStream);
     finally
-      FWriteStream.Abort;
       FreeAndNil(FWriteStream);
     end;
   finally
@@ -489,7 +528,8 @@ end;
 
 procedure TFormMain.ComboAddressCloseUp(Sender: TObject);
 begin
-  Browse(ComboAddress.Text);
+  if (FAddress <> ComboAddress.Text) then
+    Browse(ComboAddress.Text);
 end;
 
 procedure TFormMain.Browse(const Address: string; Options: TBrowseOptions);
@@ -522,7 +562,8 @@ end;
 
 procedure TFormMain.ActionBackExecute(Sender: TObject);
 begin
-  ComboAddress.Text := FHistoryList[FHistoryIndex-1];
+  Dec(FHistoryIndex);
+  ComboAddress.Text := FHistoryList[FHistoryIndex];
   Browse(ComboAddress.Text);
 end;
 
@@ -533,7 +574,8 @@ end;
 
 procedure TFormMain.ActionForwardExecute(Sender: TObject);
 begin
-  ComboAddress.Text := FHistoryList[FHistoryIndex+1];
+  Inc(FHistoryIndex);
+  ComboAddress.Text := FHistoryList[FHistoryIndex];
   Browse(ComboAddress.Text);
 end;
 
@@ -555,6 +597,11 @@ end;
 procedure TFormMain.ActionStopExecute(Sender: TObject);
 begin
   FAbort := True;
+  if (not FIndyFtpAbortWarningShown) then
+  begin
+    FIndyFtpAbortWarningShown := True;
+    ShowMessage(sIndyFtpAbortWarning);
+  end;
 end;
 
 procedure TFormMain.ActionUpUpdate(Sender: TObject);
@@ -638,7 +685,7 @@ begin
         i := FHistoryList.IndexOf(s);
         if (i = -1) then
         begin
-          { Remove entries in HistoryList between last address and current address }
+          // Remove entries in HistoryList between last address and current address
           if (FHistoryIndex >= 0) and (FHistoryIndex < FHistoryList.Count-1) then
             while FHistoryList.Count-1 > FHistoryIndex do
               FHistoryList.Delete(FHistoryList.Count-1);
@@ -711,7 +758,7 @@ begin
 end;
 
 procedure TFormMain.IdFTP1Work(Sender: TObject; AWorkMode: TWorkMode;
-  const AWorkCount: Integer);
+  AWorkCount: TIndyWorkCountInt);
 begin
   Application.ProcessMessages;
   if (FAbort) or ((FWriteStream <> nil) and (FWriteStream.Aborted)) then
@@ -741,7 +788,7 @@ begin
 end;
 
 procedure TFormMain.IdFTP1WorkBegin(Sender: TObject; AWorkMode: TWorkMode;
-  const AWorkCountMax: Integer);
+  AWorkCountMax: TIndyWorkCountInt);
 begin
   BeginTransfer;
   UpdateActions;

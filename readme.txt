@@ -1,7 +1,7 @@
 
-Drag and Drop Component Suite Version 4.2
-Released 14-may-2008
-© 1997-2008 Anders Melander
+Drag and Drop Component Suite Version 5.0
+Released 6-dec-2009
+© 1997-2009 Anders Melander
 http://melander.dk/delphi/dragdrop/
 
 -------------------------------------------
@@ -17,8 +17,8 @@ Table of Contents:
 -------------------------------------------
 1. Supported platforms:
 -------------------------------------------
-This version of the library has been tested with Delphi 5, Delphi 7 and Delphi 2007 on
-Windows XP Professional SP2.
+This version of the library has been tested with Delphi 5, Delphi 7, Delphi 2007,
+Delphi 2009 and Delphi 2010 on Windows XP Professional SP2.
 
 
 -------------------------------------------
@@ -56,9 +56,9 @@ Windows XP Professional SP2.
 * When the demo applications are compiled with Delphi 7, some of them
   will probably emit a lot of "Unsafe type", "Unsafe code" etc. warnings.
   This doesn't mean that there's anything wrong with the demos. It just
-  means that Borland would like you to know that they are moving to .NET
-  and would like you to do the same (so you can buy the next version of
-  Delphi).
+  means that Borland, at that time, wanted you to know that they were
+  moving to .NET and would like you to do the same (so you can buy the
+  next version of Delphi).
   You can turn the warnings of in the project options.
 
 * Delphi's and C++Builder's HWND and THandle types are not compatible.

@@ -3,12 +3,12 @@ unit DragDropInternet;
 // Project:         Drag and Drop Component Suite.
 // Module:          DragDropInternet
 // Description:     Implements Dragging and Dropping of internet related data.
-// Version:         4.2
-// Date:            05-APR-2008
-// Target:          Win32, Delphi 5-2007
+// Version:         5.0
+// Date:            22-NOV-2009
+// Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2008 Anders Melander
+//                  © 2000-2009 Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -18,6 +18,7 @@ uses
   DropTarget,
   DropSource,
   DragDropFormats,
+  DragDropText,
   Windows,
   Classes,
   ActiveX;
@@ -28,13 +29,13 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TURLClipboardFormat
+//              TAnsiURLClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Implements support for the 'UniformResourceLocator' format.
 ////////////////////////////////////////////////////////////////////////////////
 
-  TURLClipboardFormat = class(TCustomTextClipboardFormat)
+  TAnsiURLClipboardFormat = class(TCustomAnsiTextClipboardFormat)
   public
     function GetClipboardFormat: TClipFormat; override;
     property URL: AnsiString read GetString write SetString;
@@ -42,24 +43,42 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TURLWClipboardFormat
+//              TUnicodeURLClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Implements support for the 'UniformResourceLocatorW' format.
 ////////////////////////////////////////////////////////////////////////////////
 
-  TURLWClipboardFormat = class(TCustomWideTextClipboardFormat)
+  TUnicodeURLClipboardFormat = class(TCustomUnicodeTextClipboardFormat)
   public
     function GetClipboardFormat: TClipFormat; override;
-    property URL: WideString read GetText write SetText;
+    property URL: UnicodeString read GetText write SetText;
   end;
+
+  TURLWClipboardFormat = TUnicodeURLClipboardFormat {$ifdef VER17_PLUS}deprecated {$IFDEF VER20_PLUS}'Use TURLWClipboardFormat instead'{$ENDIF}{$endif};
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TNetscapeBookmarkClipboardFormat
+//              TURLClipboardFormat
+//
+////////////////////////////////////////////////////////////////////////////////
+
+{$ifdef UNICODE}
+  TURLClipboardFormat = TUnicodeURLClipboardFormat;
+{$else}
+  TURLClipboardFormat = TAnsiURLClipboardFormat;
+{$endif}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TNetscapeBookmarkClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Implements support for the 'Netscape Bookmark' format.
+////////////////////////////////////////////////////////////////////////////////
+//
+//              Deprecated
+//
 ////////////////////////////////////////////////////////////////////////////////
   TNetscapeBookmarkClipboardFormat = class(TCustomSimpleClipboardFormat)
   private
@@ -74,14 +93,18 @@ type
     procedure Clear; override;
     property URL: AnsiString read FURL write FURL;
     property Title: AnsiString read FTitle write FTitle;
-  end;
+  end {$ifdef VER15_PLUS} deprecated {$endif};
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TNetscapeImageClipboardFormat
+//              TNetscapeImageClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Implements support for the 'Netscape Image Format' format.
+////////////////////////////////////////////////////////////////////////////////
+//
+//              Deprecated
+//
 ////////////////////////////////////////////////////////////////////////////////
   TNetscapeImageClipboardFormat = class(TCustomSimpleClipboardFormat)
   private
@@ -106,11 +129,11 @@ type
     property Extra: AnsiString read FExtra write FExtra;
     property Height: integer read FHeight write FHeight;
     property Width: integer read FWidth write FWidth;
-  end;
+  end {$ifdef VER15_PLUS} deprecated {$endif};
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TVCardClipboardFormat
+//              TVCardClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Implements support for the '+//ISBN 1-887687-00-9::versit::PDI//vCard'
@@ -128,12 +151,15 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		THTMLClipboardFormat
+//              THTMLClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Implements support for the 'HTML Format' format.
 ////////////////////////////////////////////////////////////////////////////////
   THTMLClipboardFormat = class(TCustomStringListClipboardFormat)
+  private
+  protected
+    class procedure RegisterCompatibleFormats; override;
   public
     function GetClipboardFormat: TClipFormat; override;
     function HasData: boolean; override;
@@ -144,10 +170,13 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TRFC822ClipboardFormat
+//              TRFC822ClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TRFC822ClipboardFormat = class(TCustomStringListClipboardFormat)
+  private
+  protected
+    class procedure RegisterCompatibleFormats; override;
   public
     function GetClipboardFormat: TClipFormat; override;
     function Assign(Source: TCustomDataFormat): boolean; override;
@@ -158,32 +187,34 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TURLDataFormat
+//              TURLDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Renderer for URL formats.
 ////////////////////////////////////////////////////////////////////////////////
   TURLDataFormat = class(TCustomDataFormat)
   private
-    FURL: string;
-    FTitle: string;
-    procedure SetTitle(const Value: string);
-    procedure SetURL(const Value: string);
+    FURL: AnsiString;
+    FTitle: UnicodeString;
+    procedure SetTitle(const Value: UnicodeString);
+    procedure SetURL(const Value: AnsiString);
   protected
+    class procedure RegisterCompatibleFormats; override;
   public
     function Assign(Source: TClipboardFormat): boolean; override;
     function AssignTo(Dest: TClipboardFormat): boolean; override;
     procedure Clear; override;
     function HasData: boolean; override;
     function NeedsData: boolean; override;
-    property URL: string read FURL write SetURL;
-    property Title: string read FTitle write SetTitle;
+
+    property URL: AnsiString read FURL write SetURL;
+    property Title: UnicodeString read FTitle write SetTitle;
   end;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		THTMLDataFormat
+//              THTMLDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Renderer for HTML text data.
@@ -193,6 +224,7 @@ type
     FHTML: TStrings;
     procedure SetHTML(const Value: TStrings);
   protected
+    class procedure RegisterCompatibleFormats; override;
   public
     constructor Create(AOwner: TDragDropComponent); override;
     destructor Destroy; override;
@@ -207,8 +239,8 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TStorageDataFormat
-//		TOutlookDataFormat
+//              TStorageDataFormat
+//              TOutlookDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Renderer for Microsoft Outlook email formats.
@@ -217,6 +249,7 @@ type
   private
     FStorages: TStorageInterfaceList;
   protected
+    class procedure RegisterCompatibleFormats; override;
   public
     constructor Create(AOwner: TDragDropComponent); override;
     destructor Destroy; override;
@@ -232,13 +265,20 @@ type
   private
     FStorages: TStorageInterfaceList;
     FMessages: TInterfaceList;
-    function GetCount: integer;
+    FSession: pointer;
+    FSessionCount: integer;
+    FSessionLock: integer;
   protected
+    function GetCount: integer;
     function GetMessage(Index: integer): IUnknown;
   public
     constructor Create(AStorages: TStorageInterfaceList);
     destructor Destroy; override;
     procedure Clear;
+    procedure BeginSession;
+    procedure EndSession;
+    procedure LockSession;
+    procedure UnlockSession;
     property Storages: TStorageInterfaceList read FStorages;
     property Messages[Index: integer]: IUnknown read GetMessage; default;
     property Count: integer read GetCount;
@@ -248,6 +288,7 @@ type
   private
     FMessages: TMessages;
   protected
+    class procedure RegisterCompatibleFormats; override;
   public
     constructor Create(AOwner: TDragDropComponent); override;
     destructor Destroy; override;
@@ -258,7 +299,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropURLTarget
+//              TDropURLTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 // URL drop target component.
@@ -267,19 +308,19 @@ type
   private
     FURLFormat: TURLDataFormat;
   protected
-    function GetTitle: string;
-    function GetURL: string;
+    function GetTitle: UnicodeString;
+    function GetURL: AnsiString;
     function GetPreferredDropEffect: LongInt; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    property URL: string read GetURL;
-    property Title: string read GetTitle;
+    property URL: AnsiString read GetURL;
+    property Title: UnicodeString read GetTitle;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropURLSource
+//              TDropURLSource
 //
 ////////////////////////////////////////////////////////////////////////////////
 // URL drop source component.
@@ -287,39 +328,78 @@ type
   TDropURLSource = class(TCustomDropMultiSource)
   private
     FURLFormat: TURLDataFormat;
-    procedure SetTitle(const Value: string);
-    procedure SetURL(const Value: string);
   protected
-    function GetTitle: string;
-    function GetURL: string;
+    function GetTitle: UnicodeString;
+    procedure SetTitle(const Value: UnicodeString);
+    function GetURL: AnsiString;
+    procedure SetURL(const Value: AnsiString);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
   published
-    property URL: string read GetURL write SetURL;
-    property Title: string read GetTitle write SetTitle;
+    property URL: AnsiString read GetURL write SetURL;
+    property Title: UnicodeString read GetTitle write SetTitle;
   end;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Misc.
+//              Misc.
 //
 ////////////////////////////////////////////////////////////////////////////////
-function GetURLFromFile(const Filename: string; var URL: string): boolean;
-function GetURLFromString(const s: string; var URL: string): boolean;
-function GetURLFromStream(Stream: TStream; var URL: string): boolean;
-function ConvertURLToFilename(const url: string): string;
+// Since an URL and HTML never contains anything but ANSI characters, it makes
+// sense to keep these as AnsiStrings.
+////////////////////////////////////////////////////////////////////////////////
+function GetURLFromFile(const Filename: string; var URL: AnsiString): boolean;
+function GetURLFromString(const s: AnsiString; var URL: AnsiString): boolean;
+function GetURLFromStream(Stream: TStream; var URL: AnsiString): boolean;
+function ConvertURLToFilename(const url: AnsiString): AnsiString;
 
 function IsHTML(const s: string): boolean;
-function MakeHTML(const s: string): string;
-function MakeTextFromHTML(const s: string; FullHTML: boolean = False): string;
+function MakeHTML(const s: string): AnsiString;
+function MakeTextFromHTML(const s: AnsiString; FullHTML: boolean = False): string;
 
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              MAPI stuff
+//
+////////////////////////////////////////////////////////////////////////////////
+type
+  TMAPIGetDefaultMalloc = function: pointer; stdcall;
+  TMAPIInitialize = function(lpMapiInit: pointer): HResult; stdcall;
+  TMAPIUninitialize = procedure; stdcall;
+  TMAPIAllocateBuffer = function(cbSize: ULONG; var lppBuffer: pointer): SCODE; stdcall;
+  TMAPIAllocateMore = function(cbSize: ULONG; lpObject: pointer; var lppBuffer: pointer): SCODE; stdcall;
+  TMAPIFreeBuffer = function(lpBuffer: pointer): ULONG; stdcall;
+  // Note: This declaration of OpenIMsgOnIStg has been hacked to remove dependencies on MAPI structures.
+  TOpenIMsgOnIStg = function(lpMsgSess: pointer; lpAllocateBuffer: pointer;
+    lpAllocateMore: pointer; lpFreeBuffer: pointer; lpMalloc: IMalloc;
+    lpMapiSup: pointer; lpStg: IStorage; lpfMsgCallRelease: pointer;
+    ulCallerData: ULONG; ulFlags: ULONG; out lppMsg: IUnknown): SCODE; stdcall;
+  TOpenIMsgSession = function(lpMalloc: IMalloc; ulFlags: ULONG; var lppMsgSess: pointer): SCODE; stdcall;
+  TCloseIMsgSession = procedure(lpMsgSess: pointer); stdcall;
+
+var
+  MAPIGetDefaultMalloc: TMAPIGetDefaultMalloc = nil;
+  MAPIInitialize: TMAPIInitialize = nil;
+  MAPIUninitialize: TMAPIUninitialize = nil;
+  MAPIAllocateBuffer: TMAPIAllocateBuffer = nil;
+  MAPIAllocateMore: TMAPIAllocateMore = nil;
+  MAPIFreeBuffer: TMAPIFreeBuffer = nil;
+  OpenIMsgOnIStg: TOpenIMsgOnIStg = nil;
+  OpenIMsgSession: TOpenIMsgSession = nil;
+  CloseIMsgSession: TCloseIMsgSession = nil;
+
+var
+  MAPI32: HMODULE = 0;
+
+procedure LoadMAPI32;
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 //
-//			IMPLEMENTATION
+//                      IMPLEMENTATION
 //
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -329,16 +409,14 @@ uses
   SysUtils,
   ShlObj,
   ComObj,
-  DragDropFile,
-  DragDropPIDL,
-  DragDropText;
+  DragDropFile;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Utilities
+//              Utilities
 //
 ////////////////////////////////////////////////////////////////////////////////
-function GetURLFromFile(const Filename: string; var URL: string): boolean;
+function GetURLFromFile(const Filename: string; var URL: AnsiString): boolean;
 var
   Stream: TStream;
 begin
@@ -350,14 +428,14 @@ begin
   end;
 end;
 
-function GetURLFromString(const s: string; var URL: string): boolean;
+function GetURLFromString(const s: AnsiString; var URL: AnsiString): boolean;
 var
   Stream: TMemoryStream;
 begin
   Stream := TMemoryStream.Create;
   try
     Stream.Size := Length(s);
-    Move(PChar(s)^, Stream.Memory^, Length(s));
+    Move(PAnsiChar(s)^, Stream.Memory^, Length(s));
     Result := GetURLFromStream(Stream, URL);
   finally
     Stream.Free;
@@ -369,7 +447,7 @@ const
   sInternetShortcut	= '[InternetShortcut]';
   sInternetShortcutExt	= '.url';
 
-function GetURLFromStream(Stream: TStream; var URL: string): boolean;
+function GetURLFromStream(Stream: TStream; var URL: AnsiString): boolean;
 var
   URLfile: TStringList;
   i: integer;
@@ -388,8 +466,8 @@ begin
         inc(i);
         while (not Result) and (i < URLFile.Count) do
         begin
-          s := URLFile[i];
-          p := PChar(s);
+          s := AnsiString(URLFile[i]);
+          p := PAnsiChar(s);
           if (StrLIComp(p, 'URL=', length('URL=')) = 0) then
           begin
             inc(p, length('URL='));
@@ -408,29 +486,31 @@ begin
   end;
 end;
 
-function ConvertURLToFilename(const url: string): string;
+function ConvertURLToFilename(const url: AnsiString): AnsiString;
 const
-  Invalids: set of char =
+  Invalids: set of AnsiChar =
     ['\', '/', ':', '?', '*', '<', '>', ',', '|', '''', '"'];
+  Protocols: array[0..3] of string =
+    ('http://', 'ftp://', 'mailto:', 'file:');
 var
   i: integer;
   LastInvalid: boolean;
+  LowerUrl: string;
 begin
   Result := url;
-  if (AnsiStrLIComp(PChar(lowercase(Result)), 'http://', 7) = 0) then
-    delete(Result, 1, 7)
-  else if (AnsiStrLIComp(PChar(lowercase(Result)), 'ftp://', 6) = 0) then
-    delete(Result, 1, 6)
-  else if (AnsiStrLIComp(PChar(lowercase(Result)), 'mailto:', 7) = 0) then
-    delete(Result, 1, 7)
-  else if (AnsiStrLIComp(PChar(lowercase(Result)), 'file:', 5) = 0) then
-    delete(Result, 1, 5);
+  LowerUrl := AnsiLowerCase(String(url));
+  for i := Low(Protocols) to High(Protocols) do
+    if (StrLIComp(PChar(LowerUrl), PChar(Protocols[i]), Length(Protocols[i])) = 0) then
+    begin
+      Delete(Result, 1, Length(Protocols[i]));
+      break;
+    end;
 
   if (length(Result) > 120) then
     SetLength(Result, 120);
 
   // Truncate at first slash
-  i := pos('/', Result);
+  i := Pos('/', String(Result));
   if (i > 0) then
     SetLength(Result, i-1);
 
@@ -458,17 +538,17 @@ end;
 
 function IsHTML(const s: string): boolean;
 begin
-  Result := (pos('<HTML', Uppercase(s)) > 0);
+  Result := (pos('<HTML', AnsiUppercase(s)) > 0);
 end;
 
-function MakeHTML(const s: string): string;
+function MakeHTML(const s: string): AnsiString;
 const
   Header: string =
     'Version:0.9'+#13#10+
-    'StartHTML:aaaaaaaa'+#13#10+
-    'EndHTML:bbbbbbbb'+#13#10+
-    'StartFragment:cccccccc'+#13#10+
-    'EndFragment:dddddddd'+#13#10;
+    'StartHTML:%.00008d'+#13#10+
+    'EndHTML:%.00008d'+#13#10+
+    'StartFragment:%.00008d'+#13#10+
+    'EndFragment:%.00008d'+#13#10;
   WrapperStart: string =
     '<HTML>'+#13#10+
     '<BODY>'+#13#10+
@@ -478,7 +558,11 @@ const
     '</BODY>'+#13#10+
     '</HTML>';
 var
-  n: integer;
+  Fragment: string;
+  StartHTML: integer;
+  EndHTML: integer;
+  StartFragment: integer;
+  EndFragment: integer;
 begin
   (*
   ** See MSDN articles Q274308 and Q274326.
@@ -487,31 +571,31 @@ begin
   { DONE -oanme -cImprovement : Needs better text to HTML conversion. }
   if (not IsHTML(s)) then
   begin
-    Result := Header+WrapperStart+s+WrapperEnd;
-    n := Length(Header);
-    Result := StringReplace(Result, 'aaaaaaaa', format('%.8d', [n]), []);
-    Result := StringReplace(Result, 'bbbbbbbb', format('%.8d', [Length(Result)]), []);
-    inc(n, Length(WrapperStart));
-    Result := StringReplace(Result, 'cccccccc', format('%.8d', [n]), []);
-    inc(n, Length(s));
-    Result := StringReplace(Result, 'dddddddd', format('%.8d', [n]), []);
+    Fragment := Header + WrapperStart + s + WrapperEnd;
+
+    StartHTML := Length(Header);
+    EndHTML := Length(Fragment);
+    StartFragment := StartHTML + Length(WrapperStart);
+    EndFragment := StartFragment + Length(s);
+
+    Result := AnsiString(Format(Fragment, [StartHTML, EndHTML, StartFragment, EndFragment]));
   end else
-    Result := s;
+    Result := AnsiString(s);
 end;
 
-function MakeTextFromHTML(const s: string; FullHTML: boolean): string;
+function MakeTextFromHTML(const s: AnsiString; FullHTML: boolean): string;
 const
-  Sections: array[boolean, 0..1] of string =
+  Sections: array[boolean, 0..1] of AnsiString =
     (('StartFragment:', 'EndFragment'), ('StartHTML', 'EndHTML'));
 var
   n1, n2: integer;
-  p: PChar;
+  p: PAnsiChar;
 begin
   n1 := Pos(Sections[FullHTML, 0], s);
   n2 := Pos(Sections[FullHTML, 1], s);
   if (n1 > 0) and (n2 > 0) then
   begin
-    p := PChar(@s[n1+Length(Sections[FullHTML, 0])]);
+    p := PAnsiChar(@s[n1+Length(Sections[FullHTML, 0])]);
     // Convert string to number.
     n1 := 0;
     while (p^ <> #0) and (p^ in ['0'..'9']) do
@@ -520,7 +604,7 @@ begin
       inc(p);
     end;
 
-    p := PChar(@s[n2+Length(Sections[FullHTML, 1])]);
+    p := PAnsiChar(@s[n2+Length(Sections[FullHTML, 1])]);
     // Convert string to number.
     n2 := 0;
     while (p^ <> #0) and (p^ in ['0'..'9']) do
@@ -529,21 +613,21 @@ begin
       inc(p);
     end;
 
-    Result := Copy(s, n1+1, n2-n1);
+    Result := String(Copy(s, n1+1, n2-n1));
   end else
-    Result := s;
+    Result := String(s);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TURLClipboardFormat
+//              TAnsiURLClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 var
   CF_URL: TClipFormat = 0;
 
 // Note: CFSTR_INETURL = CFSTR_SHELLURL
-function TURLClipboardFormat.GetClipboardFormat: TClipFormat;
+function TAnsiURLClipboardFormat.GetClipboardFormat: TClipFormat;
 begin
   if (CF_URL = 0) then
     CF_URL := RegisterClipboardFormat(CFSTR_SHELLURL);
@@ -553,13 +637,13 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TURLWClipboardFormat
+//              TUnicodeURLClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 var
   CF_INETURLW: TClipFormat = 0;
 
-function TURLWClipboardFormat.GetClipboardFormat: TClipFormat;
+function TUnicodeURLClipboardFormat.GetClipboardFormat: TClipFormat;
 begin
   if (CF_INETURLW = 0) then
     CF_INETURLW := RegisterClipboardFormat('UniformResourceLocatorW'); // *** DO NOT LOCALIZE ***
@@ -569,7 +653,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TNetscapeBookmarkClipboardFormat
+//              TNetscapeBookmarkClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 var
@@ -597,11 +681,11 @@ function TNetscapeBookmarkClipboardFormat.ReadData(Value: pointer;
   Size: integer): boolean;
 begin
   // Note: No check for missing string terminator!
-  FURL := PChar(Value);
+  FURL := PAnsiChar(Value);
   if (Size > 1024) then
   begin
-    inc(PChar(Value), 1024);
-    FTitle := PChar(Value);
+    inc(PAnsiChar(Value), 1024);
+    FTitle := PAnsiChar(Value);
   end;
   Result := True;
 end;
@@ -609,12 +693,12 @@ end;
 function TNetscapeBookmarkClipboardFormat.WriteData(Value: pointer;
   Size: integer): boolean;
 begin
-  StrLCopy(Value, PChar(FURL), Size);
+  StrLCopy(Value, PAnsiChar(FURL), Size);
   dec(Size, 1024);
   if (Size > 0) and (FTitle <> '') then
   begin
-    inc(PChar(Value), 1024);
-    StrLCopy(Value, PChar(FTitle), Size);
+    inc(PAnsiChar(Value), 1024);
+    StrLCopy(Value, PAnsiChar(FTitle), Size);
   end;
   Result := True;
 end;
@@ -628,7 +712,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TNetscapeImageClipboardFormat
+//              TNetscapeImageClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 var
@@ -680,15 +764,16 @@ begin
   begin
     FWidth := PNetscapeImageRec(Value)^.Width;
     FHeight := PNetscapeImageRec(Value)^.Height;
-    FImage := PChar(Value) + SizeOf(TNetscapeImageRec);
+    // Warning: Pointer math used below
+    FImage := PAnsiChar(Value) + SizeOf(TNetscapeImageRec);
     if (PNetscapeImageRec(Value)^.OfsLowRes <> 0) then
-      FLowRes := PChar(Value) + PNetscapeImageRec(Value)^.OfsLowRes;
+      FLowRes := PAnsiChar(Value) + PNetscapeImageRec(Value)^.OfsLowRes;
     if (PNetscapeImageRec(Value)^.OfsTitle <> 0) then
-      FTitle := PChar(Value) + PNetscapeImageRec(Value)^.OfsTitle;
+      FTitle := PAnsiChar(Value) + PNetscapeImageRec(Value)^.OfsTitle;
     if (PNetscapeImageRec(Value)^.OfsURL <> 0) then
-      FUrl := PChar(Value) + PNetscapeImageRec(Value)^.OfsUrl;
+      FUrl := PAnsiChar(Value) + PNetscapeImageRec(Value)^.OfsUrl;
     if (PNetscapeImageRec(Value)^.OfsExtra <> 0) then
-      FExtra := PChar(Value) + PNetscapeImageRec(Value)^.OfsExtra;
+      FExtra := PAnsiChar(Value) + PNetscapeImageRec(Value)^.OfsExtra;
   end;
 end;
 
@@ -703,45 +788,45 @@ begin
     NetscapeImageRec := PNetscapeImageRec(Value);
     NetscapeImageRec^.Width := FWidth;
     NetscapeImageRec^.Height := FHeight;
-    inc(PChar(Value), SizeOf(TNetscapeImageRec));
+    inc(PByte(Value), SizeOf(TNetscapeImageRec));
     dec(Size, SizeOf(TNetscapeImageRec));
-    StrLCopy(Value, PChar(FImage), Size);
+    StrLCopy(Value, PAnsiChar(FImage), Size);
     dec(Size, Length(FImage)+1);
     if (Size <= 0) then
       exit;
     if (FLowRes <> '') then
     begin
-      StrLCopy(Value, PChar(FLowRes), Size);
+      StrLCopy(Value, PAnsiChar(FLowRes), Size);
       NetscapeImageRec^.OfsLowRes := integer(Value) - integer(NetscapeImageRec);
       dec(Size, Length(FLowRes)+1);
-      inc(PChar(Value), Length(FLowRes)+1);
+      inc(PByte(Value), Length(FLowRes)+1);
       if (Size <= 0) then
         exit;
     end;
     if (FTitle <> '') then
     begin
-      StrLCopy(Value, PChar(FTitle), Size);
+      StrLCopy(Value, PAnsiChar(FTitle), Size);
       NetscapeImageRec^.OfsTitle := integer(Value) - integer(NetscapeImageRec);
       dec(Size, Length(FTitle)+1);
-      inc(PChar(Value), Length(FTitle)+1);
+      inc(PByte(Value), Length(FTitle)+1);
       if (Size <= 0) then
         exit;
     end;
     if (FUrl <> '') then
     begin
-      StrLCopy(Value, PChar(FUrl), Size);
+      StrLCopy(Value, PAnsiChar(FUrl), Size);
       NetscapeImageRec^.OfsUrl := integer(Value) - integer(NetscapeImageRec);
       dec(Size, Length(FUrl)+1);
-      inc(PChar(Value), Length(FUrl)+1);
+      inc(PByte(Value), Length(FUrl)+1);
       if (Size <= 0) then
         exit;
     end;
     if (FExtra <> '') then
     begin
-      StrLCopy(Value, PChar(FExtra), Size);
+      StrLCopy(Value, PAnsiChar(FExtra), Size);
       NetscapeImageRec^.OfsExtra := integer(Value) - integer(NetscapeImageRec);
       dec(Size, Length(FExtra)+1);
-      inc(PChar(Value), Length(FExtra)+1);
+      inc(PByte(Value), Length(FExtra)+1);
       if (Size <= 0) then
         exit;
     end;
@@ -762,7 +847,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TVCardClipboardFormat
+//              TVCardClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 var
@@ -837,20 +922,20 @@ end;
 
 function TVCardClipboardFormat.WriteData(Value: pointer; Size: integer): boolean;
 var
-  s: string;
+  s: AnsiString;
 begin
   Result := (Items.Count > 0);
   if (Result) then
   begin
-    s := DOSStringToUnixString('begin:vcard'+#13+Items.Text+#13+'end:vcard');
-    StrLCopy(Value, PChar(s), Size);
+    s := AnsiString(DOSStringToUnixString('begin:vcard'+#13+Items.Text+#13+'end:vcard'));
+    StrLCopy(Value, PAnsiChar(s), Size);
   end;
 end;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		THTMLClipboardFormat
+//              THTMLClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 var
@@ -868,15 +953,21 @@ begin
   Result := inherited HasData and IsHTML(HTML.Text);
 end;
 
+class procedure THTMLClipboardFormat.RegisterCompatibleFormats;
+begin
+  inherited RegisterCompatibleFormats;
+  RegisterDataConversion(TTextDataFormat, 3);
+end;
+
 function THTMLClipboardFormat.Assign(Source: TCustomDataFormat): boolean;
 begin
   Result := True;
   if (Source is TTextDataFormat) then
   begin
-    if IsHTML(TTextDataFormat(Source).HTML) then
-      HTML.Text := TTextDataFormat(Source).HTML
+    if IsHTML(TTextDataFormat(Source).Text) then
+      HTML.Text := TTextDataFormat(Source).Text
     else
-      HTML.Text := MakeHTML(TTextDataFormat(Source).Text);
+      HTML.Text := String(MakeHTML(TTextDataFormat(Source).Text));
   end else
     Result := inherited Assign(Source);
 end;
@@ -886,8 +977,11 @@ begin
   Result := True;
   if (Dest is TTextDataFormat) then
   begin
-    TTextDataFormat(Dest).HTML := HTML.Text;
-    // TTextDataFormat(Dest).Text := MakeTextFromHTML(HTML.Text)
+    TTextDataFormat(Dest).Text := MakeTextFromHTML(AnsiString(HTML.Text), False);
+    if (TTextDataFormat(Dest).Text = '') then
+      TTextDataFormat(Dest).Text := MakeTextFromHTML(AnsiString(HTML.Text), True);
+    if (TTextDataFormat(Dest).Text = '') then
+      TTextDataFormat(Dest).Text := HTML.Text;
   end else
     Result := inherited AssignTo(Dest);
 end;
@@ -895,7 +989,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TRFC822ClipboardFormat
+//              TRFC822ClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 var
@@ -906,6 +1000,12 @@ begin
   if (CF_RFC822 = 0) then
     CF_RFC822 := RegisterClipboardFormat('Internet Message (rfc822/rfc1522)'); // *** DO NOT LOCALIZE ***
   Result := CF_RFC822;
+end;
+
+class procedure TRFC822ClipboardFormat.RegisterCompatibleFormats;
+begin
+  inherited RegisterCompatibleFormats;
+  RegisterDataConversion(TTextDataFormat, 2);
 end;
 
 function TRFC822ClipboardFormat.Assign(Source: TCustomDataFormat): boolean;
@@ -929,35 +1029,37 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TURLDataFormat
+//              TURLDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 function TURLDataFormat.Assign(Source: TClipboardFormat): boolean;
 var
   s: string;
+  sAnsi: AnsiString;
+  NewUrl: AnsiString;
 begin
   Result := False;
   (*
-  ** TURLClipboardFormat
+  ** TAnsiURLClipboardFormat
   *)
-  if (Source is TURLClipboardFormat) then
+  if (Source is TAnsiURLClipboardFormat) then
   begin
     if (FURL = '') then
-      FURL := TURLClipboardFormat(Source).URL;
+      FURL := TAnsiURLClipboardFormat(Source).URL;
     Result := True;
   end else
   (*
-  ** TTextClipboardFormat
+  ** TAnsiTextClipboardFormat
   *)
-  if (Source is TTextClipboardFormat) then
+  if (Source is TAnsiTextClipboardFormat) then
   begin
     if (FURL = '') then
     begin
-      s := TTextClipboardFormat(Source).Text;
+      NewUrl := TAnsiTextClipboardFormat(Source).Text;
       // Convert from text if the string looks like an URL
-      if (pos('://', s) > 1) then
+      if (pos('://', String(NewUrl)) > 1) then
       begin
-        FURL := s;
+        FURL := NewUrl;
         Result := True;
       end;
     end;
@@ -971,9 +1073,10 @@ begin
     begin
       s := TFileClipboardFormat(Source).Files[0];
       // Convert from Internet Shortcut file format.
-      if (CompareText(ExtractFileExt(s), sInternetShortcutExt) = 0) and
-        (GetURLFromFile(s, FURL)) then
+      if (SameText(ExtractFileExt(s), sInternetShortcutExt)) and
+        (GetURLFromFile(s, NewUrl)) then
       begin
+        FURL := NewUrl;
         if (FTitle = '') then
           FTitle := ChangeFileExt(ExtractFileName(s), '');
         Result := True;
@@ -992,21 +1095,23 @@ begin
     // contain anything usefull (e.g. 10Mb of data from the AsyncSource demo).
     if (FURL = '') and (FTitle <> '') then
     begin
-      s := TFileContentsClipboardFormat(Source).Data;
-      Result := GetURLFromString(s, FURL);
+      sAnsi := TFileContentsClipboardFormat(Source).Data;
+      Result := GetURLFromString(sAnsi, NewUrl);
+      if (Result) then
+        FURL := NewUrl;
     end;
   end else
   (*
-  ** TFileGroupDescritorClipboardFormat
+  ** TAnsiFileGroupDescriptorClipboardFormat
   *)
-  if (Source is TFileGroupDescritorClipboardFormat) then
+  if (Source is TAnsiFileGroupDescriptorClipboardFormat) then
   begin
     if (FTitle = '') then
     begin
-      if (TFileGroupDescritorClipboardFormat(Source).FileGroupDescriptor^.cItems > 0) then
+      if (TAnsiFileGroupDescriptorClipboardFormat(Source).FileGroupDescriptor^.cItems > 0) then
       begin
         // Extract the title of an Internet Shortcut
-        s := TFileGroupDescritorClipboardFormat(Source).FileGroupDescriptor^.fgd[0].cFileName;
+        s := String(TAnsiFileGroupDescriptorClipboardFormat(Source).FileGroupDescriptor^.fgd[0].cFileName);
         if (CompareText(ExtractFileExt(s), sInternetShortcutExt) = 0) then
         begin
           FTitle := ChangeFileExt(s, '');
@@ -1016,16 +1121,16 @@ begin
     end;
   end else
   (*
-  ** TFileGroupDescritorWClipboardFormat
+  ** TUnicodeFileGroupDescriptorClipboardFormat
   *)
-  if (Source is TFileGroupDescritorWClipboardFormat) then
+  if (Source is TUnicodeFileGroupDescriptorClipboardFormat) then
   begin
     if (FTitle = '') then
     begin
-      if (TFileGroupDescritorWClipboardFormat(Source).FileGroupDescriptor^.cItems > 0) then
+      if (TUnicodeFileGroupDescriptorClipboardFormat(Source).FileGroupDescriptor^.cItems > 0) then
       begin
         // Extract the title of an Internet Shortcut
-        s := TFileGroupDescritorWClipboardFormat(Source).FileGroupDescriptor^.fgd[0].cFileName;
+        s := TUnicodeFileGroupDescriptorClipboardFormat(Source).FileGroupDescriptor^.fgd[0].cFileName;
         if (CompareText(ExtractFileExt(s), sInternetShortcutExt) = 0) then
         begin
           FTitle := ChangeFileExt(s, '');
@@ -1033,52 +1138,30 @@ begin
         end;
       end;
     end;
-  end else
-  (*
-  ** TNetscapeBookmarkClipboardFormat
-  *)
-  if (Source is TNetscapeBookmarkClipboardFormat) then
-  begin
-    if (FURL = '') then
-      FURL := TNetscapeBookmarkClipboardFormat(Source).URL;
-    if (FTitle = '') then
-      FTitle := TNetscapeBookmarkClipboardFormat(Source).Title;
-    Result := True;
-  end else
-  (*
-  ** TNetscapeImageClipboardFormat
-  *)
-  if (Source is TNetscapeImageClipboardFormat) then
-  begin
-    if (FURL = '') then
-      FURL := TNetscapeImageClipboardFormat(Source).URL;
-    if (FTitle = '') then
-      FTitle := TNetscapeImageClipboardFormat(Source).Title;
-    Result := True;
   end else
     Result := inherited Assign(Source);
 end;
 
 function TURLDataFormat.AssignTo(Dest: TClipboardFormat): boolean;
 var
-  FGD: TFileGroupDescriptor;
-  FGDW: DragDropFormats.TFileGroupDescriptorW;
-  s: string;
+  FGDA: TFileGroupDescriptorA;
+  FGDW: DragDropFile.TFileGroupDescriptorW;
+  Filename: AnsiString;
 begin
   Result := True;
   (*
-  ** TURLClipboardFormat
+  ** TAnsiURLClipboardFormat
   *)
-  if (Dest is TURLClipboardFormat) then
+  if (Dest is TAnsiURLClipboardFormat) then
   begin
-    TURLClipboardFormat(Dest).URL := FURL;
+    TAnsiURLClipboardFormat(Dest).URL := URL;
   end else
   (*
-  ** TTextClipboardFormat
+  ** TAnsiTextClipboardFormat
   *)
-  if (Dest is TTextClipboardFormat) then
+  if (Dest is TAnsiTextClipboardFormat) then
   begin
-    TTextClipboardFormat(Dest).Text := FURL;
+    TAnsiTextClipboardFormat(Dest).Text := URL;
   end else
   (*
   ** TFileContentsClipboardFormat
@@ -1086,57 +1169,42 @@ begin
   if (Dest is TFileContentsClipboardFormat) then
   begin
     TFileContentsClipboardFormat(Dest).Data := sInternetShortcut + #13#10 +
-      'URL='+FURL + #13#10;
+      'URL='+URL + #13#10;
   end else
   (*
-  ** TFileGroupDescritorClipboardFormat
+  ** TAnsiFileGroupDescriptorClipboardFormat
   *)
-  if (Dest is TFileGroupDescritorClipboardFormat) then
+  if (Dest is TAnsiFileGroupDescriptorClipboardFormat) then
   begin
-    FillChar(FGD, SizeOf(FGD), 0);
-    FGD.cItems := 1;
-    if (FTitle = '') then
-      s := FURL
+    FillChar(FGDA, SizeOf(FGDA), 0);
+    FGDA.cItems := 1;
+    if (Title <> '') then
+      Filename := AnsiString(Title)
     else
-      s := FTitle;
-    StrLCopy(@FGD.fgd[0].cFileName[0], PChar(ConvertURLToFilename(s)),
-      SizeOf(FGD.fgd[0].cFileName));
-    FGD.fgd[0].dwFlags := FD_LINKUI or FD_FILESIZE;
-    FGD.fgd[0].nFileSizeLow := Length(sInternetShortcut)+Length(FURL)+8;
-    TFileGroupDescritorClipboardFormat(Dest).CopyFrom(@FGD);
+      Filename := URL;
+    StrPLCopy(@FGDA.fgd[0].cFileName[0], ConvertURLToFilename(Filename),
+      SizeOf(FGDA.fgd[0].cFileName));
+    FGDA.fgd[0].dwFlags := FD_LINKUI or FD_FILESIZE;
+    FGDA.fgd[0].nFileSizeLow := Length(sInternetShortcut)+Length(URL)+8;
+    TAnsiFileGroupDescriptorClipboardFormat(Dest).CopyFrom(@FGDA);
   end else
   (*
-  ** TFileGroupDescritorWClipboardFormat
+  ** TUnicodeFileGroupDescriptorClipboardFormat
   *)
-  if (Dest is TFileGroupDescritorWClipboardFormat) then
+  if (Dest is TUnicodeFileGroupDescriptorClipboardFormat) then
   begin
     FillChar(FGDW, SizeOf(FGDW), 0);
     FGDW.cItems := 1;
-    if (FTitle = '') then
-      s := FURL
+    if (Title <> '') then
+      Filename := AnsiString(Title)
     else
-      s := FTitle;
-    StringToWideChar(ConvertURLToFilename(s), @FGDW.fgd[0].cFileName[0],
+      Filename := URL;
+    WStrPLCopy(@FGDW.fgd[0].cFileName[0],
+      WideString(ConvertURLToFilename(Filename)),
       SizeOf(FGDW.fgd[0].cFileName) div 2);
     FGDW.fgd[0].dwFlags := FD_LINKUI or FD_FILESIZE;
-    FGDW.fgd[0].nFileSizeLow := Length(sInternetShortcut)+Length(FURL)+8;
-    TFileGroupDescritorWClipboardFormat(Dest).CopyFrom(@FGDW);
-  end else
-  (*
-  ** TNetscapeBookmarkClipboardFormat
-  *)
-  if (Dest is TNetscapeBookmarkClipboardFormat) then
-  begin
-    TNetscapeBookmarkClipboardFormat(Dest).URL := FURL;
-    TNetscapeBookmarkClipboardFormat(Dest).Title := FTitle;
-  end else
-  (*
-  ** TNetscapeImageClipboardFormat
-  *)
-  if (Dest is TNetscapeImageClipboardFormat) then
-  begin
-    TNetscapeImageClipboardFormat(Dest).URL := FURL;
-    TNetscapeImageClipboardFormat(Dest).Title := FTitle;
+    FGDW.fgd[0].nFileSizeLow := Length(sInternetShortcut)+Length(URL)+8;
+    TUnicodeFileGroupDescriptorClipboardFormat(Dest).CopyFrom(@FGDW);
   end else
     Result := inherited AssignTo(Dest);
 end;
@@ -1148,13 +1216,13 @@ begin
   FTitle := '';
 end;
 
-procedure TURLDataFormat.SetTitle(const Value: string);
+procedure TURLDataFormat.SetTitle(const Value: UnicodeString);
 begin
   Changing;
   FTitle := Value;
 end;
 
-procedure TURLDataFormat.SetURL(const Value: string);
+procedure TURLDataFormat.SetURL(const Value: AnsiString);
 begin
   Changing;
   FURL := Value;
@@ -1162,18 +1230,30 @@ end;
 
 function TURLDataFormat.HasData: boolean;
 begin
-  Result := (FURL <> '') or (FTitle <> '');
+  Result := (URL <> '') or (Title <> '');
 end;
 
 function TURLDataFormat.NeedsData: boolean;
 begin
-  Result := (FURL = '') or (FTitle = '');
+  Result := (URL = '') or (Title = '');
 end;
 
 
+class procedure TURLDataFormat.RegisterCompatibleFormats;
+begin
+  inherited RegisterCompatibleFormats;
+
+  RegisterDataConversion(TAnsiFileGroupDescriptorClipboardFormat, AnsiBoost);
+  RegisterDataConversion(TUnicodeFileGroupDescriptorClipboardFormat, UnicodeBoost);
+  RegisterDataConversion(TFileContentsClipboardFormat, 1);
+  RegisterDataConversion(TAnsiURLClipboardFormat, 2);
+  RegisterDataConversion(TAnsiTextClipboardFormat, 3);
+  RegisterDataConversion(TFileClipboardFormat, 4);
+end;
+
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		THTMLDataFormat
+//              THTMLDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 function THTMLDataFormat.Assign(Source: TClipboardFormat): boolean;
@@ -1226,6 +1306,13 @@ begin
   Result := (FHTML.Count = 0);
 end;
 
+class procedure THTMLDataFormat.RegisterCompatibleFormats;
+begin
+  inherited RegisterCompatibleFormats;
+
+  RegisterDataConversion(THTMLClipboardFormat);
+end;
+
 procedure THTMLDataFormat.SetHTML(const Value: TStrings);
 begin
   FHTML.Assign(Value);
@@ -1233,7 +1320,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TStorageDataFormat
+//              TStorageDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TStorageDataFormat.Create(AOwner: TDragDropComponent);
@@ -1257,25 +1344,61 @@ begin
 end;
 
 function TStorageDataFormat.Assign(Source: TClipboardFormat): boolean;
+var
+  i: integer;
 begin
-  Result := True;
+  Result := False;
 
   if (Source is TFileContentsStorageClipboardFormat) then
-    FStorages.Assign(TFileContentsStorageClipboardFormat(Source).Storages)
+  begin
+    FStorages.Assign(TFileContentsStorageClipboardFormat(Source).Storages);
+    Result := True;
+  end else
+  if (Source is TFileGroupDescriptorCustomClipboardFormat) then
+  begin
+    // Can only assign name if interface has already been assigned
+    if (TFileGroupDescriptorCustomClipboardFormat(Source).Count = FStorages.Count) then
+    begin
+      Result := True;
+      for i := 0 to FStorages.Count-1 do
+        FStorages.Names[i] := TFileGroupDescriptorCustomClipboardFormat(Source).Filenames[i];
+    end;
+  end;
 
-  else
-    Result := inherited Assign(Source);
+  Result := Result or inherited Assign(Source); // Short circuit
 end;
 
 function TStorageDataFormat.AssignTo(Dest: TClipboardFormat): boolean;
+var
+  i: integer;
 begin
-  Result := True;
+  Result := False;
 
   if (Dest is TFileContentsStorageClipboardFormat) then
-    TFileContentsStorageClipboardFormat(Dest).Storages.Assign(FStorages)
+  begin
+    TFileContentsStorageClipboardFormat(Dest).Storages.Assign(FStorages);
+    Result := True;
+  end else
 
-  else
-    Result := inherited AssignTo(Dest);
+  if (Dest is TFileGroupDescriptorCustomClipboardFormat) then
+  begin
+    // Only handle FGD if we actually have filenames
+    for i := 0 to FStorages.Count-1 do
+      if (FStorages.Names[i] <> '') then
+      begin
+        Result := True;
+        break;
+      end;
+    if (Result) then
+    begin
+      TFileGroupDescriptorCustomClipboardFormat(Dest).Clear;
+      TFileGroupDescriptorCustomClipboardFormat(Dest).Count := FStorages.Count;
+      for i := 0 to FStorages.Count-1 do
+        TFileGroupDescriptorCustomClipboardFormat(Dest).Filenames[i] := FStorages.Names[i];
+    end;
+  end;
+
+  Result := Result or inherited AssignTo(Dest); // short circuit
 end;
 
 function TStorageDataFormat.HasData: boolean;
@@ -1288,77 +1411,26 @@ begin
   Result := (FStorages.Count = 0);
 end;
 
-procedure TMessages.Clear;
-var
-  i: integer;
+class procedure TStorageDataFormat.RegisterCompatibleFormats;
 begin
-  for i := 0 to FMessages.Count-1 do
-  begin
-    (*
-    ** Due to an apparent bug in Outlook, we have to prevent the reference count
-    ** of the IMessage object to reach zero.
-    *)
-    // Artificially increment reference count before we zap the reference to the
-    // object.
-    FMessages[i]._AddRef;
-    // Zap reference stored in list.
-    FMessages[i] := nil;
-  end;
-  FMessages.Clear;
+  inherited RegisterCompatibleFormats;
+
+  // RegisterDataConversion(TFileContentsStorageClipboardFormat);
 end;
 
-constructor TMessages.Create(AStorages: TStorageInterfaceList);
-begin
-  inherited Create;
-  FStorages := AStorages;
-  FMessages := TInterfaceList.Create;
-end;
-
-destructor TMessages.Destroy;
-begin
-  Clear;
-  FMessages.Free;
-  inherited Destroy;
-end;
-
-function TMessages.GetCount: integer;
-begin
-  Result := FStorages.Count;
-end;
-
-type
-  TMAPIGetDefaultMalloc = function: pointer; stdcall;
-  TMAPIInitialize = function(lpMapiInit: pointer): HResult; stdcall;
-  TMAPIUninitialize = procedure; stdcall;
-  TMAPIAllocateBuffer = function(cbSize: ULONG; var lppBuffer: pointer): SCODE; stdcall;
-  TMAPIAllocateMore = function(cbSize: ULONG; lpObject: pointer; var lppBuffer: pointer): SCODE; stdcall;
-  TMAPIFreeBuffer = function(lpBuffer: pointer): ULONG; stdcall;
-  // Note: This declaration of OpenIMsgOnIStg has been hacked to remove dependencies on MAPI structures.
-  TOpenIMsgOnIStg = function(lpMsgSess: pointer; lpAllocateBuffer: pointer;
-    lpAllocateMore: pointer; lpFreeBuffer: pointer; lpMalloc: pointer;
-    lpMapiSup: pointer; lpStg: IStorage; lpfMsgCallRelease: pointer;
-    ulCallerData: ULONG; ulFlags: ULONG; out lppMsg: IUnknown): SCODE; stdcall;
-
-var
-  MAPIGetDefaultMalloc: TMAPIGetDefaultMalloc = nil;
-  MAPIInitialize: TMAPIInitialize = nil;
-  MAPIUninitialize: TMAPIUninitialize = nil;
-  MAPIAllocateBuffer: TMAPIAllocateBuffer = nil;
-  MAPIAllocateMore: TMAPIAllocateMore = nil;
-  MAPIFreeBuffer: TMAPIFreeBuffer = nil;
-  OpenIMsgOnIStg: TOpenIMsgOnIStg = nil;
-
-var
-  MAPI32: HMODULE = 0;
-
+////////////////////////////////////////////////////////////////////////////////
+//
+//              MAPI stuff
+//
+////////////////////////////////////////////////////////////////////////////////
 const
   MAPI32DLL = 'mapi32.dll';
 
 procedure LoadMAPI32;
 
-  procedure GetProc(const Name: string; var Func: pointer);
+  procedure GetProc(const Name: AnsiString; var Func: pointer);
   begin
-    Func := GetProcAddress(MAPI32, PChar(Name));
+    Func := GetProcAddress(MAPI32, PAnsiChar(Name));
     if (Func = nil) then
       raise Exception.CreateFmt('Failed to get %s entry point for %s: %s',
         [MAPI32DLL, Name, SysErrorMessage(GetLastError)]);
@@ -1377,32 +1449,86 @@ begin
     GetProc('MAPIAllocateMore', @MAPIAllocateMore);
     GetProc('MAPIFreeBuffer', @MAPIFreeBuffer);
     GetProc('OpenIMsgOnIStg@44', @OpenIMsgOnIStg);
+    GetProc('OpenIMsgSession@12', @OpenIMsgSession);
+    GetProc('CloseIMsgSession@4', @CloseIMsgSession);
   end;
 end;
 
-(*
-function MAPIGetDefaultMalloc: pointer; stdcall; external 'mapi32.dll' name 'MAPIGetDefaultMalloc@0';
-function MAPIInitialize(lpMapiInit: pointer): HResult; stdcall; external 'mapi32.dll';
-procedure MAPIUninitialize; stdcall; external 'mapi32.dll';
-function MAPIAllocateBuffer(cbSize: ULONG; var lppBuffer: pointer): SCODE; stdcall; external 'mapi32.dll';
-function MAPIAllocateMore(cbSize: ULONG; lpObject: pointer; var lppBuffer: pointer): SCODE; stdcall; external 'mapi32.dll';
-function MAPIFreeBuffer(lpBuffer: pointer): ULONG; stdcall; external 'mapi32.dll';
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TMessages
+//
+////////////////////////////////////////////////////////////////////////////////
+procedure TMessages.BeginSession;
+var
+  Malloc: IMalloc;
+begin
+  ASSERT((FSession = nil) = (FSessionCount = 0));
 
-// Note: This declaration of OpenIMsgOnIStg has been hacked to remove dependencies on other structures.
-function OpenIMsgOnIStg (
-  lpMsgSess: pointer;                  { -> message session obj (optional) }
-  lpAllocateBuffer: pointer;           { -> AllocateBuffer memory routine  }
-  lpAllocateMore: pointer;             { -> AllocateMore memory routine    }
-  lpFreeBuffer: pointer;               { -> FreeBuffer memory routine      }
-  lpMalloc: pointer;                   { -> Co malloc object               }
-  lpMapiSup: pointer;                  { -> MAPI Support Obj (optional)    }
-  lpStg : IStorage;                    { -> open IStorage containing msg   }
-  lpfMsgCallRelease: pointer;          { -> release callback rtn (opt) }
-  ulCallerData: ULONG;                { caller data returned in callback  }
-  ulFlags: ULONG;                     { -> flags (controls istg commit)   }
-  out lppMsg: IUnknown): SCODE; stdcall; external 'mapi32.dll' name 'OpenIMsgOnIStg@44';
-                                       { <- open message object            }
-*)
+  if (FSessionCount = 0) then
+  begin
+    LoadMAPI32;
+    Malloc := IMalloc(MAPIGetDefaultMalloc);
+    OleCheck(OpenIMsgSession(Malloc, 0, FSession));
+    inc(FSessionCount);
+  end;
+end;
+
+procedure TMessages.Clear;
+var
+  i: integer;
+begin
+  for i := 0 to FMessages.Count-1 do
+  begin
+    (*
+    ** Due to an apparent bug in Outlook, we have to prevent the reference count
+    ** of the IMessage object from reaching zero.
+    *)
+    // Artificially increment reference count before we zap the reference to the
+    // object.
+    FMessages[i]._AddRef;
+    // Zap reference stored in list.
+    FMessages[i] := nil;
+  end;
+  FMessages.Clear;
+
+  EndSession;
+end;
+
+constructor TMessages.Create(AStorages: TStorageInterfaceList);
+begin
+  inherited Create;
+  FStorages := AStorages;
+  FMessages := TInterfaceList.Create;
+end;
+
+destructor TMessages.Destroy;
+begin
+  Clear;
+  FMessages.Free;
+  inherited Destroy;
+end;
+
+procedure TMessages.EndSession;
+begin
+  ASSERT((FSession = nil) = (FSessionCount = 0));
+
+  if (FSessionCount > 0) then
+  begin
+    if (FSessionLock = 0) then
+      dec(FSessionCount);
+    if (FSessionCount = 0) then
+    begin
+      CloseIMsgSession(FSession);
+      FSession := nil;
+    end;
+  end;
+end;
+
+function TMessages.GetCount: integer;
+begin
+  Result := FStorages.Count;
+end;
 
 function TMessages.GetMessage(Index: integer): IUnknown;
 var
@@ -1418,23 +1544,41 @@ begin
   if (FMessages[Index] = nil) then
   begin
     LoadMAPI32;
+    BeginSession;
+
     // Get IMessage from IStorage
-    OleCheck(OpenIMsgOnIStg(nil,
+    OleCheck(OpenIMsgOnIStg(FSession,
       @MAPIAllocateBuffer,
       @MAPIAllocateMore,
       @MAPIFreeBuffer,
-      MapiGetDefaultMalloc,
+      IMalloc(MapiGetDefaultMalloc),
       nil,
       FStorages[Index],
       nil, 0, 0,
       Result));
+
     FMessages[Index] := Result;
   end else
     Result := FMessages[Index];
 end;
 
-{ TOutlookDataFormat }
+procedure TMessages.LockSession;
+begin
+  inc(FSessionLock);
+end;
 
+procedure TMessages.UnlockSession;
+begin
+  dec(FSessionLock);
+  if (FSessionLock = 0) then
+    EndSession;
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TOutlookDataFormat
+//
+////////////////////////////////////////////////////////////////////////////////
 procedure TOutlookDataFormat.Clear;
 begin
   inherited Clear;
@@ -1454,9 +1598,18 @@ begin
 end;
 
 
+class procedure TOutlookDataFormat.RegisterCompatibleFormats;
+begin
+  inherited RegisterCompatibleFormats;
+
+  RegisterDataConversion(TFileContentsStorageClipboardFormat);
+  RegisterDataConversion(TAnsiFileGroupDescriptorClipboardFormat, 1);
+  RegisterDataConversion(TUnicodeFileGroupDescriptorClipboardFormat, 1);
+end;
+
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropURLTarget
+//              TDropURLTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1475,12 +1628,12 @@ begin
   inherited Destroy;
 end;
 
-function TDropURLTarget.GetTitle: string;
+function TDropURLTarget.GetTitle: UnicodeString;
 begin
   Result := FURLFormat.Title;
 end;
 
-function TDropURLTarget.GetURL: string;
+function TDropURLTarget.GetURL: AnsiString;
 begin
   Result := FURLFormat.URL;
 end;
@@ -1494,7 +1647,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropURLSource
+//              TDropURLSource
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TDropURLSource.Create(AOwner: TComponent);
@@ -1512,22 +1665,22 @@ begin
   inherited Destroy;
 end;
 
-function TDropURLSource.GetTitle: string;
+function TDropURLSource.GetTitle: UnicodeString;
 begin
   Result := FURLFormat.Title;
 end;
 
-procedure TDropURLSource.SetTitle(const Value: string);
+procedure TDropURLSource.SetTitle(const Value: UnicodeString);
 begin
   FURLFormat.Title := Value;
 end;
 
-function TDropURLSource.GetURL: string;
+function TDropURLSource.GetURL: AnsiString;
 begin
   Result := FURLFormat.URL;
 end;
 
-procedure TDropURLSource.SetURL(const Value: string);
+procedure TDropURLSource.SetURL(const Value: AnsiString);
 begin
   FURLFormat.URL := Value;
 end;
@@ -1535,7 +1688,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Initialization/Finalization
+//              Initialization/Finalization
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1544,35 +1697,12 @@ initialization
   TURLDataFormat.RegisterDataFormat;
   THTMLDataFormat.RegisterDataFormat;
   TOutlookDataFormat.RegisterDataFormat;
-  
+
   // Clipboard format registration
-  TURLDataFormat.RegisterCompatibleFormat(TNetscapeBookmarkClipboardFormat, 0, csSourceTarget, [ddRead]);
-  TURLDataFormat.RegisterCompatibleFormat(TNetscapeImageClipboardFormat, 1, csSourceTarget, [ddRead]);
-  TURLDataFormat.RegisterCompatibleFormat(TFileGroupDescritorClipboardFormat, 2, csSourceTarget, [ddRead]);
-  TURLDataFormat.RegisterCompatibleFormat(TFileGroupDescritorWClipboardFormat, 2, csSourceTarget, [ddRead]);
-  TURLDataFormat.RegisterCompatibleFormat(TFileContentsClipboardFormat, 3, csSourceTarget, [ddRead]);
-  TURLDataFormat.RegisterCompatibleFormat(TURLClipboardFormat, 4, csSourceTarget, [ddRead]);
-  TURLDataFormat.RegisterCompatibleFormat(TTextClipboardFormat, 5, csSourceTarget, [ddRead]);
-  TURLDataFormat.RegisterCompatibleFormat(TFileClipboardFormat, 6, [csTarget], [ddRead]);
-
-  THTMLDataFormat.RegisterCompatibleFormat(THTMLClipboardFormat, 0, csSourceTarget, [ddRead]);
-
-  TTextDataFormat.RegisterCompatibleFormat(TRFC822ClipboardFormat, 1, csSourceTarget, [ddRead]);
-  TTextDataFormat.RegisterCompatibleFormat(THTMLClipboardFormat, 2, csSourceTarget, [ddRead]);
-
-  TOutlookDataFormat.RegisterCompatibleFormat(TFileContentsStorageClipboardFormat, 0, [csTarget], [ddRead]);
+  TAnsiURLClipboardFormat.RegisterFormat;
+  THTMLClipboardFormat.RegisterFormat;
+  TRFC822ClipboardFormat.RegisterFormat;
 
 finalization
-  // Clipboard format unregistration
-  TNetscapeBookmarkClipboardFormat.UnregisterClipboardFormat;
-  TNetscapeImageClipboardFormat.UnregisterClipboardFormat;
-  TURLClipboardFormat.UnregisterClipboardFormat;
-  TVCardClipboardFormat.UnregisterClipboardFormat;
-  THTMLClipboardFormat.UnregisterClipboardFormat;
-  TRFC822ClipboardFormat.UnregisterClipboardFormat;
-
-  // Target format unregistration
-  TURLDataFormat.UnregisterDataFormat;
-  TOutlookDataFormat.UnregisterDataFormat;
 end.
 

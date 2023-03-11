@@ -2,7 +2,12 @@ unit Unit1;
 
 interface
 
+{$include dragdrop.inc} // Disables .NET warnings
+
 uses
+{$ifdef VER18_PLUS}
+  Types, // Required for inlining of ListView_CreateDragImage
+{$endif}
   DragDrop,
   DropSource,
   DropTarget,
@@ -34,6 +39,7 @@ type
     procedure sbUpLevelClick(Sender: TObject);
     procedure DropPIDLTarget1DragOver(Sender: TObject;
       ShiftState: TShiftState; Point: TPoint; var Effect: Integer);
+    procedure ListView1Deletion(Sender: TObject; Item: TListItem);
   private
     CurrentShellFolder: IShellFolder;
     CurrentFolderImageIndex: integer;
@@ -92,24 +98,11 @@ function ListviewSort(Item1, Item2: TListItem;
   lParam: Integer): Integer; stdcall;
 Begin
   if (Item1<>nil) and (Item2<>nil) and (Item1<>Item2) then
-    Result:= lstrcmpi( pChar(TLVItemData(Item1.Data).SortStr),
-      pChar(TLVItemData(Item2.Data).SortStr) )
-  else Result:=0;
+    Result := CompareText(TLVItemData(Item1.Data).SortStr, TLVItemData(Item2.Data).SortStr)
+  else
+    Result :=0;
 End;
-//---------------------------------------------------------------------
 
-//Just used for sorting listview...
-function GetPathName(Folder: IShellFolder; Pidl: PItemIdList): String;
-var StrRet: TStrRet;
-Begin
-  Result:='';
-  Folder.GetDisplayNameOf(Pidl,SHGDN_FORPARSING,StrRet);
-  case StrRet.uType of
-    STRRET_WSTR: Result:=WideCharToString(StrRet.pOleStr);
-    STRRET_OFFSET: Result:=PChar(UINT(Pidl)+StrRet.uOffset);
-    STRRET_CSTR: Result:=StrRet.cStr;
-  End;
-end;
 
 //---------------------------------------------------------------------
 // TForm1 class ...
@@ -119,11 +112,10 @@ procedure TForm1.FormCreate(Sender: TObject);
 var
   sfi: TShFileInfo;
 begin
-
   //get access to the shell imagelist...
   FImageList := TImageList.create(self);
-  FImageList.handle :=
-    shgetfileinfo('',0,sfi,sizeof(tshfileinfo), shgfi_sysiconindex or shgfi_smallicon);
+  FImageList.Handle :=
+    shGetFileInfo('', 0, sfi, SizeOf(TshFileInfo), shgfi_sysiconindex or shgfi_smallicon);
   FImageList.shareimages := true;
   FImageList.BlendColor := clHighlight;
   Listview1.SmallImages := FImageList;
@@ -139,22 +131,18 @@ begin
   PathComboBox.path := extractfilepath(paramstr(0));
 
   //SetCurrentFolder;
-  DropPIDLTarget1.register(Listview1);
+  DropPIDLTarget1.Register(Listview1);
 
   fRecyclePIDL := nil;
-  ShGetSpecialFolderLocation(0,CSIDL_BITBUCKET	,fRecyclePIDL);
+  shGetSpecialFolderLocation(0, CSIDL_BITBUCKET ,fRecyclePIDL);
 end;
 //---------------------------------------------------------------------
 
 procedure TForm1.FormDestroy(Sender: TObject);
-var
-  i: integer;
 begin
-  DropPIDLTarget1.unregister;
+  DropPIDLTarget1.Unregister;
 
-  with Listview1.items do
-    for i := 0 to Count-1 do
-      TLVItemData(Item[i].data).free;
+  Listview1.Items.Clear;
 
   FImageList.free;
   ShellMalloc.Free(fRecyclePIDL);
@@ -182,7 +170,7 @@ begin
     exit;
 
   statusbar1.simpletext := '';
-  if (DragDetectPlus(TWinControl(Sender).Handle, Point(X,Y))) then
+  if (DragDetectPlus(TWinControl(Sender), Point(X,Y))) then
   begin
     // OK, HOW TO KNOW IF WE'RE DRAGGING FROM THE 'RECYCLE BIN'...
     DraggingFromRecycle := False;
@@ -216,12 +204,17 @@ begin
             DropPIDLSource1.MappedNames.add(Listview1.items.item[i].Caption);
         end;
 
-    // Let Listview1 draw the drag image for us ...
+    // Let the Listview create the drag image for us ...
     tmpImageList := TImageList.Create(Self);
     try
       tmpImageList.handle :=
         ListView_CreateDragImage(Listview1.Handle, Listview1.Selected.Index, dummyPt);
+      // Note: ListView_CreateDragImage fails to include the list item text on
+      // some versions of Windows. Known problem with no solution according to MS.
       DropPIDLSource1.Images := tmpImageList;
+      DropPIDLSource1.ImageIndex := 0;
+      DropPIDLSource1.ImageHotSpotX := X-ListView1.Selected.Left;
+      DropPIDLSource1.ImageHotSpotY := Y-ListView1.Selected.Top;
       DropPIDLSource1.ShowImage := True;
 
       statusbar1.SimpleText := 'Dragging ...';
@@ -254,7 +247,6 @@ begin
       exit;
 
     // This is a real kludge, which also may not be long enough...
-    // See detailed demo for a much better solution.
     sleep(1000);
     RefreshListNames;
   end;
@@ -339,7 +331,7 @@ begin
     with TLVItemData(Listview1.DropTarget.data) do
     begin
       if sortstr[1] = '1' then
-        strTo := copy(sortstr,2,MAX_PATH)+#0#0
+        strTo := Copy(sortstr,2,MAX_PATH)+#0#0
       else
         Effect := DROPEFFECT_NONE; //subfolder must be a system folder!
     end
@@ -455,19 +447,18 @@ end;
 //---------------------------------------------------------------------
 
 procedure TForm1.RefreshListNames;
-var
-  i: integer;
 begin
-  with Listview1.items do
-  begin
-    beginupdate;
-    for i := 0 to Count-1 do
-      TLVItemData(Item[i].data).free;
-    clear;
-    screen.cursor := crHourglass;
-    PopulateListview;
-    screen.cursor := crDefault;
-    endupdate;
+  Listview1.Items.BeginUpdate;
+  try
+    Listview1.Items.Clear;
+    Screen.Cursor := crHourglass;
+    try
+      PopulateListview;
+    finally
+      Screen.Cursor := crDefault;
+    end;
+  finally
+    Listview1.Items.EndUpdate;
   end;
 end;
 //---------------------------------------------------------------------
@@ -484,40 +475,38 @@ begin
   if CurrentShellFolder = nil then
     exit;
 
-  with Listview1.items do
+  //get files and folders...
+  Flags := SHCONTF_FOLDERS or SHCONTF_NONFOLDERS or SHCONTF_INCLUDEHIDDEN;
+  if FAILED(CurrentShellFolder.EnumObjects(0, Flags, EnumIdList)) then
+    exit;
+  while (EnumIdList.Next(1, tmpPIDL, dummy) = NOERROR) do
   begin
-    //get files and folders...
-    Flags := SHCONTF_FOLDERS or SHCONTF_NONFOLDERS or SHCONTF_INCLUDEHIDDEN;
-    if FAILED(CurrentShellFolder.EnumObjects(0,Flags,EnumIdList)) then exit;
-    while (EnumIdList.Next(1,tmpPIDL,dummy) = NOERROR) do
+    NewItem := Listview1.Items.Add;
+    NewItem.Caption := GetPIDLDisplayName(CurrentShellFolder, tmpPIDL);
+    ItemData := TLVItemData.create;
+    NewItem.Data := ItemData;
+    ItemData.RelativePIDL := tmpPIDL;
+    ItemData.AbsolutePIDL := ILCombine(PathComboBox.Pidl, tmpPIDL);
+    shGetFileInfo(PChar(ItemData.AbsolutePIDL), 0, sfi,
+      SizeOf(tshfileinfo), SHGFI_PIDL or SHGFI_ICON or SHGFI_ATTRIBUTES);
+    NewItem.ImageIndex := sfi.iIcon;
+    //get sort order...
+    if (sfi.dwAttributes and SFGAO_FOLDER) <> 0 then
     begin
-      NewItem := Add;
-      NewItem.caption := GetPIDLDisplayName(CurrentShellFolder,tmpPIDL);
-      ItemData := TLVItemData.create;
-      NewItem.data := ItemData;
-      ItemData.RelativePIDL := tmpPIDL;
-      ItemData.AbsolutePIDL := ILCombine(PathComboBox.Pidl,tmpPIDL);
-      shgetfileinfo(pChar(ItemData.AbsolutePIDL),
-        0,sfi,sizeof(tshfileinfo), SHGFI_PIDL or SHGFI_ICON or SHGFI_ATTRIBUTES);
-      NewItem.ImageIndex := sfi.iIcon;
-      //get sort order...
-      if (sfi.dwAttributes and SFGAO_FOLDER)<>0 then
-      begin
-        if (sfi.dwAttributes and SFGAO_FILESYSTEM)<>0 then
-          //file system folder
-          ItemData.SortStr := '1'+ GetPathName(CurrentShellFolder,tmpPIDL)
-        else
-          //virtual folder
-          ItemData.SortStr := '2'+ GetPathName(CurrentShellFolder,tmpPIDL);
-      end
+      if (sfi.dwAttributes and SFGAO_FILESYSTEM) <> 0 then
+        //file system folder
+        ItemData.SortStr := '1'+ GetPIDLDisplayName(CurrentShellFolder, tmpPIDL, SHGDN_FORPARSING)
       else
-        //files
-        ItemData.SortStr := '9'+ GetPathName(CurrentShellFolder,tmpPIDL);
-    end;
+        //virtual folder
+        ItemData.SortStr := '2'+ GetPIDLDisplayName(CurrentShellFolder, tmpPIDL, SHGDN_FORPARSING);
+    end
+    else
+      //files
+      ItemData.SortStr := '9'+ GetPIDLDisplayName(CurrentShellFolder, tmpPIDL, SHGDN_FORPARSING);
   end;
   ListView1.CustomSort(TLVCompare(@ListviewSort), 0);
-  if Listview1.items.count > 0 then
-    Listview1.items[0].focused := true;
+  if Listview1.Items.Count > 0 then
+    Listview1.Items[0].Focused := true;
 end;
 //---------------------------------------------------------------------
 
@@ -539,6 +528,12 @@ begin
     if (sortstr[1] < '9') then //if a folder...
       PathComboBox.Pidl := AbsolutePIDL;
 end;
+procedure TForm1.ListView1Deletion(Sender: TObject; Item: TListItem);
+begin
+  if (Item.Data <> nil) then
+    TObject(Item.Data).Free;
+end;
+
 //---------------------------------------------------------------------
 
 //If a folder selected - open that folder...
@@ -547,7 +542,8 @@ var
   SelItem: TListItem;
 begin
   SelItem := Listview1.Selected;
-  if (SelItem = nil) or (ord(Key) <> VK_RETURN) then exit;
+  if (SelItem = nil) or (ord(Key) <> VK_RETURN) then
+    exit;
   with TLVItemData(SelItem.data) do
     if (sortstr[1] < '9') then //if a folder...
       PathComboBox.Pidl := AbsolutePIDL;

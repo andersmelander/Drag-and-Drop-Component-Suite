@@ -94,7 +94,7 @@ OutputDir=.
 UnitOutputDir=.
 PackageDLLOutputDir=
 PackageDCPOutputDir=
-SearchPath=..\..\Source;..\Extra
+SearchPath=..\..\Source;.\Extra
 Packages=Vcl50;Vclx50;VclSmp50;Vcldb50;VCLIB50;vclado50;ibevnt50;Vclbde50;vcldbx50;Vclmid50;RPRV30D5;RPRT30D5;madBasic_;madDisAsm_;TeeUI50;TeeDB50;Tee50;Dss50
 Conditionals=
 DebugSourceDirs=
@@ -110,7 +110,7 @@ ActiveLang=
 ProjectLang=
 RootDir=
 [Version Info]
-IncludeVerInfo=0
+IncludeVerInfo=1
 AutoIncBuild=0
 MajorVer=4
 MinorVer=0
@@ -124,11 +124,11 @@ DLL=0
 Locale=1033
 CodePage=1252
 [Version Info Keys]
-CompanyName=Johnson & Melander
-FileDescription=Drag Drop Source & Target Demo
+CompanyName=Melander
+FileDescription=Target Demo
 FileVersion=4.0.3.3
 InternalName=DragDropDemo
-LegalCopyright=© 1997-99 Johnson & Melander
+LegalCopyright=Melander
 LegalTrademarks=
 OriginalFilename=DragDropDemo.exe
 ProductName=Drag and Component Suite
@@ -138,16 +138,3 @@ mailto=ajohnson@rpi.net.au ; anders@melander.dk
 URL=http://www.melander.dk
 [Excluded Packages]
 c:\development\delphi7\Bin\DCLIB70.bpl=Borland InterBase Express Components
-[HistoryLists\hlUnitAliases]
-Count=1
-Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
-[HistoryLists\hlSearchPath]
-Count=2
-Item0=..\..\Source;..\Extra
-Item1=$(DELPHI)\Lib\Debug;..\..\Source
-[HistoryLists\hlUnitOutputDirectory]
-Count=1
-Item0=.
-[HistoryLists\hlOutputDirectorry]
-Count=1
-Item0=.

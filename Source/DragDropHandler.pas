@@ -4,12 +4,12 @@ unit DragDropHandler;
 // Module:          DragDropHandler
 // Description:     Implements Drop and Drop Context Menu Shell Extenxions
 //                  (a.k.a. drag-and-drop handlers).
-// Version:         4.2
-// Date:            05-APR-2008
-// Target:          Win32, Delphi 5-2007
+// Version:         5.0
+// Date:            22-NOV-2009
+// Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2008 Anders Melander
+//                  © 2000-2009 Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -29,55 +29,62 @@ uses
 type
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDragDropHandler
+//              TDragDropHandler
 //
 ////////////////////////////////////////////////////////////////////////////////
+//
 // A typical drag-and-drop handler session goes like this:
+//
 // 1. User right-drags (drags with the right mouse button) and drops one or more
 //    source files which has a registered drag-and-drop handler.
+//
 // 2. The shell loads the drag-and-drop handler module.
+//
 // 3. The shell instantiates the registered drag drop handler object as an
 //    in-process COM server.
+//
 // 4. The IShellExtInit.Initialize method is called with the name of the target
 //    folder and a data object which contains the dragged data.
-//    The target folder name is stored in the TDragDropHandler.TargetFolder
-//    property as a string and in the TargetPIDL property as a PIDL.
+//    The target folder name is stored in the TDragDropHandler.Folder
+//    property as a string and in the FolderPIDL property as a PIDL.
+//
 // 5. The IContextMenu.QueryContextMenu method is called to populate the popup
-//    menu.
+//    menu. This fires the TDragDropHandler.OnPrepareMenu event.
 //    TDragDropHandler uses the PopupMenu property to populate the drag-and-drop
 //    context menu.
-// 6. If the user chooses one of the context menu items we have supplied, the
-//    IContextMenu.InvokeCommand method is called.
-//    TDragDropHandler locates the corresponding TMenuItem and fires the menu
+//
+// 6. If the user chooses one of the context menu items we have supplied,
+//    the IContextMenu.InvokeCommand method is called.
+//
+// 7. TDragDropHandler locates the corresponding TMenuItem and fires the menu
 //    items OnClick event.
-// 7. The shell unloads the drag-and-drop handler module (usually after a few
-//    seconds).
+//
+// 8. The shell unloads the context menu handler module (usually after a few
+//    seconds if you're lucky).
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// Note that some version of the windows shell does not support owner draw and
+// cascaded menus (IContextMenu and IContextMenu2 interfaces) for Drag Drop
+// Handler shell extensions.
+//
+// The XP shell appears to support cascaded menus, but not owner draw.
+//
 ////////////////////////////////////////////////////////////////////////////////
   TDragDropHandler = class(TDropContextMenu, IShellExtInit, IContextMenu,
     IContextMenu2, IContextMenu3)
   private
-    FFolderPIDL: pItemIDList;
   protected
-    function GetFolder: string;
+    function GetSupportsOwnerDraw: boolean; override;
     { IShellExtInit }
     function Initialize(pidlFolder: PItemIDList; lpdobj: IDataObject;
       hKeyProgID: HKEY): HResult; stdcall;
-    { IContextMenu }
-    function QueryContextMenu(Menu: HMENU; indexMenu, idCmdFirst, idCmdLast,
-      uFlags: UINT): HResult; stdcall;
-    function InvokeCommand(var lpici: TCMInvokeCommandInfo): HResult; stdcall;
-    function GetCommandString(idCmd, uType: UINT; pwReserved: PUINT;
-      pszName: LPSTR; cchMax: UINT): HResult; stdcall;
   public
-    constructor Create(AOwner: TComponent); override;
-    destructor Destroy; override;
-    function GetFolderPIDL: pItemIDList; // Caller must free PIDL!
-    property Folder: string read GetFolder;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDragDropHandlerFactory
+//              TDragDropHandlerFactory
 //
 ////////////////////////////////////////////////////////////////////////////////
 // COM Class factory for TDragDropHandler.
@@ -89,7 +96,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Misc.
+//              Misc.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -97,7 +104,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 //
-//			IMPLEMENTATION
+//              	IMPLEMENTATION
 //
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -112,86 +119,33 @@ uses
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Utilities
+//              Utilities
 //
 ////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDragDropHandler
+//              TDragDropHandler
 //
 ////////////////////////////////////////////////////////////////////////////////
-constructor TDragDropHandler.Create(AOwner: TComponent);
+function TDragDropHandler.GetSupportsOwnerDraw: boolean;
 begin
-  inherited Create(AOwner);
-  (*
-  ** Contrary to Microsoft's documentation, Drag Drop Handler shell extensions
-  ** does not seem to support owner draw and cascaded menus (IContextMenu2 and
-  ** IContextMenu2 interfaces). At least not on NT4/IE5.
-  *)
-  OwnerDraw := False;
-end;
-
-destructor TDragDropHandler.Destroy;
-begin
-  if (FFolderPIDL <> nil) then
-    ShellMalloc.Free(FFolderPIDL);
-  inherited Destroy;
-end;
-
-function TDragDropHandler.GetCommandString(idCmd, uType: UINT;
-  pwReserved: PUINT; pszName: LPSTR; cchMax: UINT): HResult;
-begin
-  Result := inherited GetCommandString(idCmd, uType, pwReserved, pszName, cchMax);
-end;
-
-function TDragDropHandler.GetFolder: string;
-begin
-  Result := GetFullPathFromPIDL(FFolderPIDL);
-end;
-
-function TDragDropHandler.GetFolderPIDL: pItemIDList;
-begin
-  Result := CopyPIDL(FFolderPIDL);
-end;
-
-function TDragDropHandler.InvokeCommand(var lpici: TCMInvokeCommandInfo): HResult;
-begin
-  Result := E_FAIL;
-  try
-    Result := inherited InvokeCommand(lpici);
-  finally
-    if (Result <> E_FAIL) then
-    begin
-      ShellMalloc.Free(FFolderPIDL);
-      FFolderPIDL := nil;
-    end;
-  end;
-end;
-
-function TDragDropHandler.QueryContextMenu(Menu: HMENU; indexMenu, idCmdFirst,
-  idCmdLast, uFlags: UINT): HResult;
-begin
-  Result := inherited QueryContextMenu(Menu, indexMenu, idCmdFirst,
-    idCmdLast, uFlags);
+  Result := False;
 end;
 
 function TDragDropHandler.Initialize(pidlFolder: PItemIDList;
   lpdobj: IDataObject; hKeyProgID: HKEY): HResult;
 begin
   if (pidlFolder <> nil) then
-  begin
-    // Copy target folder PIDL.
-    FFolderPIDL := CopyPIDL(pidlFolder);
-    Result := inherited Initialize(pidlFolder, lpdobj, hKeyProgID);
-  end else
+    Result := inherited Initialize(pidlFolder, lpdobj, hKeyProgID)
+  else
     Result := E_INVALIDARG;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDragDropHandlerFactory
+//              TDragDropHandlerFactory
 //
 ////////////////////////////////////////////////////////////////////////////////
 function TDragDropHandlerFactory.HandlerRegSubKey: string;

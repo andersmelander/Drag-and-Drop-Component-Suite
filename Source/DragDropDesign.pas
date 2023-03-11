@@ -6,12 +6,12 @@ unit DragDropDesign;
 // Module:          DragDropDesign
 // Description:     Contains design-time support for the drag and drop
 //                  components.
-// Version:         4.2
-// Date:            05-APR-2008
-// Target:          Win32, Delphi 5-2007
+// Version:         5.0
+// Date:            22-NOV-2009
+// Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2008 Anders Melander
+//                  © 2000-2009 Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -52,7 +52,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Component and Design-time editor registration
+//              Component and Design-time editor registration
 //
 ////////////////////////////////////////////////////////////////////////////////
 procedure Register;
@@ -67,7 +67,6 @@ begin
     TDropComboTarget]);
   RegisterComponents(DragDropComponentPalettePage,
     [TDropHandler, TDragDropHandler, TDropContextMenu]);
-  RegisterNoIcon([TDropMultiTarget]);
 end;
 
 { TDataFormatNameEditor }
@@ -77,15 +76,12 @@ begin
   Result := [paValueList, paSortList, paMultiSelect];
 end;
 
-type
-  TDataFormatClassesCracker = class(TDataFormatClasses);
-
 procedure TDataFormatNameEditor.GetValues(Proc: TGetStrProc);
 var
   i: Integer;
 begin
-  for i := 0 to TDataFormatClassesCracker.Instance.Count-1 do
-    Proc(TDataFormatClassesCracker.Instance[i].ClassName);
+  for i := 0 to TDataFormatClasses.Count-1 do
+    Proc(TDataFormatClasses.Formats[i].ClassName);
 end;
 
 end.

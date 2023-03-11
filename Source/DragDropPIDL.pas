@@ -3,12 +3,12 @@ unit DragDropPIDL;
 // Project:         Drag and Drop Component Suite
 // Module:          DragDropPIDL
 // Description:     Implements Dragging & Dropping of PIDLs (files and folders).
-// Version:         4.2
-// Date:            05-APR-2008
-// Target:          Win32, Delphi 5-2007
+// Version:         5.0
+// Date:            22-NOV-2009
+// Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2008 Anders Melander
+//                  © 2000-2009 Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -28,7 +28,39 @@ uses
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TPIDLClipboardFormat
+//              TPIDLList
+//
+////////////////////////////////////////////////////////////////////////////////
+// A list of PIDLs
+////////////////////////////////////////////////////////////////////////////////
+type
+  TPIDLList = class
+  private
+    FList: TList;
+    FOnChanging: TNotifyEvent;
+  protected
+    function GetCount: integer;
+    function GetItem(Index: integer): PItemIDList;
+    procedure SetItem(Index: integer; const Value: PItemIDList);
+    function GetString(Index: integer): AnsiString;
+    procedure Changing;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Add(Item: PItemIDList); overload;
+    procedure Add(Item: AnsiString); overload;
+    procedure Assign(Source: TPIDLList);
+    procedure Clear;
+    property Count: integer read GetCount;
+    property Items[Index: integer]: PItemIDList read GetItem write SetItem;
+    property Strings[Index: integer]: AnsiString read GetString; default;
+    property OnChanging: TNotifyEvent read FOnChanging write FOnChanging;
+  end;
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TPIDLClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Supports the 'Shell IDList Array' format.
@@ -36,8 +68,8 @@ uses
 type
   TPIDLClipboardFormat = class(TCustomSimpleClipboardFormat)
   private
-    FPIDLs: TStrings; // Used internally to store PIDLs. We use strings to simplify cleanup.
-    FFilenames: TStrings;
+    FPIDLs: TPIDLList;
+    FFilenames: TUnicodeStrings;
   protected
     function ReadData(Value: pointer; Size: integer): boolean; override;
     function WriteData(Value: pointer; Size: integer): boolean; override;
@@ -48,22 +80,23 @@ type
     function GetClipboardFormat: TClipFormat; override;
     procedure Clear; override;
     function HasData: boolean; override;
-    property PIDLs: TStrings read FPIDLs;
-    property Filenames: TStrings read FFilenames;
+    property PIDLs: TPIDLList read FPIDLs;
+    property Filenames: TUnicodeStrings read FFilenames;
   end;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TPIDLDataFormat
+//              TPIDLDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 type
   TPIDLDataFormat = class(TCustomDataFormat)
   private
-    FPIDLs: TStrings;
-    FFilenames: TStrings;
+    FPIDLs: TPIDLList;
+    FFilenames: TUnicodeStrings;
   protected
+    class procedure RegisterCompatibleFormats; override;
   public
     constructor Create(AOwner: TDragDropComponent); override;
     destructor Destroy; override;
@@ -72,14 +105,14 @@ type
     procedure Clear; override;
     function HasData: boolean; override;
     function NeedsData: boolean; override;
-    property PIDLs: TStrings read FPIDLs;
-    property Filenames: TStrings read FFilenames;
+    property PIDLs: TPIDLList read FPIDLs;
+    property Filenames: TUnicodeStrings read FFilenames;
   end;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropPIDLTarget
+//              TDropPIDLTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 type
@@ -87,12 +120,12 @@ type
   private
     FPIDLDataFormat: TPIDLDataFormat;
     FFileMapDataFormat: TFileMapDataFormat;
-    function GetFilenames: TStrings;
   protected
-    function GetPIDLs: TStrings;
+    function GetPIDLs: TPIDLList;
     function GetPIDLCount: integer;
-    function GetMappedNames: TStrings;
-    property PIDLs: TStrings read GetPIDLs;
+    function GetMappedNames: TUnicodeStrings;
+    function GetFilenames: TUnicodeStrings;
+    property PIDLs: TPIDLList read GetPIDLs;
     function DoGetPIDL(Index: integer): pItemIdList;
     function GetPreferredDropEffect: LongInt; override;
   public
@@ -111,15 +144,15 @@ type
     property PIDLCount: integer read GetPIDLCount; // Includes folder pidl in count
 
     // If you just want the filenames (not PIDLs) then use ...
-    property Filenames: TStrings read GetFilenames;
+    property Filenames: TUnicodeStrings read GetFilenames;
     // MappedNames is only needed if files need to be renamed after a drag or
     // e.g. dragging from 'Recycle Bin'.
-    property MappedNames: TStrings read GetMappedNames;
+    property MappedNames: TUnicodeStrings read GetMappedNames;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropPIDLSource
+//              TDropPIDLSource
 //
 ////////////////////////////////////////////////////////////////////////////////
 type
@@ -128,99 +161,137 @@ type
     FPIDLDataFormat: TPIDLDataFormat;
     FFileMapDataFormat: TFileMapDataFormat;
   protected
-    function GetMappedNames: TStrings;
+    function GetMappedNames: TUnicodeStrings;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure CopyFolderPIDLToList(pidl: PItemIDList);
     procedure CopyFilePIDLToList(pidl: PItemIDList);
-    property MappedNames: TStrings read GetMappedNames;
+    property MappedNames: TUnicodeStrings read GetMappedNames;
   end;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		PIDL utility functions
+//              PIDL utility functions
 //
 ////////////////////////////////////////////////////////////////////////////////
 
 //: GetPIDLsFromData extracts a PIDL list from a memory block and stores the
-// PIDLs in a string list.
-function GetPIDLsFromData(Data: pointer; Size: integer; PIDLs: TStrings): boolean;
+// PIDLs in a list.
+function GetPIDLsFromData(Data: pointer; Size: integer; PIDLs: TPIDLList): boolean;
 
 //: GetPIDLsFromHGlobal extracts a PIDL list from a global memory block and
-// stores the PIDLs in a string list.
-function GetPIDLsFromHGlobal(const HGlob: HGlobal; PIDLs: TStrings): boolean;
+// stores the PIDLs in a list.
+function GetPIDLsFromHGlobal(const HGlob: HGlobal; PIDLs: TPIDLList): boolean;
 
 //: GetPIDLsFromFilenames converts a list of files to PIDLs and stores the
-// PIDLs in a string list. All the PIDLs are relative to a common root.
-function GetPIDLsFromFilenames(const Files: TStrings; PIDLs: TStrings): boolean;
+// PIDLs in a list. All the PIDLs are relative to a common root.
+function GetPIDLsFromFilenames(const Files: TUnicodeStrings; PIDLs: TPIDLList): boolean; overload;
+function GetPIDLsFromFilenames(const Files: TStrings; PIDLs: TPIDLList): boolean; overload;
 
 //: GetRootFolderPIDL finds the PIDL of the folder which is the parent of a list
 // of files. The PIDl is returned as a string. If the files do not share a
 // common root, an empty string is returnde.
-function GetRootFolderPIDL(const Files: TStrings): string;
+function GetRootFolderPIDL(const Files: TUnicodeStrings): AnsiString; overload;
+function GetRootFolderPIDL(const Files: TStrings): AnsiString; overload;
 
 //: GetFullPIDLFromPath converts a path (filename and path) to a folder/filename
 // PIDL pair.
-function GetFullPIDLFromPath(Path: string): pItemIDList;
+function GetFullPIDLFromPath(const Path: UnicodeString): pItemIDList;
 
 //: GetFullPathFromPIDL converts a folder/filename PIDL pair to a full path.
 function GetFullPathFromPIDL(PIDL: pItemIDList): string;
 
 //: PIDLToString converts a single PIDL to a string.
-function PIDLToString(pidl: PItemIDList): string;
+function PIDLToString(pidl: PItemIDList): AnsiString;
 
 //: StringToPIDL converts a PIDL string to a PIDL.
-function StringToPIDL(const PIDL: string): PItemIDList;
+function StringToPIDL(const PIDL: AnsiString): PItemIDList;
 
 //: JoinPIDLStrings merges two PIDL strings into one.
-function JoinPIDLStrings(pidl1, pidl2: string): string;
+function JoinPIDLStrings(const pidl1, pidl2: AnsiString): AnsiString;
 
 //: ConvertFilesToShellIDList converts a list of files to a PIDL list. The
 // files are relative to the folder specified by the Path parameter. The PIDLs
 // are returned as a global memory handle.
-function ConvertFilesToShellIDList(Path: string; Files: TStrings): HGlobal;
+function ConvertFilesToShellIDList(const Path: string; Files: TStrings): HGlobal;
 
 //: GetSizeOfPIDL calculates the size of a PIDL list.
 function GetSizeOfPIDL(PIDL: pItemIDList): integer;
 
 //: CopyPIDL makes a copy of a PIDL.
-// It is the callers responsibility to free the returned PIDL.               
+// It is the callers responsibility to free the returned PIDL.
 function CopyPIDL(PIDL: pItemIDList): pItemIDList;
 
+
+
 {$ifndef BCB}
-// Undocumented PIDL utility functions...
+// C++Builder appearantly doesn't support ordinal DLL imports in Delphi units. Strange!
+// Use LoadLibrary and GetProcAddress if you need access to these functions from
+// C++Builder.
+{$define STATIC_PIDL}
+{$endif}
+
+{$ifdef STATIC_PIDL}
+// Previously undocumented PIDL utility functions...
 // From http://www.geocities.com/SiliconValley/4942/
-function ILCombine(pidl1,pidl2:PItemIDList): PItemIDList; stdcall;
-function ILFindLastID(pidl: PItemIDList): PItemIDList; stdcall;
-function ILClone(pidl: PItemIDList): PItemIDList; stdcall;
-function ILRemoveLastID(pidl: PItemIDList): LongBool; stdcall;
-function ILIsEqual(pidl1,pidl2: PItemIDList): LongBool; stdcall;
-procedure ILFree(Buffer: PItemIDList); stdcall;
+function ILFindLastID(Pidl: PItemIDList): PItemIDList; stdcall;
+function ILRemoveLastID(Pidl: PItemIDList): LongBool; stdcall;
+function ILClone(Pidl: PItemIDList): PItemIDList; stdcall;
+function ILCloneFirst(Pidl: PItemIDList): PItemIDList; stdcall;
+function ILIsEqual(Pidl1, Pidl2: PItemIDList): LongBool; stdcall;
+function ILCombine(Pidl1, Pidl2: PItemIDList): PItemIDList; stdcall;
+function ILGetSize(Pidl: PItemIDList): Word; stdcall;
+function ILGetNext(Pidl: PItemIDList): PItemIDList; stdcall;
+procedure ILFree(Pidl: PItemIDList); stdcall; {$ifdef VER15_PLUS} deprecated; {$endif}
 
 // Undocumented IMalloc utility functions...
-function SHAlloc(BufferSize: ULONG): Pointer; stdcall;
-procedure SHFree(Buffer: Pointer); stdcall;
+function SHAlloc(BufferSize: ULONG): Pointer; stdcall; {$ifdef VER15_PLUS} deprecated; {$endif}
+procedure SHFree(Buffer: Pointer); stdcall; {$ifdef VER15_PLUS} deprecated; {$endif}
+
+{$else}
+
+type
+  TILFindLastID = function(Pidl: PItemIDList): PItemIDList; stdcall;
+  TILRemoveLastID = function(Pidl: PItemIDList): LongBool; stdcall;
+  TILClone = function(Pidl: PItemIDList): PItemIDList; stdcall;
+  TILCloneFirst = function(Pidl: PItemIDList): PItemIDList; stdcall;
+  TILIsEqual = function(Pidl1, Pidl2: PItemIDList): LongBool; stdcall;
+  TILCombine = function (Pidl1, Pidl2: PItemIDList): PItemIDList; stdcall;
+  TILGetSize = function(Pidl: PItemIDList): Word; stdcall;
+  TILGetNext = function(Pidl: PItemIDList): PItemIDList; stdcall;
+  TILFree = procedure(Pidl: PItemIDList); stdcall;
+
+var
+  ILFindLastID: TILFindLastID = nil;
+  ILRemoveLastID: TILRemoveLastID = nil;
+  ILClone: TILClone = nil;
+  ILCloneFirst: TILCloneFirst = nil;
+  ILIsEqual: TILIsEqual = nil;
+  ILCombine: TILCombine = nil;
+  ILGetSize: TILGetSize = nil;
+  ILGetNext: TILGetNext = nil;
+  ILFree: TILFree = nil;
 {$endif}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		PIDL/IShellFolder utility functions
+//              PIDL/IShellFolder utility functions
 //
 ////////////////////////////////////////////////////////////////////////////////
 
 //: GetShellFolderOfPath retrieves an IShellFolder interface which can be used
 // to manage the specified folder.
-function GetShellFolderOfPath(FolderPath: string): IShellFolder;
+function GetShellFolderOfPath(const FolderPath: UnicodeString): IShellFolder;
 
 //: GetPIDLDisplayName retrieves the display name of the specified PIDL,
 // relative to the specified folder.
-function GetPIDLDisplayName(Folder: IShellFolder; PIDL: PItemIdList): string;
+function GetPIDLDisplayName(Folder: IShellFolder; PIDL: PItemIdList; Flags: DWORD = SHGDN_NORMAL): string;
 
 //: GetSubPIDL retrieves the PIDL of the specified file or folder to a PIDL.
 // The PIDL is relative to the folder specified by the Folder parameter.
-function GetSubPIDL(Folder: IShellFolder; Sub: string): pItemIDList;
+function GetSubPIDL(Folder: IShellFolder; const Sub: UnicodeString): pItemIDList;
 
 
 implementation
@@ -234,10 +305,65 @@ resourcestring
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		PIDL utility functions
+//              PIDL utility functions
 //
 ////////////////////////////////////////////////////////////////////////////////
-function GetPIDLsFromData(Data: pointer; Size: integer; PIDLs: TStrings): boolean;
+{$ifdef STATIC_PIDL}
+function ILFindLastID(Pidl: PItemIDList): PItemIDList; stdcall;
+  external shell32 index 16;
+
+function ILRemoveLastID(Pidl: PItemIDList): LongBool; stdcall;
+  external shell32 index 17;
+
+function ILClone(Pidl: PItemIDList): PItemIDList; stdcall;
+  external shell32 index 18;
+
+function ILCloneFirst(Pidl: PItemIDList): PItemIDList; stdcall;
+  external shell32 index 19;
+
+function ILIsEqual(Pidl1, Pidl2: PItemIDList): LongBool; stdcall;
+  external shell32 index 21;
+
+function ILCombine(Pidl1, Pidl2: PItemIDList): PItemIDList; stdcall;
+  external shell32 index 25;
+
+function ILGetSize(Pidl: PItemIDList): Word; stdcall;
+  external shell32 index 152;
+
+function ILGetNext(Pidl: PItemIDList): PItemIDList; stdcall;
+  external shell32 index 153;
+
+procedure ILFree(Pidl: PItemIDList); stdcall {$ifdef VER15_PLUS} deprecated {$endif};
+  external shell32 index 155;
+
+(* TODO : Unused IL functions:
+function ILCreateFromPath(Path: PWideChar): PItemIDList; stdcall;
+  external shell32 index 157;
+
+function ILIsParent(PidlParent, PidlChild: PItemIDList; Immediate: LongBool): LongBool; stdcall;
+  external shell32 index 23;
+
+function ILIsRootPidl: PItemIDList): isrootLongBool; stdcall;
+  external shell32 index ?;
+
+function ILAppendID(Pidl: PItemIDList; const ItemID: TSHItemID; AddToEnd: LongBool): PItemIDList; stdcall;
+  external shell32 index 154;
+
+function ILFindChild(PidlParent, PidlChild: PItemIDList): PItemIDList; stdcall;
+  external shell32 index 24;
+
+function ILGetCount(Pidl: PItemIDList): integer; stdcall;
+  external shell32 index ?;
+
+
+*)
+
+procedure SHFree(Buffer: Pointer); stdcall {$ifdef VER15_PLUS} deprecated {$endif}; external shell32 index 195;
+function SHAlloc(BufferSize: ULONG): Pointer; stdcall {$ifdef VER15_PLUS} deprecated {$endif}; external shell32 index 196;
+{$endif}
+
+
+function GetPIDLsFromData(Data: pointer; Size: integer; PIDLs: TPIDLList): boolean;
 var
   i: integer;
   pOffset: ^UINT;
@@ -256,14 +382,14 @@ begin
   begin
     PIDL := PItemIDList(Data);
     inc(PByte(PIDL), pOffset^);
-    PIDLs.Add(PIDLToString(PIDL));
+    PIDLs.Add(PIDL);
     inc(pOffset);
     dec(i);
   end;
   Result := (PIDLs.Count > 1);
 end;
 
-function GetPIDLsFromHGlobal(const HGlob: HGlobal; PIDLs: TStrings): boolean;
+function GetPIDLsFromHGlobal(const HGlob: HGlobal; PIDLs: TPIDLList): boolean;
 var
   pCIDA: PIDA;
 begin
@@ -282,13 +408,12 @@ resourcestring
 (*
 ** Find the folder which is the parent of all the files in a list.
 *)
-function GetRootFolderPIDL(const Files: TStrings): string;
+function GetRootFolderPIDL(const Files: TUnicodeStrings): AnsiString;
 var
   DeskTopFolder: IShellFolder;
-  WidePath: WideString;
+  WidePath: UnicodeString;
   PIDL: pItemIDList;
-  PIDLs: TStrings;
-  s: string;
+  PIDLs: TPIDLList;
   PIDL1, PIDL2: pItemIDList;
   Size, MaxSize: integer;
   i: integer;
@@ -300,7 +425,7 @@ begin
   if (SHGetDesktopFolder(DeskTopFolder) <> NOERROR) then
     raise Exception.Create(sBadDesktop);
 
-  PIDLs := TStringList.Create;
+  PIDLs := TPIDLList.Create;
   try
     // First convert all paths to PIDLs.
     for i := 0 to Files.Count-1 do
@@ -308,9 +433,9 @@ begin
       WidePath := ExtractFilePath(Files[i]);
       if (DesktopFolder.ParseDisplayName(0, nil, PWideChar(WidePath), PULONG(nil)^,
         PIDL, PULONG(nil)^) <> NOERROR) then
-        raise Exception.Create(sBadFilename);
+        raise Exception.CreateFmt(sBadFilename, [WidePath]);
       try
-        PIDLs.Add(PIDLToString(PIDL));
+        PIDLs.Add(PIDL);
       finally
         coTaskMemFree(PIDL);
       end;
@@ -318,12 +443,11 @@ begin
 
     Result := PIDLs[0];
     MaxSize := Length(Result)-SizeOf(Word);
-    PIDL := pItemIDList(PChar(Result));
+    PIDL := PIDLs.Items[0];
     for i := 1 to PIDLs.Count-1 do
     begin
-      s := PIDLs[1];
       PIDL1 := PIDL;
-      PIDL2 := pItemIDList(PChar(s));
+      PIDL2 := PIDLs.Items[1];
       Size := 0;
       while (Size < MaxSize) and (PIDL1^.mkid.cb <> 0) and (PIDL1^.mkid.cb = PIDL2^.mkid.cb) and (CompareMem(PIDL1, PIDL2, PIDL1^.mkid.cb)) do
       begin
@@ -345,12 +469,24 @@ begin
   end;
 end;
 
-function GetPIDLsFromFilenames(const Files: TStrings; PIDLs: TStrings): boolean;
+function GetRootFolderPIDL(const Files: TStrings): AnsiString;
 var
-  RootPIDL: string;
+  Adapter: TUnicodeStringsAdapter;
+begin
+  Adapter := TUnicodeStringsAdapter.Create(Files);
+  try
+    Result := GetRootFolderPIDL(Adapter);
+  finally
+    Adapter.Free;
+  end;
+end;
+
+function GetPIDLsFromFilenames(const Files: TUnicodeStrings; PIDLs: TPIDLList): boolean;
+var
+  RootPIDL: AnsiString;
   i: integer;
   PIDL: pItemIdList;
-  FilePIDL: string;
+  FilePIDL: AnsiString;
 begin
   Result := False;
   PIDLs.Clear;
@@ -382,8 +518,20 @@ begin
       coTaskMemFree(PIDL);
     end;
     // Remove the root PIDL from the file PIDL making it relative to the root.
-    PIDLS.Add(copy(FilePIDL, Length(RootPIDL)-SizeOf(Word)+1,
+    PIDLS.Add(Copy(FilePIDL, Length(RootPIDL)-SizeOf(Word)+1,
       Length(FilePIDL)-(Length(RootPIDL)-SizeOf(Word))));
+  end;
+end;
+
+function GetPIDLsFromFilenames(const Files: TStrings; PIDLs: TPIDLList): boolean;
+var
+  Adapter: TUnicodeStringsAdapter;
+begin
+  Adapter := TUnicodeStringsAdapter.Create(Files);
+  try
+    Result := GetPIDLsFromFilenames(Adapter, PIDLs);
+  finally
+    Adapter.Free;
   end;
 end;
 
@@ -391,14 +539,16 @@ function GetSizeOfPIDL(PIDL: pItemIDList): integer;
 var
   Size: integer;
 begin
+  // TODO : Replace with ILGetSize
   if (PIDL <> nil) then
   begin
     Result := SizeOf(PIDL^.mkid.cb);
-    repeat
+    while (PIDL^.mkid.cb <> 0) do
+    begin
       Size := PIDL^.mkid.cb;
       inc(Result, Size);
       inc(PByte(PIDL), Size);
-    until (Size = 0);
+    end;
   end else
     Result := 0;
 end;
@@ -407,6 +557,7 @@ function CopyPIDL(PIDL: pItemIDList): pItemIDList;
 var
   Size: integer;
 begin
+  // TODO : Replace with ILClone
   Size := GetSizeOfPIDL(PIDL);
   if (Size > 0) then
   begin
@@ -417,15 +568,14 @@ begin
     Result := nil;
 end;
 
-function GetFullPIDLFromPath(Path: string): pItemIDList;
+function GetFullPIDLFromPath(const Path: UnicodeString): pItemIDList;
 var
   DeskTopFolder: IShellFolder;
-  WidePath: WideString;
 begin
-  WidePath := Path;
+  // TODO : Replace with ILCreateFromPath
   if (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then
   begin
-    if (DesktopFolder.ParseDisplayName(0, nil, PWideChar(WidePath), PULONG(nil)^,
+    if (DesktopFolder.ParseDisplayName(0, nil, PWideChar(Path), PULONG(nil)^,
       Result, PULONG(nil)^) <> NOERROR) then
       Result := nil;
   end else
@@ -448,7 +598,7 @@ type
   POffsets = ^TOffsets;
   TOffsets = array[0..$FFFF] of UINT;
 
-function ConvertFilesToShellIDList(Path: string; Files: TStrings): HGlobal;
+function ConvertFilesToShellIDList(const Path: string; Files: TStrings): HGlobal;
 var
   shf: IShellFolder;
   PathPidl, pidl: pItemIDList;
@@ -472,20 +622,20 @@ begin
   try
     PathPidlSize := GetSizeOfPidl(PathPidl);
 
-    //Add to IdaSize space for ALL pidls...
+    // Add to IdaSize space for ALL pidls...
     IdaSize := IdaSize + PathPidlSize;
     for i := 0 to Files.Count-1 do
     begin
       pidl := GetSubPidl(shf, files[i]);
       try
-        IdaSize := IdaSize + GetSizeOfPidl(Pidl);
+        Inc(IdaSize, GetSizeOfPidl(Pidl));
       finally
         ShellMalloc.Free(pidl);
       end;
     end;
 
-    //Allocate memory...
-    Result := GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, IdaSize);
+    // Allocate a block of memory for the list of PIDLs
+    Result := GlobalAlloc(GMEM_MOVEABLE or GMEM_ZEROINIT, IdaSize);
     if (Result = 0) then
       exit;
     try
@@ -493,27 +643,27 @@ begin
       try
         FillChar(Ida^, IdaSize, 0);
 
-        //Fill in offset and pidl data...
-        Ida^.cidl := Files.Count; //cidl = file count
+        // Fill in offset and pidl data...
+        Ida^.cidl := Files.Count; // cidl = file count
         pOffset := POffsets(@(Ida^.aoffset));
-        pOffset^[0] := (Files.Count+2) * sizeof(UINT); //offset of Path pidl
+        pOffset^[0] := (Files.Count+2) * sizeof(UINT); // offset of Path pidl
 
         ptrByte := pointer(Ida);
-        inc(ptrByte, pOffset^[0]); //ptrByte now points to Path pidl
-        Move(PathPidl^, ptrByte^, PathPidlSize); //copy path pidl
+        inc(ptrByte, pOffset^[0]); // ptrByte now points to Path pidl
+        Move(PathPidl^, ptrByte^, PathPidlSize); // copy path pidl
 
         PreviousPidlSize := PathPidlSize;
         for i := 1 to Files.Count do
         begin
           pidl := GetSubPidl(shf,files[i-1]);
           try
-            pOffset^[i] := pOffset^[i-1] + UINT(PreviousPidlSize); //offset of pidl
+            pOffset^[i] := pOffset^[i-1] + UINT(PreviousPidlSize); // offset of pidl
             PreviousPidlSize := GetSizeOfPidl(Pidl);
 
             ptrByte := pointer(Ida);
-            inc(ptrByte, pOffset^[i]); //ptrByte now points to current file pidl
-            Move(Pidl^, ptrByte^, PreviousPidlSize); //copy file pidl
-                                  //PreviousPidlSize = current pidl size here
+            inc(ptrByte, pOffset^[i]); // ptrByte now points to current file pidl
+            Move(Pidl^, ptrByte^, PreviousPidlSize); // copy file pidl
+            // PreviousPidlSize = current pidl size here
           finally
             ShellMalloc.Free(pidl);
           end;
@@ -530,23 +680,21 @@ begin
   end;
 end;
 
-function PIDLToString(pidl: PItemIDList): String;
+function PIDLToString(pidl: PItemIDList): AnsiString;
 var
   PidlLength: integer;
 begin
   PidlLength := GetSizeOfPidl(pidl);
   SetLength(Result, PidlLength);
-  Move(pidl^, PChar(Result)^, PidlLength);
+  Move(pidl^, PAnsiChar(Result)^, PidlLength);
 end;
 
-function StringToPIDL(const PIDL: string): PItemIDList;
+function StringToPIDL(const PIDL: AnsiString): PItemIDList;
 begin
-  Result := ShellMalloc.Alloc(Length(PIDL));
-  if (Result <> nil) then
-    Move(PChar(PIDL)^, Result^, Length(PIDL));
+  Result := ILClone(PItemIDList(PAnsiChar(PIDL)));
 end;
 
-function JoinPIDLStrings(pidl1, pidl2: string): String;
+function JoinPIDLStrings(const pidl1, pidl2: AnsiString): AnsiString;
 var
   PidlLength: integer;
 begin
@@ -556,51 +704,26 @@ begin
     PidlLength := Length(pidl1)-2;
   SetLength(Result, PidlLength + Length(pidl2));
   if PidlLength > 0 then
-    Move(PChar(pidl1)^, PChar(Result)^, PidlLength);
-  Move(PChar(pidl2)^, Result[PidlLength+1], Length(pidl2));
+    Move(PAnsiChar(pidl1)^, PAnsiChar(Result)^, PidlLength);
+  Move(PAnsiChar(pidl2)^, Result[PidlLength+1], Length(pidl2));
 end;
 
-{$ifndef BCB}
-// BCB appearantly doesn't support ordinal DLL imports in Delphi units. Strange!
-// Use LoadLibrary and GetProcAddress if you need access to these functions from
-// C++Builder.
-function ILCombine(pidl1,pidl2:PItemIDList): PItemIDList; stdcall;
-  external shell32 index 25;
-function ILFindLastID(pidl: PItemIDList): PItemIDList; stdcall;
-  external shell32 index 16;
-function ILClone(pidl: PItemIDList): PItemIDList; stdcall;
-  external shell32 index 18;
-function ILRemoveLastID(pidl: PItemIDList): LongBool; stdcall;
-  external shell32 index 17;
-function ILIsEqual(pidl1,pidl2: PItemIDList): LongBool; stdcall;
-  external shell32 index 21;
-procedure ILFree(Buffer: PItemIDList); stdcall;
-  external shell32 index 155;
-
-function SHAlloc(BufferSize: ULONG): Pointer; stdcall;
-  external shell32 index 196;
-procedure SHFree(Buffer: Pointer); stdcall;
-  external shell32 index 195;
-{$endif}
-
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		PIDL/IShellFolder utility functions
+//              PIDL/IShellFolder utility functions
 //
 ////////////////////////////////////////////////////////////////////////////////
-function GetShellFolderOfPath(FolderPath: string): IShellFolder;
+function GetShellFolderOfPath(const FolderPath: UnicodeString): IShellFolder;
 var
   DeskTopFolder: IShellFolder;
   PathPidl: pItemIDList;
-  WidePath: WideString;
   pdwAttributes: ULONG;
 begin
   Result := nil;
-  WidePath := FolderPath;
   pdwAttributes := SFGAO_FOLDER;
   if (SHGetDesktopFolder(DeskTopFolder) <> NOERROR) then
     exit;
-  if (DesktopFolder.ParseDisplayName(0, nil, PWideChar(WidePath), PULONG(nil)^,
+  if (DesktopFolder.ParseDisplayName(0, nil, PWideChar(FolderPath), PULONG(nil)^,
     PathPidl, pdwAttributes) = NOERROR) then
     try
       if (pdwAttributes and SFGAO_FOLDER <> 0) then
@@ -612,22 +735,19 @@ begin
     end;
 end;
 
-function GetSubPIDL(Folder: IShellFolder; Sub: string): pItemIDList;
-var
-  WidePath: WideString;
+function GetSubPIDL(Folder: IShellFolder; const Sub: UnicodeString): pItemIDList;
 begin
-  WidePath := Sub;
-  Folder.ParseDisplayName(0, nil, PWideChar(WidePath), PULONG(nil)^, Result,
+  Folder.ParseDisplayName(0, nil, PWideChar(Sub), PULONG(nil)^, Result,
     PULONG(nil)^);
 end;
 
-function GetPIDLDisplayName(Folder: IShellFolder; PIDL: PItemIdList): string;
+function GetPIDLDisplayName(Folder: IShellFolder; PIDL: PItemIdList; Flags: DWORD): string;
 var
   StrRet: TStrRet;
 begin
   Result := '';
 
-  Folder.GetDisplayNameOf(PIDL, SHGDN_NORMAL, StrRet);
+  Folder.GetDisplayNameOf(PIDL, Flags, StrRet);
   case StrRet.uType of
     STRRET_WSTR:
       try
@@ -638,57 +758,125 @@ begin
     STRRET_OFFSET:
       Result := PChar(UINT(PIDL)+StrRet.uOffset);
     STRRET_CSTR:
-      Result := StrRet.cStr;
+      Result := String(StrRet.cStr);
   end;
 end;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TPIDLsToFilenamesStrings
+//              TPIDLList
+//
+////////////////////////////////////////////////////////////////////////////////
+procedure TPIDLList.Add(Item: PItemIDList);
+begin
+  if (Item <> nil) then
+  begin
+    FList.Add(ILClone(Item));
+    Changing;
+  end;
+end;
+
+procedure TPIDLList.Add(Item: AnsiString);
+begin
+  FList.Add(StringToPIDL(Item));
+  Changing;
+end;
+
+procedure TPIDLList.Assign(Source: TPIDLList);
+var
+  i: integer;
+begin
+  Clear;
+  for i := 0 to Source.Count-1 do
+    Add(Source.Items[i]);
+  Changing;
+end;
+
+procedure TPIDLList.Changing;
+begin
+  if (Assigned(OnChanging)) then
+    OnChanging(Self);
+end;
+
+procedure TPIDLList.Clear;
+var
+  i: integer;
+begin
+  for i := 0 to FList.Count-1 do
+    if (FList[i] <> nil) then
+      coTaskMemFree(FList[i]);
+  FList.Clear;
+  Changing;
+end;
+
+constructor TPIDLList.Create;
+begin
+  FList := TList.Create;
+end;
+
+destructor TPIDLList.Destroy;
+begin
+  Clear;
+  FList.Free;
+  inherited;
+end;
+
+function TPIDLList.GetCount: integer;
+begin
+  Result := FList.Count;
+end;
+
+function TPIDLList.GetItem(Index: integer): PItemIDList;
+begin
+  Result := PItemIDList(FList[Index]);
+end;
+
+function TPIDLList.GetString(Index: integer): AnsiString;
+begin
+  Result := PIDLToString(Items[Index]);
+end;
+
+procedure TPIDLList.SetItem(Index: integer; const Value: PItemIDList);
+begin
+  if (FList[Index] <> nil) then
+    coTaskMemFree(FList[Index]);
+
+  if (Value <> nil) then
+    FList[Index] := ILClone(Value)
+  else
+    FList[Index] := nil;
+  Changing;
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TPIDLsToFilenamesStrings
 //
 ////////////////////////////////////////////////////////////////////////////////
 // Used internally to convert PIDLs to filenames on-demand.
 ////////////////////////////////////////////////////////////////////////////////
 type
-  TPIDLsToFilenamesStrings = class(TWideStrings)
+  TPIDLsToFilenamesStrings = class(TUnicodeStrings)
   private
-    FPIDLs: TStrings;
+    FPIDLs: TPIDLList;
   protected
-{$ifdef DD_WIDESTRINGLIST}
-    function GetWide(Index: Integer): WideString; override;
-    procedure PutWide(Index: Integer; const S: WideString); override;
-{$endif}
-    function Get(Index: Integer): string; override;
-    procedure Put(Index: Integer; const S: string); override;
+    function Get(Index: Integer): UnicodeString; override;
+    procedure Put(Index: Integer; const S: UnicodeString); override;
 
     function GetCount: Integer; override;
   public
-    constructor Create(APIDLs: TStrings);
+    constructor Create(APIDLs: TPIDLList);
     procedure Assign(Source: TPersistent); override;
     procedure Clear; override;
     procedure Delete(Index: Integer); override;
-    procedure Insert(Index: Integer; const S: string); override;
+    procedure Insert(Index: Integer; const S: UnicodeString); override;
   end;
 
-constructor TPIDLsToFilenamesStrings.Create(APIDLs: TStrings);
+constructor TPIDLsToFilenamesStrings.Create(APIDLs: TPIDLList);
 begin
   inherited Create;
   FPIDLs := APIDLs;
-end;
-
-function TPIDLsToFilenamesStrings.Get(Index: Integer): string;
-var
-  PIDL: string;
-  Path: array [0..MAX_PATH] of char;
-begin
-  if (Index < 0) or (Index > FPIDLs.Count-2) then
-    raise Exception.create('Filename index out of range');
-  PIDL := JoinPIDLStrings(FPIDLs[0], FPIDLs[Index+1]);
-  if SHGetPathFromIDList(PItemIDList(PChar(PIDL)), Path) then
-    Result := Path
-  else
-    Result := '';
 end;
 
 function TPIDLsToFilenamesStrings.GetCount: Integer;
@@ -699,21 +887,19 @@ begin
     Result := FPIDLs.Count-1;
 end;
 
-{$ifdef DD_WIDESTRINGLIST}
-function TPIDLsToFilenamesStrings.GetWide(Index: Integer): WideString;
+function TPIDLsToFilenamesStrings.Get(Index: Integer): UnicodeString;
 var
-  PIDL: string;
+  PIDL: AnsiString;
   Path: array [0..MAX_PATH] of WideChar;
 begin
   if (Index < 0) or (Index > FPIDLs.Count-2) then
     raise Exception.create('Filename index out of range');
   PIDL := JoinPIDLStrings(FPIDLs[0], FPIDLs[Index+1]);
-  if SHGetPathFromIDListW(PItemIDList(PChar(PIDL)), Path) then
+  if SHGetPathFromIDListW(PItemIDList(PAnsiChar(PIDL)), Path) then
     Result := Path
   else
     Result := '';
 end;
-{$endif}
 
 procedure TPIDLsToFilenamesStrings.Assign(Source: TPersistent);
 begin
@@ -730,15 +916,9 @@ begin
 end;
 
 // Inherited abstract methods which do not need implementation...
-procedure TPIDLsToFilenamesStrings.Put(Index: Integer; const S: string);
+procedure TPIDLsToFilenamesStrings.Put(Index: Integer; const S: UnicodeString);
 begin
 end;
-
-{$ifdef DD_WIDESTRINGLIST}
-procedure TPIDLsToFilenamesStrings.PutWide(Index: Integer; const S: WideString);
-begin
-end;
-{$endif}
 
 procedure TPIDLsToFilenamesStrings.Clear;
 begin
@@ -748,19 +928,19 @@ procedure TPIDLsToFilenamesStrings.Delete(Index: Integer);
 begin
 end;
 
-procedure TPIDLsToFilenamesStrings.Insert(Index: Integer; const S: string);
+procedure TPIDLsToFilenamesStrings.Insert(Index: Integer; const S: UnicodeString);
 begin
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TPIDLClipboardFormat
+//              TPIDLClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TPIDLClipboardFormat.Create;
 begin
   inherited Create;
-  FPIDLs := TStringList.Create;
+  FPIDLs := TPIDLList.Create;
   FFilenames := TPIDLsToFilenamesStrings.Create(FPIDLs);
 end;
 
@@ -797,7 +977,7 @@ var
 begin
   Result := (FPIDLs.Count+1) * SizeOf(UINT);
   for i := 0 to FPIDLs.Count-1 do
-    inc(Result, Length(FPIDLs[i]));
+    inc(Result, GetSizeOfPIDL(FPIDLs.Items[i]));
 end;
 
 function TPIDLClipboardFormat.ReadData(Value: pointer;
@@ -814,6 +994,8 @@ var
   Offset: integer;
   pOffset: ^UINT;
   PIDL: PItemIDList;
+  SourcePIDL: PItemIDList;
+  PIDLSize: integer;
 begin
   pCIDA := PIDA(Value);
   pCIDA^.cidl := FPIDLs.Count-1; // Don't count folder PIDL
@@ -826,11 +1008,13 @@ begin
   begin
     pOffset^ := Offset; // Store relative offset of PIDL into aoffset[i]
     // Copy the PIDL
-    Move(PChar(FPIDLs[i])^, PIDL^, length(FPIDLs[i]));
+    SourcePIDL := FPIDLs.Items[i];
+    PIDLSize := GetSizeOfPIDL(SourcePIDL);
+    Move(SourcePIDL^, PIDL^, PIDLSize);
     // Move on to next PIDL
-    inc(Offset, length(FPIDLs[i]));
+    inc(Offset, PIDLSize);
     inc(pOffset);
-    inc(PByte(PIDL), length(FPIDLs[i]));
+    inc(PByte(PIDL), PIDLSize);
   end;
 
   Result := True;
@@ -839,14 +1023,14 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TPIDLDataFormat
+//              TPIDLDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TPIDLDataFormat.Create(AOwner: TDragDropComponent);
 begin
   inherited Create(AOwner);
-  FPIDLs := TStringList.Create;
-  TStringList(FPIDLs).OnChanging := DoOnChanging;
+  FPIDLs := TPIDLList.Create;
+  FPIDLs.OnChanging := DoOnChanging;
   FFilenames := TPIDLsToFilenamesStrings.Create(FPIDLs);
 end;
 
@@ -901,9 +1085,18 @@ begin
 end;
 
 
+class procedure TPIDLDataFormat.RegisterCompatibleFormats;
+begin
+  inherited RegisterCompatibleFormats;
+
+  // Clipboard format registration
+  RegisterDataConversion(TPIDLClipboardFormat, 0);
+  RegisterDataConversion(TFileClipboardFormat, 1);
+end;
+
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropPIDLTarget
+//              TDropPIDLTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TDropPIDLTarget.Create(AOwner: TComponent);
@@ -920,19 +1113,14 @@ begin
   inherited Destroy;
 end;
 
-function TDropPIDLTarget.GetPIDLs: TStrings;
+function TDropPIDLTarget.GetPIDLs: TPIDLList;
 begin
   Result := FPIDLDataFormat.PIDLs;
 end;
 
 function TDropPIDLTarget.DoGetPIDL(Index: integer): pItemIdList;
-var
-  PIDL: string;
 begin
-  PIDL := PIDLs[Index];
-  Result := ShellMalloc.Alloc(Length(PIDL));
-  if (Result <> nil) then
-    Move(PChar(PIDL)^, Result^, Length(PIDL));
+  Result := ILClone(PIDLs.Items[Index])
 end;
 
 function TDropPIDLTarget.GetFolderPidl: pItemIdList;
@@ -949,16 +1137,11 @@ begin
 end;
 
 function TDropPIDLTarget.GetAbsoluteFilePidl(Index: integer): pItemIdList;
-var
-  PIDL: string;
 begin
   Result := nil;
   if (index < 1) then
     exit;
-  PIDL := JoinPIDLStrings(PIDLs[0], PIDLs[Index]);
-  Result := ShellMalloc.Alloc(Length(PIDL));
-  if (Result <> nil) then
-    Move(PChar(PIDL)^, Result^, Length(PIDL));
+  Result := ILCombine(PIDLs.Items[0], PIDLs.Items[Index])
 end;
 
 function TDropPIDLTarget.GetPIDLCount: integer;
@@ -967,12 +1150,12 @@ begin
   Result := FPIDLDataFormat.PIDLs.Count;
 end;
 
-function TDropPIDLTarget.GetFilenames: TStrings;
+function TDropPIDLTarget.GetFilenames: TUnicodeStrings;
 begin
   Result := FPIDLDataFormat.Filenames;
 end;
 
-function TDropPIDLTarget.GetMappedNames: TStrings;
+function TDropPIDLTarget.GetMappedNames: TUnicodeStrings;
 begin
   Result := FFileMapDataFormat.FileMaps;
 end;
@@ -986,7 +1169,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropPIDLSource
+//              TDropPIDLSource
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TDropPIDLSource.Create(AOwner: TComponent);
@@ -1005,10 +1188,10 @@ end;
 
 procedure TDropPIDLSource.CopyFolderPIDLToList(pidl: PItemIDList);
 begin
-  //Note: Once the PIDL has been copied into the list it can be 'freed'.
+  // Note: Once the PIDL has been copied into the list it can be 'freed'.
   FPIDLDataFormat.Clear;
   FFileMapDataFormat.Clear;
-  FPIDLDataFormat.PIDLs.Add(PIDLToString(pidl));
+  FPIDLDataFormat.PIDLs.Add(pidl);
 end;
 
 procedure TDropPIDLSource.CopyFilePIDLToList(pidl: PItemIDList);
@@ -1017,10 +1200,10 @@ begin
   // Make sure that folder pidl has been added.
   if (FPIDLDataFormat.PIDLs.Count < 1) then
     raise Exception.Create(sNoFolderPIDL);
-  FPIDLDataFormat.PIDLs.Add(PIDLToString(pidl));
+  FPIDLDataFormat.PIDLs.Add(pidl);
 end;
 
-function TDropPIDLSource.GetMappedNames: TStrings;
+function TDropPIDLSource.GetMappedNames: TUnicodeStrings;
 begin
   Result := FFileMapDataFormat.FileMaps;
 end;
@@ -1028,18 +1211,44 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Initialization/Finalization
+//              Dynamic PIDL functions
 //
 ////////////////////////////////////////////////////////////////////////////////
+{$ifndef STATIC_PIDL}
+var
+  Shell32Handle: THandle = 0;
+
+procedure BindILFunctions;
+begin
+  Shell32Handle := LoadLibrary('shell32.dll');
+  if (Shell32Handle <> 0) then
+  begin
+    @ILFindLastID := GetProcAddress(Shell32Handle, PChar(16));
+    @ILRemoveLastID := GetProcAddress(Shell32Handle, PChar(17));
+    @ILClone := GetProcAddress(Shell32Handle, PChar(18));
+    @ILCloneFirst := GetProcAddress(Shell32Handle, PChar(19));
+    @ILIsEqual := GetProcAddress(Shell32Handle, PChar(21));
+    @ILCombine := GetProcAddress(Shell32Handle, PChar(25));
+    @ILGetSize := GetProcAddress(Shell32Handle, PChar(152));
+    @ILGetNext := GetProcAddress(Shell32Handle, PChar(153));
+    @ILFree := GetProcAddress(Shell32Handle, PChar(155));
+  end;
+end;
+{$endif}
 
 initialization
-  // Data format registration
+{$ifndef STATIC_PIDL}
+  BindILFunctions;
+{$endif}
   TPIDLDataFormat.RegisterDataFormat;
-  // Clipboard format registration
-  TPIDLDataFormat.RegisterCompatibleFormat(TPIDLClipboardFormat, 0, csSourceTarget, [ddRead]);
-  TPIDLDataFormat.RegisterCompatibleFormat(TFileClipboardFormat, 1, csSourceTarget, [ddRead]);
+  TPIDLClipboardFormat.RegisterFormat;
 
 finalization
-  TPIDLDataFormat.UnregisterDataFormat;
-
+{$ifndef STATIC_PIDL}
+  if (Shell32Handle <> 0) then
+  begin
+    FreeLibrary(Shell32Handle);
+    Shell32Handle := 0;
+  end;
+{$endif}
 end.

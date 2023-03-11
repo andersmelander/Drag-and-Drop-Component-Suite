@@ -10,10 +10,9 @@ object FormTarget: TFormTarget
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'MS Sans Serif'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = False
-  Position = poDefaultPosOnly
   Visible = True
   OnCreate = FormCreate
   PixelsPerInch = 96
@@ -49,12 +48,9 @@ object FormTarget: TFormTarget
     end
   end
   object DropTextTarget1: TDropTextTarget
-    Dragtypes = [dtCopy, dtLink]
-    GetDataOnEnter = False
+    DragTypes = [dtCopy, dtLink]
     OnDrop = DropTextTarget1Drop
-    ShowImage = True
     Target = PanelDest
-    AllowAsyncTransfer = False
     Left = 16
     Top = 32
   end

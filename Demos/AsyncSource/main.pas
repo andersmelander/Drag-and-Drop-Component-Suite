@@ -2,38 +2,48 @@ unit main;
 
 interface
 
+{$include dragdrop.inc} // Disables .NET warnings
+
 uses
-  DragDrop, DropSource, DragDropFormats,
+  DragDrop, DropSource, DragDropFile,
   Messages,
   ActiveX, Windows, Classes, Controls, Forms, StdCtrls, ComCtrls, ExtCtrls,
-  Buttons;
+  Buttons, ActnList, ToolWin, ImgList;
 
 const
   MSG_PROGRESS = WM_USER;
   MSG_STATUS = WM_USER+1;
 
 type
-  TDragDropStage = (dsNone, dsIdle, dsDrag, dsDragAsync, dsDragAsyncFailed, dsDrop, dsGetData, dsGetStream, dsDropComplete);
+  TDragDropStage = (dsNone, dsIdle, dsDrag, dsDragAsync, dsDragAsyncFailed, dsDrop, dsGetData, dsAbort, dsGetStream, dsDoneStream, dsDropComplete);
 
 type
   TFormMain = class(TForm)
     Timer1: TTimer;
-    Panel2: TPanel;
     DropEmptySource1: TDropEmptySource;
     DataFormatAdapterSource: TDataFormatAdapter;
     ProgressBar1: TProgressBar;
-    Panel3: TPanel;
-    Panel4: TPanel;
     Panel5: TPanel;
-    RadioButtonNormal: TRadioButton;
-    RadioButtonAsync: TRadioButton;
-    PaintBoxPie: TPaintBox;
-    Label1: TLabel;
+    StatusBar1: TStatusBar;
+    ImageListThrobber: TImageList;
+    Panel4: TPanel;
     Label2: TLabel;
     Label3: TLabel;
+    RadioButtonNormal: TRadioButton;
+    RadioButtonAsync: TRadioButton;
+    Panel1: TPanel;
     Label4: TLabel;
-    StatusBar1: TStatusBar;
-    ButtonAbort: TSpeedButton;
+    Panel2: TPanel;
+    Label1: TLabel;
+    ToolBar1: TToolBar;
+    ToolButton1: TToolButton;
+    ActionList1: TActionList;
+    ActionAbort: TAction;
+    Action2: TAction;
+    Action3: TAction;
+    ToolButtonThrobber: TToolButton;
+    Panel3: TPanel;
+    MemoTrace: TMemo;
     procedure Timer1Timer(Sender: TObject);
     procedure DropEmptySource1Drop(Sender: TObject; DragType: TDragType;
       var ContinueDrop: Boolean);
@@ -45,13 +55,13 @@ type
     procedure OnMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure FormCreate(Sender: TObject);
-    procedure ButtonAbortClick(Sender: TObject);
-    procedure StatusBar1Resize(Sender: TObject);
+    procedure ActionAbortUpdate(Sender: TObject);
+    procedure ActionAbortExecute(Sender: TObject);
   private
     FStatus: TDragDropStage;
-    FAbort: boolean;
+    FAborted: boolean;
     Tick: integer;
-    EvenOdd: boolean;
+    FTransferInProgress: boolean;
     procedure SetStatus(const Value: TDragDropStage);
     procedure SetProgress(Count, MaxCount: integer);
     procedure OnGetStream(Sender: TFileContentsStreamOnDemandClipboardFormat;
@@ -59,6 +69,9 @@ type
     procedure OnProgress(Sender: TObject; Count, MaxCount: integer);
     procedure MsgProgress(var Message: TMessage); message MSG_PROGRESS;
     procedure MsgStatus(var Message: TMessage); message MSG_STATUS;
+  protected
+    property Aborted: boolean read FAborted;
+    property TransferInProgress: boolean read FTransferInProgress;
     property Status: TDragDropStage read FStatus write SetStatus;
   public
   end;
@@ -71,6 +84,7 @@ implementation
 {$R *.DFM}
 
 uses
+  DragDropFormats,
   ShlObj,
   Graphics;
 
@@ -82,75 +96,28 @@ begin
   // Setup event handler to let a drop target request data from our drop source.
   (DataFormatAdapterSource.DataFormat as TVirtualFileStreamDataFormat).OnGetStream := OnGetStream;
 
-  StatusBar1.ControlStyle := StatusBar1.ControlStyle +[csAcceptsControls];
   Status := dsIdle;
-(*
-  // Reparent abort button to statusbar
-  ButtonAbort.Top := 3;
-  ButtonAbort.Height := StatusBar1.Height-4;
-  ButtonAbort.Left := StatusBar1.Width-ButtonAbort.Width-1;
-*)
 end;
 
 procedure TFormMain.Timer1Timer(Sender: TObject);
-
-  procedure DrawPie(Percent: integer);
-  var
-    Center: TPoint;
-    Radial: TPoint;
-    v: Double;
-    Radius: integer;
-  begin
-    // Assume paintbox width is smaller than height.
-    Radius := PaintBoxPie.Width div 2 - 10;
-    Center := Point(PaintBoxPie.Width div 2, PaintBoxPie.Height div 2);
-    v := Percent * Pi / 50; // Convert percent to radians.
-    Radial.X := Center.X+trunc(Radius * Cos(v));
-    Radial.Y := Center.Y-trunc(Radius * Sin(v));
-
-    PaintBoxPie.Canvas.Brush.Style := bsSolid;
-    PaintBoxPie.Canvas.Pen.Color := clGray;
-    PaintBoxPie.Canvas.Pen.Style := psSolid;
-
-    if (EvenOdd) then
-      PaintBoxPie.Canvas.Brush.Color := clRed
-    else
-      PaintBoxPie.Canvas.Brush.Color := Color;
-    PaintBoxPie.Canvas.Pie(Center.X-Radius, Center.Y-Radius,
-      Center.X+Radius, Center.Y+Radius,
-      Radial.X, Radial.Y,
-      Center.X+Radius, Center.Y);
-
-    if (Percent <> 0) then
-    begin
-      if not(EvenOdd) then
-        PaintBoxPie.Canvas.Brush.Color := clRed
-      else
-        PaintBoxPie.Canvas.Brush.Color := Color;
-      PaintBoxPie.Canvas.Pie(Center.X-Radius, Center.Y-Radius,
-        Center.X+Radius, Center.Y+Radius,
-        Center.X+Radius, Center.Y,
-        Radial.X, Radial.Y);
-    end;
-  end;
-
 begin
-  // Update the pie to indicate that the application is responding to
+  // Update the throbber to indicate that the application is responding to
   // messages (i.e. isn't blocked).
-  Tick := (Tick + 10) mod 100;
-  if (Tick = 0) then
-    EvenOdd := not EvenOdd;
-
-  // Draw an animated pie chart to show that application is responsive to events.
-  DrawPie(Tick);
+  Tick := (Tick + 1) mod 12;
+  ToolButtonThrobber.ImageIndex := Tick;
+  Update;
 end;
 
 procedure TFormMain.OnMouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
+
   Status := dsIdle;
   if DragDetectPlus(Handle, Point(X, Y)) then
   begin
+    FAborted := False;
+    MemoTrace.Lines.Clear;
+
     Status := dsDrag;
 
     // Transfer the file names to the data format.
@@ -169,7 +136,6 @@ begin
     // Determine if we should perform an async drag or a normal drag.
     if (RadioButtonAsync.Checked) then
     begin
-      FAbort := False;
 
       // Perform an asynchronous drag (in a separate thread).
       if (DropEmptySource1.Execute(True) = drAsync) then
@@ -193,6 +159,17 @@ begin
   // This event will be called in the context of the transfer thread during an
   // asynchronous transfer. See TFormMain.OnProgress for a comment on this.
   Status := dsDrop;
+end;
+
+procedure TFormMain.ActionAbortExecute(Sender: TObject);
+begin
+  FAborted := True;
+  Status := dsAbort;
+end;
+
+procedure TFormMain.ActionAbortUpdate(Sender: TObject);
+begin
+  TAction(Sender).Enabled := TransferInProgress and (not Aborted);
 end;
 
 procedure TFormMain.DropEmptySource1AfterDrop(Sender: TObject;
@@ -221,10 +198,12 @@ type
   private
     FSize, FPosition, FMaxCount: Longint;
     FProgress: TStreamProgressEvent;
-    FAbort: boolean;
+    FAborted: boolean;
   protected
+    property Aborted: boolean read FAborted;
   public
     constructor Create(ASize, AMaxCount: LongInt);
+    destructor Destroy; override;
     function Read(var Buffer; Count: Longint): Longint; override;
     function Seek(Offset: Longint; Origin: Word): Longint; override;
     procedure SetSize(NewSize: Longint); override;
@@ -235,7 +214,7 @@ type
 
 procedure TFakeStream.Abort;
 begin
-  FAbort := True;
+  FAborted := True;
 end;
 
 constructor TFakeStream.Create(ASize, AMaxCount: LongInt);
@@ -245,10 +224,16 @@ begin
   FMaxCount := AMaxCount;
 end;
 
+destructor TFakeStream.Destroy;
+begin
+//  Status := dsDoneStream;
+  inherited Destroy;
+end;
+
 function TFakeStream.Read(var Buffer; Count: Integer): Longint;
 begin
   Result := 0;
-  if (FAbort) then
+  if (Aborted) then
     exit;
 
   if (FPosition >= 0) and (Count >= 0) then
@@ -302,7 +287,7 @@ begin
   // when the drop target requests data from the drop source (that's us).
   Status := dsGetStream;
 
-  // In this demo we just create a dummy stream which contains 10Mb of 'X'
+  // In this demo we just create a dummy stream which contains a lot of 'X'
   // characters. In order to provide smoth feedback through the progress bar
   // (and slow the transfer down a bit) the stream will only transfer up to 32K
   // at a time - Each time TStream.Read is called, the progress bar is updated
@@ -333,20 +318,8 @@ begin
 
   // Update progress bar to show how much data has been transfered so far.
   SetProgress(Count, MaxCount);
-  if (FAbort) then
+  if (Aborted) then
     TFakeStream(Sender).Abort;
-end;
-
-procedure TFormMain.ButtonAbortClick(Sender: TObject);
-begin
-  FAbort := True;
-  TButton(Sender).Enabled := False;
-end;
-
-procedure TFormMain.StatusBar1Resize(Sender: TObject);
-begin
-  // This is nescessary to get controls inside TStatusBar to honour Anchors.
-  StatusBar1.Realign;
 end;
 
 procedure TFormMain.MsgProgress(var Message: TMessage);
@@ -373,6 +346,8 @@ begin
 end;
 
 procedure TFormMain.SetStatus(const Value: TDragDropStage);
+var
+  StatusMsg: string;
 begin
   // Make sure GUI updates are performed in the main thread.
   if (GetCurrentThreadID <> MainThreadID) then
@@ -386,34 +361,37 @@ begin
     FStatus := Value;
     case FStatus of
       dsIdle:
-        StatusBar1.SimpleText := 'Ready';
+        StatusMsg := 'Ready';
       dsDrag:
-        StatusBar1.SimpleText := 'Drag in progress';
+        StatusMsg := 'Drag in progress';
       dsDragAsync:
-        StatusBar1.SimpleText := 'Asynchronous drag started';
+        StatusMsg := 'Asynchronous drag started';
       dsDragAsyncFailed:
-        StatusBar1.SimpleText := 'Asynchronous drag failed';
+        StatusMsg := 'Asynchronous drag failed';
       dsDrop:
-        begin
-          StatusBar1.SimpleText := 'Data dropped';
-          if (RadioButtonAsync.Checked) then
-          begin
-            ButtonAbort.Visible := True;
-            ButtonAbort.Enabled := True;
-          end;
-        end;
+        StatusMsg := 'Data dropped';
       dsGetData:
-        StatusBar1.SimpleText := 'Target reading data';
+        StatusMsg := 'Target reading data';
+      dsAbort:
+        StatusMsg := 'Abort requested';
       dsGetStream:
-        StatusBar1.SimpleText := 'Source writing data';
+        StatusMsg := 'Source writing data';
+      dsDoneStream:
+        StatusMsg := 'Target done reading data';
       dsDropComplete:
-        begin
-          StatusBar1.SimpleText := 'Drop completed';
-          ButtonAbort.Visible := False;
-        end;
+        StatusMsg := 'Drop completed';
     else
-      StatusBar1.SimpleText := '';
+      StatusMsg := '';
     end;
+    case FStatus of
+      dsDrop:
+        FTransferInProgress := True;
+      dsDropComplete:
+        FTransferInProgress := False;
+    end;
+    StatusBar1.SimpleText := StatusMsg;
+    if (StatusMsg <> '') then
+      MemoTrace.Lines.Add(StatusMsg);
   end;
 end;
 

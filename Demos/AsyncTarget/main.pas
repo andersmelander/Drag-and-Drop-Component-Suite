@@ -11,8 +11,10 @@ only supported on Windows 2000, Windows ME and later.
 
 interface
 
+{$include dragdrop.inc} // Disables .NET warnings
+
 uses
-  DragDrop, DropTarget, DragDropFormats,
+  DragDrop, DropTarget,
   Messages,
   ActiveX, Windows, Classes, Controls, Forms, StdCtrls, ComCtrls, ExtCtrls;
 
@@ -38,8 +40,11 @@ type
     Label3: TLabel;
     RadioButtonNormal: TRadioButton;
     RadioButtonAsync: TRadioButton;
-    Label1: TLabel;
     PanelTarget: TPanel;
+    Label4: TLabel;
+    Panel6: TPanel;
+    Label1: TLabel;
+    DropDummy1: TDropDummy;
     procedure Timer1Timer(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -65,6 +70,7 @@ implementation
 {$R *.DFM}
 
 uses
+  DragDropFile,
   ShlObj,
   Graphics;
 
@@ -77,7 +83,9 @@ var
   VerSize: DWORD;
   Version: integer;
 begin
-  // Check for correct version of shell32.dll.
+  (*
+  ** Check for correct version of shell32.dll.
+  *)
 
   Version := 0;
   // GetFileVersionInfo modifies the filename parameter data while parsing.

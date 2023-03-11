@@ -10,37 +10,20 @@ uses
   DropSource,
   DragDropFile,
   ImgList,
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  StdCtrls, Buttons, ExtCtrls, FileCtrl, Outline, DirOutln, CommCtrl,
-  ComCtrls, Grids, ActiveX, ShlObj, ComObj, Menus;
+  ComCtrls, ActiveX, ShlObj, ComObj, Controls, ShellCtrls, Menus, ExtCtrls,
+  StdCtrls, Classes, Forms, Graphics, Windows;
 
 type
-  // This thread is used to watch for and display changes in
-  // DirectoryOutline.directory
-  TDirectoryThread = class(TThread)
-  private
-    FListView: TListView;
-    FDirectory: string;
-    FWakeupEvent: THandle; //Used to signal change of directory or terminating
-    FFiles: TStrings;
-  protected
-    procedure ScanDirectory;
-    procedure UpdateListView;
-    procedure SetDirectory(Value: string);
-    procedure ProcessFilenameChanges(fcHandle: THandle);
-  public
-    constructor Create(ListView: TListView; Dir: string);
-    procedure Execute; override;
-    destructor Destroy; override;
-    procedure WakeUp;
-    property Directory: string read FDirectory write SetDirectory;
+  // Hack to avoid having to install the design time shell controls
+  TTreeView = class(TShellTreeView);
+
+  TListView = class(TShellListView)
+  published
+    property Columns stored False;
   end;
 
   TFormFile = class(TForm)
-    DriveComboBox: TDriveComboBox;
-    DirectoryOutline: TDirectoryOutline;
     Memo1: TMemo;
-    ListView1: TListView;
     btnClose: TButton;
     StatusBar1: TStatusBar;
     DropFileTarget1: TDropFileTarget;
@@ -54,14 +37,12 @@ type
     N1: TMenuItem;
     MenuPaste: TMenuItem;
     ImageListSingleFile: TImageList;
-    procedure DriveComboBoxChange(Sender: TObject);
-    procedure DirectoryOutlineChange(Sender: TObject);
-    procedure btnCloseClick(Sender: TObject);
+    ShellTreeView1: TTreeView;
+    ListView1: TListView;
     procedure MenuCutOrCopyClick(Sender: TObject);
     procedure ListView1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure FormCreate(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
     procedure DropSource1Feedback(Sender: TObject; Effect: Integer;
       var UseDefaultCursors: Boolean);
     procedure DropFileTarget1Enter(Sender: TObject;
@@ -78,11 +59,17 @@ type
       DragResult: TDragResult; Optimized: Boolean);
     procedure ListView1CustomDrawItem(Sender: TCustomListView;
       Item: TListItem; State: TCustomDrawState; var DefaultDraw: Boolean);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
   private
-    SourcePath: string;
-    IsEXEfile: boolean;
-    DirectoryThread: TDirectoryThread;
+    FTargetPath: string;
+    FIsEXEfile: boolean;
+    function GetSourcePath: string;
+  protected
+    procedure Loaded; override;
   public
+    property TargetPath: string read FTargetPath;
+    property SourcePath: string read GetSourcePath;
+    property IsEXEfile: boolean read FIsEXEfile;
   end;
 
 var
@@ -91,6 +78,13 @@ var
 implementation
 
 {$R *.DFM}
+
+uses
+{$ifdef VER18_PLUS}
+  Types, // Required for inlining of ListView_CreateDragImage
+{$endif}
+  SysUtils,
+  CommCtrl;
 
 // CUSTOM CURSORS:
 // The cursors in DropCursors.res are exactly the same as the default cursors.
@@ -108,14 +102,6 @@ const
 //----------------------------------------------------------------------------
 // Miscellaneous utility functions
 //----------------------------------------------------------------------------
-
-function AddSlash(path: string): string;
-begin
-  if (path = '') or (path[length(path)]='\') then
-    Result := path
-  else
-    Result := path +'\';
-end;
 
 procedure CreateLink(SourceFile, ShortCutName: String);
 var
@@ -153,6 +139,39 @@ end;
 // TFormFile methods
 //----------------------------------------------------------------------------
 
+procedure TFormFile.Loaded;
+begin
+  inherited Loaded;
+
+  with ShellTreeView1 do
+  begin
+    AutoContextMenus := False;
+    ObjectTypes := [otFolders];
+    Root := 'rfDesktop';
+    ShellListView := ListView1;
+    UseShellImages := True;
+    AutoRefresh := False;
+  end;
+
+  with ListView1 do
+  begin
+    AutoContextMenus := False;
+    ObjectTypes := [otNonFolders];
+    Root := 'rfDesktop';
+    ShellTreeView := ShellTreeView1;
+    Sorted := True;
+  end;
+
+  ShellTreeView1.Path := ExtractFilePath(Application.ExeName);
+end;
+
+procedure TFormFile.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  // Work around "Control has no parent window" on destroy
+  ListView1.Free;
+  ShellTreeView1.Free;
+end;
+
 procedure TFormFile.FormCreate(Sender: TObject);
 begin
   // Load custom cursors...
@@ -164,34 +183,9 @@ begin
   Screen.cursors[crLinkScroll] := LoadCursor(hinstance, 'CUR_DRAG_LINK_SCROLL');
 end;
 
-procedure TFormFile.FormDestroy(Sender: TObject);
+function TFormFile.GetSourcePath: string;
 begin
-  if (DirectoryThread <> nil) then
-  begin
-    DirectoryThread.Terminate;
-    DirectoryThread.WakeUp;
-    DirectoryThread.WaitFor;
-    DirectoryThread.Free;
-  end;
-end;
-
-procedure TFormFile.btnCloseClick(Sender: TObject);
-begin
-  Close;
-end;
-
-procedure TFormFile.DriveComboBoxChange(Sender: TObject);
-begin
-  // Manual synchronization to work around bug in TDirectoryOutline.
-  DirectoryOutline.Drive := DriveComboBox.Drive;
-end;
-
-procedure TFormFile.DirectoryOutlineChange(Sender: TObject);
-begin
-  if (DirectoryThread = nil) then
-    DirectoryThread := TDirectoryThread.Create(ListView1, DirectoryOutline.Directory)
-  else
-    DirectoryThread.Directory := DirectoryOutline.Directory;
+  Result := IncludeTrailingBackslash(ShellTreeView1.Path);
 end;
 
 procedure TFormFile.ListView1MouseDown(Sender: TObject;
@@ -201,6 +195,8 @@ var
   Filename: string;
   Res: TDragResult;
   p: TPoint;
+  First: boolean;
+//  Count: integer;
 begin
   // If no files selected then exit...
   if ListView1.SelCount = 0 then
@@ -213,36 +209,44 @@ begin
     DropSource1.Files.Clear;
     // DropSource1.MappedNames.Clear;
 
-    // Fill DropSource1.Files with selected files in ListView1
+    // Fill DropSource1.Files with selected files in ListView1 and...
+    // ...create drag image
+    First := True;
     for i := 0 to Listview1.Items.Count-1 do
       if (Listview1.Items[i].Selected) then
       begin
-        Filename :=
-          AddSlash(DirectoryOutline.Directory)+Listview1.Items[i].Caption;
+        Filename := Listview1.Folders[i].PathName;
         DropSource1.Files.Add(Filename);
         // The TDropFileSource.MappedNames list can be used to indicate to the
         // drop target, that the files should be renamed once they have been
         // copied. This is the technique used when dragging files from the
         // recycle bin.
-        // DropSource1.MappedNames.Add('NewFileName'+inttostr(i+1));
+        // DropSource1.MappedNames.Add(ExtractFilePath(Filename)+'Copy of '+ExtractFileName(Filename));
+
+        // Create a drag image.
+        if (First) then
+        begin
+          ImageListSingleFile.Handle := ListView_CreateDragImage(ListView1.Handle,
+            Listview1.Items[i].Index, p);
+          // Note: ListView_CreateDragImage fails to include the list item text on
+          // some versions of Windows. Known problem with no solution according to MS.
+          First := False;
+        end else
+        begin
+          ImageListMultiFile.Handle := ListView_CreateDragImage(ListView1.Handle,
+            Listview1.Items[i].Index, p);
+          try
+            ImageListSingleFile.Handle := ImageList_Merge(ImageListSingleFile.Handle, 0, ImageListMultiFile.Handle, 0, 0, ImageListSingleFile.Height);
+          finally
+            ImageListMultiFile.Handle := 0;
+          end;
+        end;
       end;
 
-    // Select an appropriate drag image.
-    // If only one file has been selected, create a dynamic drag image based on
-    // the list view selection, otherwise use a static drag image.
-    if (ListView1.SelCount = 1) then
-    begin
-      ImageListSingleFile.Handle := ListView_CreateDragImage(ListView1.Handle,
-        ListView1.Selected.Index, p);
-      DropSource1.Images := ImageListSingleFile;
-      DropSource1.ImageHotSpotX := X-ListView1.Selected.Left;
-      DropSource1.ImageHotSpotY := Y-ListView1.Selected.Top;
-    end else
-    begin
-      DropSource1.Images := ImageListMultiFile;
-      DropSource1.ImageHotSpotX := 16;
-      DropSource1.ImageHotSpotY := 16;
-    end;
+    DropSource1.Images := ImageListSingleFile;
+    DropSource1.ImageHotSpotX := X-ListView1.Selected.Left;
+    DropSource1.ImageHotSpotY := Y-ListView1.Selected.Top;
+    DropSource1.ImageIndex := 0;
 
 
     // Temporarily disable the list view as a drop target so we don't drop on
@@ -314,8 +318,7 @@ begin
   for i := 0 to Listview1.Items.Count-1 do
     if (Listview1.Items[i].Selected) then
     begin
-      Filename :=
-        AddSlash(DirectoryOutline.Directory)+Listview1.Items[i].Caption;
+      Filename := Listview1.Folders[i].PathName;
       DropSource1.Files.Add(Filename);
 
       // Flag item as "cut" so it can be drawn differently.
@@ -419,13 +422,13 @@ begin
   // IDataObject.GetData to be called before IDropTarget.Drop is called.
 
   // Save the location (path) of the files being dragged.
-  // Also flags if an EXE file is being dragged.
+  // Also flag if an EXE file is being dragged.
   // This info will be used to set the default (ie. no Shift or Ctrl Keys
   // pressed) drag behaviour (COPY, MOVE or LINK).
   if (DropFileTarget1.Files.count > 0) then
   begin
-    SourcePath := ExtractFilePath(DropFileTarget1.Files[0]);
-    IsEXEfile := (DropFileTarget1.Files.count = 1) and
+    FTargetPath := ExtractFilePath(DropFileTarget1.Files[0]);
+    FIsEXEfile := (DropFileTarget1.Files.count = 1) and
       (AnsiCompareText(ExtractFileExt(DropFileTarget1.Files[0]), '.exe') = 0);
   end;
 end;
@@ -435,10 +438,8 @@ procedure TFormFile.DropFileTarget1Drop(Sender: TObject;
 var
   i, SuccessCnt: integer;
   NewFilename: string;
-  newPath: string;
 begin
   SuccessCnt := 0;
-  NewPath := AddSlash(DirectoryOutline.Directory);
 
   // Filter out the DROPEFFECT_SCROLL flag if set...
   // (ie: when dropping a file while the target window is scrolling)
@@ -453,9 +454,9 @@ begin
     // Name mapping occurs when dragging files from Recycle Bin...
     // In most situations Name Mapping can be ignored entirely.
     if (i < DropFileTarget1.MappedNames.Count) then
-      NewFilename := NewPath+DropFileTarget1.MappedNames[i]
+      NewFilename := SourcePath+DropFileTarget1.MappedNames[i]
     else
-      NewFilename := NewPath+ExtractFilename(DropFileTarget1.Files[i]);
+      NewFilename := SourcePath+ExtractFilename(DropFileTarget1.Files[i]);
 
     if not FileExists(NewFilename) then
     begin
@@ -529,7 +530,7 @@ begin
   ShiftState := ([ssShift, ssCtrl] * ShiftState);
 
   // Reject the drop if source and target paths are the same (DROPEFFECT_NONE).
-  if (AddSlash(DirectoryOutline.Directory) = SourcePath) then
+  if (SourcePath = TargetPath) then
     Effect := DROPEFFECT_NONE
   // else if Ctrl+Shift are pressed then create a link (DROPEFFECT_LINK).
   else if (ShiftState = [ssShift, ssCtrl]) and
@@ -544,7 +545,7 @@ begin
   else if IsEXEfile and (Effect and DROPEFFECT_LINK<>0) then
     Effect := DROPEFFECT_LINK
   // else if source and target drives are the same then default to MOVE (DROPEFFECT_MOVE).
-  else if (SourcePath <> '') and (DirectoryOutline.Directory[1] = SourcePath[1]) and
+  else if (TargetPath <> '') and (ExtractFileDrive(SourcePath) = ExtractFileDrive(TargetPath)) and
     (Effect and DROPEFFECT_MOVE<>0) then Effect := DROPEFFECT_MOVE
   // otherwise just use whatever we can get away with.
   else if (Effect and DROPEFFECT_COPY<>0) then Effect := DROPEFFECT_COPY
@@ -554,153 +555,6 @@ begin
 
   // Restore auto scroll flag.
   Effect := Effect or integer(Scroll);
-end;
-
-//----------------------------------------------------------------------------
-// TDirectoryThread
-// This thread monitors the current directory for changes and updates the
-// listview whenever the directory is changed (files added, renamed or deleted).
-//----------------------------------------------------------------------------
-
-// OK, we're showing off... This is a little overkill for a demo,
-// but still you can see what can be done.
-constructor TDirectoryThread.Create(ListView: TListView; Dir: string);
-begin
-  inherited Create(True);
-
-  FListView := ListView;
-  Priority := tpLowest;
-  FDirectory := Dir;
-  FWakeupEvent := Windows.CreateEvent(nil, False, False, nil);
-  FFiles := TStringList.Create;
-
-  Resume;
-end;
-
-destructor TDirectoryThread.Destroy;
-begin
-  CloseHandle(FWakeupEvent);
-  FFiles.Free;
-  inherited Destroy;
-end;
-
-procedure TDirectoryThread.WakeUp;
-begin
-  SetEvent(FWakeupEvent);
-end;
-
-procedure TDirectoryThread.SetDirectory(Value: string);
-begin
-  if (Value = FDirectory) then
-    exit;
-  FDirectory := Value;
-  WakeUp;
-end;
-
-procedure TDirectoryThread.ScanDirectory;
-var
-  sr: TSearchRec;
-  res: integer;
-begin
-  FFiles.Clear;
-  res := FindFirst(AddSlash(FDirectory)+'*.*', 0, sr);
-  try
-    while (res = 0) and (not Terminated) do
-    begin
-      if (sr.Name <> '.') and (sr.Name <> '..') then
-        FFiles.Add(lowercase(sr.Name));
-      res := FindNext(sr);
-    end;
-  finally
-    FindClose(sr);
-  end;
-end;
-
-procedure TDirectoryThread.UpdateListView;
-var
-  NewItem: TListItem;
-  i: integer;
-begin
-  fListView.Items.BeginUpdate;
-  try
-    fListView.Items.clear;
-    for i := 0 to FFiles.Count-1 do
-    begin
-      NewItem := fListView.Items.Add;
-      NewItem.Caption := FFiles[i];
-    end;
-    if fListView.Items.Count > 0 then
-      fListView.ItemFocused := fListView.Items[0];
-  finally
-    fListView.Items.EndUpdate;
-  end;
-  FFiles.Clear;
-end;
-
-procedure TDirectoryThread.Execute;
-var
-  fFileChangeHandle: THandle;
-begin
-
-  // OUTER LOOP - which will exit only when terminated ...
-  // directory changes will be processed within this OUTER loop
-  // (file changes will be processed within the INNER loop)
-  while (not Terminated) do
-  begin
-    ScanDirectory;
-    Synchronize(UpdateListView);
-
-    //Monitor directory for file changes
-    fFileChangeHandle :=
-      FindFirstChangeNotification(PChar(fDirectory), False,
-        FILE_NOTIFY_CHANGE_FILE_NAME);
-    if (fFileChangeHandle = INVALID_HANDLE_VALUE) then
-      //Can't monitor filename changes! Just wait for change of directory or terminate
-      WaitForSingleObject(FWakeupEvent, INFINITE)
-    else
-      try
-        //This function performs an INNER loop...
-        ProcessFilenameChanges(fFileChangeHandle);
-      finally
-        FindCloseChangeNotification(fFileChangeHandle);
-      end;
-  end;
-end;
-
-procedure TDirectoryThread.ProcessFilenameChanges(fcHandle: THandle);
-var
-  WaitResult: DWORD;
-  HandleArray: array[0..1] of THandle;
-begin
-  HandleArray[0] := FWakeupEvent;
-  HandleArray[1] := fcHandle;
-  // INNER LOOP -
-  // which will exit only if terminated or the directory is changed
-  // filename changes will be processed within this loop
-  while (not Terminated) do
-  begin
-    //wait for either filename or directory change, or terminate...
-    WaitResult := WaitForMultipleObjects(2, PWOHandleArray(@HandleArray), False,
-      INFINITE);
-
-    if (WaitResult = WAIT_OBJECT_0 + 1) then //filename has changed
-    begin
-      repeat //collect all immediate filename changes...
-        FindNextChangeNotification(fcHandle);
-      until Terminated or (WaitForSingleObject(fcHandle, 0) <> WAIT_OBJECT_0);
-      if Terminated then
-        Break;
-      // OK, now update (before restarting inner loop)...
-      ScanDirectory;
-      Synchronize(UpdateListView);
-    end else
-    begin // Either directory changed or terminated ...
-      //collect all (almost) immediate directory changes before exiting...
-      while (not Terminated) and
-        (WaitForSingleObject(FWakeupEvent, 100) = WAIT_OBJECT_0) do {nothing};
-      break;
-    end;
-  end;
 end;
 
 end.

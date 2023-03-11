@@ -3,15 +3,15 @@ unit DragDropText;
 // Project:         Drag and Drop Component Suite.
 // Module:          DragDropText
 // Description:     Implements Dragging and Dropping of different text formats.
-// Version:         4.2
-// Date:            05-APR-2008
-// Target:          Win32, Delphi 5-2007
+// Version:         5.0
+// Date:            22-NOV-2009
+// Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2008 Anders Melander
+//                  © 2000-2009 Anders Melander
 // -----------------------------------------------------------------------------
 
-{$define DROPSOURCE_TEXTSCRAP}
+{.$define DROPSOURCE_TEXTSCRAP}
 
 interface
 
@@ -29,39 +29,67 @@ uses
 type
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TRichTextClipboardFormat
+//              TCustomAnsiTextClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
-  TRichTextClipboardFormat = class(TCustomTextClipboardFormat)
+// Abstract base class for simple ansi text based clipboard formats.
+////////////////////////////////////////////////////////////////////////////////
+  TCustomAnsiTextClipboardFormat = class(TCustomAnsiStringClipboardFormat)
+  private
+  protected
+    function GetSize: integer; override;
+    property Text: AnsiString read GetString write SetString;
   public
-    function GetClipboardFormat: TClipFormat; override;
-    property Text;
+    constructor Create; override;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TUnicodeTextClipboardFormat
+//              TCustomUnicodeTextClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
-// Note: On Windows NT/2000 the system automatically synthesizes the
-// CF_UNICODETEXT format from the CF_TEXT and CF_OEMTEXT formats.
+// Abstract base class for simple string clipboard formats storing the data in a
+// UniCode (wide) string.
 ////////////////////////////////////////////////////////////////////////////////
-  TUnicodeTextClipboardFormat = class(TCustomWideTextClipboardFormat)
+  TCustomUnicodeTextClipboardFormat = class(TCustomSimpleClipboardFormat)
+  private
+    FText: UnicodeString;
+  protected
+    function ReadData(Value: pointer; Size: integer): boolean; override;
+    function WriteData(Value: pointer; Size: integer): boolean; override;
+    function GetSize: integer; override;
+
+    function GetText: UnicodeString;
+    procedure SetText(const Value: UnicodeString);
+    property Text: UnicodeString read FText write FText;
   public
-    function GetClipboardFormat: TClipFormat; override;
-    property Text;
+    procedure Clear; override;
+    function HasData: boolean; override;
   end;
+
+  TCustomWideTextClipboardFormat = TCustomUnicodeTextClipboardFormat {$ifdef VER17_PLUS}deprecated {$IFDEF VER20_PLUS}'Use TCustomUnicodeTextClipboardFormat instead'{$ENDIF}{$endif};
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TOEMTextClipboardFormat
+//              TCustomTextClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
-// Note: The system automatically synthesizes the CF_OEMTEXT format from the
-// CF_TEXT format. On Windows NT/2000 the system also synthesizes from the
+{$ifdef UNICODE}
+  TCustomTextClipboardFormat = TCustomUnicodeTextClipboardFormat;
+{$else}
+  TCustomTextClipboardFormat = TCustomAnsiTextClipboardFormat;
+{$endif}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TAnsiTextClipboardFormat
+//
+////////////////////////////////////////////////////////////////////////////////
+// Note: The clipboard automatically synthesizes the CF_TEXT format from the
+// CF_OEMTEXT format. On Windows NT/2000 the clipboard also synthesizes from the
 // CF_UNICODETEXT format.
 ////////////////////////////////////////////////////////////////////////////////
-  TOEMTextClipboardFormat = class(TCustomTextClipboardFormat)
+  TAnsiTextClipboardFormat = class(TCustomAnsiTextClipboardFormat)
   public
     function GetClipboardFormat: TClipFormat; override;
     property Text;
@@ -69,7 +97,58 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TCSVClipboardFormat
+//              TUnicodeTextClipboardFormat
+//
+////////////////////////////////////////////////////////////////////////////////
+// Note: On Windows NT/2000 the clipboard automatically synthesizes the
+// CF_UNICODETEXT format from the CF_TEXT and CF_OEMTEXT formats.
+////////////////////////////////////////////////////////////////////////////////
+  TUnicodeTextClipboardFormat = class(TCustomUnicodeTextClipboardFormat)
+  public
+    function GetClipboardFormat: TClipFormat; override;
+    property Text;
+  end;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TTextClipboardFormat
+//
+////////////////////////////////////////////////////////////////////////////////
+{$ifdef UNICODE}
+  TTextClipboardFormat = TUnicodeTextClipboardFormat;
+{$else}
+  TTextClipboardFormat = TAnsiTextClipboardFormat;
+{$endif}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TOEMTextClipboardFormat
+//
+////////////////////////////////////////////////////////////////////////////////
+// Note: The clipboard automatically synthesizes the CF_OEMTEXT format from the
+// CF_TEXT format. On Windows NT/2000 the clipboard also synthesizes from the
+// CF_UNICODETEXT format.
+////////////////////////////////////////////////////////////////////////////////
+  TOEMTextClipboardFormat = class(TCustomAnsiTextClipboardFormat)
+  public
+    function GetClipboardFormat: TClipFormat; override;
+    property Text;
+  end;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TRichTextClipboardFormat
+//
+////////////////////////////////////////////////////////////////////////////////
+  TRichTextClipboardFormat = class(TCustomAnsiTextClipboardFormat)
+  public
+    function GetClipboardFormat: TClipFormat; override;
+    property Text;
+  end;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TCSVClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TCSVClipboardFormat = class(TCustomStringListClipboardFormat)
@@ -80,7 +159,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TLocaleClipboardFormat
+//              TLocaleClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TLocaleClipboardFormat = class(TCustomDWORDClipboardFormat)
@@ -92,44 +171,42 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TTextDataFormat
+//              TTextDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TTextDataFormat = class(TCustomDataFormat)
   private
-    FText: string;
-    FUnicodeText: WideString;
-    FRichText: string;
-    FOEMText: string;
-    FCSVText: string;
-    FHTML: string;
+    FUnicodeText: UnicodeString;
+    FAnsiText: AnsiString;
+    FNeedAnsi, FNeedUnicode: boolean;
     FLocale: DWORD;
   protected
+    class procedure RegisterCompatibleFormats; override;
+    function GetAnsiText: AnsiString;
+    procedure SetAnsiText(const Value: AnsiString);
+    function GetUnicodeText: UnicodeString;
+    procedure SetUnicodeText(const Value: UnicodeString);
+    function GetText: string;
     procedure SetText(const Value: string);
-    procedure SetCSVText(const Value: string);
-    procedure SetOEMText(const Value: string);
-    procedure SetRichText(const Value: string);
-    procedure SetHTML(const Value: string);
-    procedure SetUnicodeText(const Value: WideString);
+    function GetLocale: DWORD;
     procedure SetLocale(const Value: DWORD);
+    function GetCodePage: integer;
+    property CodePage: integer read GetCodePage;
   public
     function Assign(Source: TClipboardFormat): boolean; override;
     function AssignTo(Dest: TClipboardFormat): boolean; override;
     procedure Clear; override;
     function HasData: boolean; override;
     function NeedsData: boolean; override;
-    property Text: string read FText write SetText;
-    property UnicodeText: WideString read FUnicodeText write SetUnicodeText;
-    property RichText: string read FRichText write SetRichText;
-    property OEMText: string read FOEMText write SetOEMText;
-    property CSVText: string read FCSVText write SetCSVText;
-    property HTML: string read FHTML write SetHTML;
-    property Locale: DWORD read FLocale write SetLocale;
+    property AnsiText: AnsiString read GetAnsiText write SetAnsiText;
+    property Text: string read GetText write SetText;
+    property UnicodeText: UnicodeString read GetUnicodeText write SetUnicodeText;
+    property Locale: DWORD read GetLocale write SetLocale;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropTextTarget
+//              TDropTextTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
   TDropTextTarget = class(TCustomDropMultiTarget)
@@ -137,27 +214,21 @@ type
     FTextFormat: TTextDataFormat;
   protected
     function GetText: string;
-    function GetCSVText: string;
+    function GetAnsiText: AnsiString;
     function GetLocale: DWORD;
-    function GetOEMText: string;
-    function GetRichText: string;
-    function GetUnicodeText: WideString;
-    function GetHTML: string;
+    function GetUnicodeText: UnicodeString;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     property Text: string read GetText;
-    property UnicodeText: WideString read GetUnicodeText;
-    property RichText: string read GetRichText;
-    property OEMText: string read GetOEMText;
-    property CSVText: string read GetCSVText;
-    property HTML: string read GetHTML;
+    property AnsiText: AnsiString read GetAnsiText;
+    property UnicodeText: UnicodeString read GetUnicodeText;
     property Locale: DWORD read GetLocale;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropTextSource
+//              TDropTextSource
 //
 ////////////////////////////////////////////////////////////////////////////////
   TDropTextSource = class(TCustomDropMultiSource)
@@ -165,45 +236,36 @@ type
     FTextFormat: TTextDataFormat;
   protected
     function GetText: string;
-    function GetCSVText: string;
+    function GetAnsiText: AnsiString;
     function GetLocale: DWORD;
-    function GetOEMText: string;
-    function GetRichText: string;
-    function GetUnicodeText: WideString;
-    function GetHTML: string;
+    function GetUnicodeText: UnicodeString;
     procedure SetText(const Value: string);
-    procedure SetCSVText(const Value: string);
+    procedure SetAnsiText(const Value: AnsiString);
     procedure SetLocale(const Value: DWORD);
-    procedure SetOEMText(const Value: string);
-    procedure SetRichText(const Value: string);
-    procedure SetUnicodeText(const Value: WideString);
-    procedure SetHTML(const Value: string);
+    procedure SetUnicodeText(const Value: UnicodeString);
   public
     constructor Create(aOwner: TComponent); override;
     destructor Destroy; override;
+    property AnsiText: AnsiString read GetAnsiText write SetAnsiText;
+    property UnicodeText: UnicodeString read GetUnicodeText write SetUnicodeText;
   published
-    property Text: string read GetText write SetText;
-    property UnicodeText: WideString read GetUnicodeText write SetUnicodeText;
-    property RichText: string read GetRichText write SetRichText;
-    property OEMText: string read GetOEMText write SetOEMText;
-    property CSVText: string read GetCSVText write SetCSVText;
-    property HTML: string read GetHTML write SetHTML;
     property Locale: DWORD read GetLocale write SetLocale default 0;
+    property Text: string read GetText write SetText;
   end;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Misc.
+//              Misc.
 //
 ////////////////////////////////////////////////////////////////////////////////
 function IsRTF(const s: string): boolean;
-function MakeRTF(const s: string): string;
+function MakeRTF(const s: string): AnsiString;
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 //
-//			IMPLEMENTATION
+//                      IMPLEMENTATION
 //
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -215,7 +277,7 @@ uses
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Utilities
+//              Utilities
 //
 ////////////////////////////////////////////////////////////////////////////////
 function IsRTF(const s: string): boolean;
@@ -227,20 +289,169 @@ begin
 end;
 
 { TODO -oanme -cImprovement : Needs RTF to text conversion. Maybe ITextDocument can be used. }
-function MakeRTF(const s: string): string;
+
+function MakeRTF(const s: string): AnsiString;
+type
+  PSmallint = ^Smallint;
+const
+  sRtfHeader: AnsiString = '{\rtf1\ansi {\*\generator Drag and Drop Component Suite}';
+var
+  p: PChar;
+  c: Char;
+  cAnsi: AnsiChar;
 begin
-  { TODO -oanme -cImprovement : Needs to escape \ in text to RTF conversion. }
-  { TODO -oanme -cImprovement : Needs better text to RTF conversion. }
+  { DONE -oanme -cImprovement : Needs to escape \ in text to RTF conversion. }
+  { DONE -oanme -cImprovement : Needs better text to RTF conversion. }
   if (not IsRTF(s)) then
-    Result := '{\rtf1\ansi ' + s + '}'
-  else
-    Result := s;
+  begin
+    Result := sRtfHeader;
+    p := PChar(s);
+    while (ord(p^) <> 0) do
+    begin
+      c := p^;
+      cAnsi := AnsiChar(c);
+      if (Ord(c) <= 127) then // Char is ANSI
+      begin
+        case cAnsi of
+        '\', '{', '}':
+          Result := Result + '\' + cAnsi;
+        Chr(9):
+          Result := Result + '\tab ';
+        Chr(13):
+          Result := Result + '\par ';
+        Chr(0)..Chr(8),
+        Chr(10)..Chr(12),
+        Chr(14)..Chr(31),
+        Chr(127)..Chr(255):
+          Result := Result + AnsiString(Format('\''%.2x', [ord(c)]));
+        else
+          Result := Result + cAnsi;
+        end;
+      end else // Char is Unicode
+      begin
+        if (cAnsi < ' ') or (cAnsi in ['0'..'9', '\', '{', '}']) then
+          cAnsi := '?';
+        Result := Result + AnsiString(Format('\u%d%s', [Smallint(Ord(c)), cAnsi]));
+      end;
+
+      inc(p);
+    end;
+    Result := Result + '}'
+  end else
+    Result := AnsiString(s);
 end;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TRichTextClipboardFormat
+//              TCustomAnsiTextClipboardFormat
+//
+////////////////////////////////////////////////////////////////////////////////
+constructor TCustomAnsiTextClipboardFormat.Create;
+begin
+  inherited Create;
+  TrimZeroes := True;
+end;
+
+function TCustomAnsiTextClipboardFormat.GetSize: integer;
+begin
+  Result := inherited GetSize;
+  // Unless the data is already zero terminated, we add a byte to include
+  // the string's implicit terminating zero.
+  if (ord(Data[Result]) <> 0) then
+    inc(Result);
+end;
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TAnsiTextClipboardFormat
+//
+////////////////////////////////////////////////////////////////////////////////
+function TAnsiTextClipboardFormat.GetClipboardFormat: TClipFormat;
+begin
+  Result := CF_TEXT;
+end;
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TCustomUnicodeTextClipboardFormat
+//
+////////////////////////////////////////////////////////////////////////////////
+procedure TCustomUnicodeTextClipboardFormat.Clear;
+begin
+  FText := '';
+end;
+
+function TCustomUnicodeTextClipboardFormat.HasData: boolean;
+begin
+  Result := (FText <> '');
+end;
+
+function TCustomUnicodeTextClipboardFormat.ReadData(Value: pointer;
+  Size: integer): boolean;
+begin
+  SetLength(FText, Size div 2);
+  Move(Value^, PWideChar(FText)^, Size);
+  Result := True;
+end;
+
+function TCustomUnicodeTextClipboardFormat.WriteData(Value: pointer;
+  Size: integer): boolean;
+begin
+  Result := (Size <= (Length(FText)+1)*2);
+  if (Result) then
+    Move(PWideChar(FText)^, Value^, Size);
+end;
+
+function TCustomUnicodeTextClipboardFormat.GetSize: integer;
+begin
+  Result := Length(FText);
+  // Unless the data is already zero terminated, we add two bytes to include
+  // the string's implicit terminating zero.
+  if (FText[Result] <> #0) then
+    inc(Result);
+
+  Result := Result*SizeOf(WideChar);
+end;
+
+function TCustomUnicodeTextClipboardFormat.GetText: UnicodeString;
+begin
+  Result := FText;
+end;
+
+procedure TCustomUnicodeTextClipboardFormat.SetText(const Value: UnicodeString);
+begin
+  FText := Value;
+end;
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TUnicodeTextClipboardFormat
+//
+////////////////////////////////////////////////////////////////////////////////
+function TUnicodeTextClipboardFormat.GetClipboardFormat: TClipFormat;
+begin
+  Result := CF_UNICODETEXT;
+end;
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TOEMTextClipboardFormat
+//
+////////////////////////////////////////////////////////////////////////////////
+function TOEMTextClipboardFormat.GetClipboardFormat: TClipFormat;
+begin
+  Result := CF_OEMTEXT;
+end;
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//              TRichTextClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 var
@@ -257,29 +468,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TUnicodeTextClipboardFormat
-//
-////////////////////////////////////////////////////////////////////////////////
-function TUnicodeTextClipboardFormat.GetClipboardFormat: TClipFormat;
-begin
-  Result := CF_UNICODETEXT;
-end;
-
-
-////////////////////////////////////////////////////////////////////////////////
-//
-//		TOEMTextClipboardFormat
-//
-////////////////////////////////////////////////////////////////////////////////
-function TOEMTextClipboardFormat.GetClipboardFormat: TClipFormat;
-begin
-  Result := CF_OEMTEXT;
-end;
-
-
-////////////////////////////////////////////////////////////////////////////////
-//
-//		TCSVClipboardFormat
+//              TCSVClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 var
@@ -295,7 +484,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TLocaleClipboardFormat
+//              TLocaleClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 function TLocaleClipboardFormat.GetClipboardFormat: TClipFormat;
@@ -311,7 +500,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TTextDataFormat
+//              TTextDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -319,27 +508,26 @@ function TTextDataFormat.Assign(Source: TClipboardFormat): boolean;
 begin
   Result := True;
 
-  if (Source is TTextClipboardFormat) then
-    FText := TTextClipboardFormat(Source).Text
-
-  else if (Source is TRichTextClipboardFormat) then
-    FRichText := TRichTextClipboardFormat(Source).Text
+  if (Source is TAnsiTextClipboardFormat) then
+  begin
+    FAnsiText := TAnsiTextClipboardFormat(Source).Text;
+    FNeedAnsi := False;
+    FNeedUnicode := FNeedUnicode or ((FAnsiText <> '') and (FUnicodeText = ''));
+  end
 
   else if (Source is TUnicodeTextClipboardFormat) then
-    FUnicodeText := TUnicodeTextClipboardFormat(Source).Text
-
-  else if (Source is TOEMTextClipboardFormat) then
-    FOEMText := TOEMTextClipboardFormat(Source).Text
-
-  else if (Source is TCSVClipboardFormat) then
-    FCSVText := TCSVClipboardFormat(Source).Lines.Text
+  begin
+    FUnicodeText := TUnicodeTextClipboardFormat(Source).Text;
+    FNeedUnicode := False;
+    FNeedAnsi := FNeedAnsi or ((FUnicodeText <> '') and (FAnsiText = ''));
+  end
 
   else if (Source is TLocaleClipboardFormat) then
-    FLocale := TLocaleClipboardFormat(Source).Locale
+    Locale := TLocaleClipboardFormat(Source).Locale
 
 {$ifdef DROPSOURCE_TEXTSCRAP}
   else if (Source is TFileContentsClipboardFormat) then
-    FText := TFileContentsClipboardFormat(Source).Data
+    AnsiText := TFileContentsClipboardFormat(Source).Data
 {$endif}
 
   else
@@ -348,12 +536,11 @@ end;
 
 function TTextDataFormat.AssignTo(Dest: TClipboardFormat): boolean;
 var
+  s: AnsiString;
 {$ifdef DROPSOURCE_TEXTSCRAP}
-  FGD: TFileGroupDescriptor;
+var
+  FGD: TFileGroupDescriptorA;
   FGDW: DragDropFormats.TFileGroupDescriptorW;
-{$endif}
-  s: string;
-{$ifdef DROPSOURCE_TEXTSCRAP}
 resourcestring
   // Name of the text scrap file.
   sTextScrap = 'Text scrap.txt';
@@ -361,82 +548,44 @@ resourcestring
 begin
   Result := True;
 
-  if (Dest is TTextClipboardFormat) then
+  if (Dest is TAnsiTextClipboardFormat) then
   begin
-    if (FText <> '') then
-      TTextClipboardFormat(Dest).Text := FText
-    else
-    // Synthesize ANSI text from Unicode text.
-    if (FUnicodeText <> '') then
-    begin
-      // TODO: Take Locale into account
-      TTextClipboardFormat(Dest).Text := FUnicodeText;
-    end else
-    // Synthesize ANSI text from OEM text.
-    if (FOEMText <> '') then
-    begin
-      // Convert OEM string to ANSI string...
-      SetLength(s, Length(FOEMText));
-      OemToCharBuff(PChar(FOEMText), PChar(s),
-        Length(s));
-      TTextClipboardFormat(Dest).Text := s;
-    end else
-      TTextClipboardFormat(Dest).Text := '';
+    TAnsiTextClipboardFormat(Dest).Text := AnsiText
   end else
 
   if (Dest is TRichTextClipboardFormat) then
   begin
-    if (FRichText <> '') then
-      TRichTextClipboardFormat(Dest).Text := FRichText
-    else
-      TRichTextClipboardFormat(Dest).Text := MakeRTF(FText);
+    TRichTextClipboardFormat(Dest).Text := MakeRTF(Text);
   end else
 
   if (Dest is TUnicodeTextClipboardFormat) then
   begin
-    if (FUnicodeText <> '') then
-      TUnicodeTextClipboardFormat(Dest).Text := FUnicodeText
-    else
-      // TODO: Take Locale into account
-      // Synthesize Unicode text from ANSI text.
-      TUnicodeTextClipboardFormat(Dest).Text := FText;
+    TUnicodeTextClipboardFormat(Dest).Text := UnicodeText;
   end else
 
   if (Dest is TOEMTextClipboardFormat) then
   begin
-    if (FOEMText <> '') then
-      TOEMTextClipboardFormat(Dest).Text := FOEMText
-    else
-    // Synthesize OEM text from ANSI text.
-    if (FText <> '') then
+    // Synthesize OEM text
+    if (HasData) then
     begin
-      // Convert ANSI string to OEM string.
-      SetLength(s, Length(FText));
-      CharToOemBuff(PChar(FText), PChar(s),
-        Length(FText));
+      // Convert source string to OEM string.
+      SetLength(s, Length(Text));
+      CharToOemBuff(PChar(Text), PAnsiChar(s), Length(s));
       TOEMTextClipboardFormat(Dest).Text := s;
     end else
       TOEMTextClipboardFormat(Dest).Text := '';
   end else
 
-  if (Dest is TCSVClipboardFormat) then
-  begin
-    if (FCSVText <> '') then
-      TCSVClipboardFormat(Dest).Lines.Text := FCSVText
-    else
-      TCSVClipboardFormat(Dest).Lines.Text := FText;
-  end else
-
   if (Dest is TLocaleClipboardFormat) then
   begin
-    TLocaleClipboardFormat(Dest).Locale := FLocale
+    TLocaleClipboardFormat(Dest).Locale := Locale
   end else
 
 {$ifdef DROPSOURCE_TEXTSCRAP}
   // TODO : Get rid of this. It doesn't belong here.
   if (Dest is TFileContentsClipboardFormat) then
   begin
-    TFileContentsClipboardFormat(Dest).Data := FText
+    TFileContentsClipboardFormat(Dest).Data := AnsiText
   end else
 
   if (Dest is TFileGroupDescritorClipboardFormat) then
@@ -461,51 +610,96 @@ end;
 procedure TTextDataFormat.Clear;
 begin
   Changing;
-  FText := '';
-  FOEMText := '';
-  FCSVText := '';
-  FRichText := '';
+  FAnsiText := '';
   FUnicodeText := '';
-  FHTML := '';
-  FLocale := 0;
+  FNeedAnsi := True;
+  FNeedUnicode := True;
+end;
+
+function TTextDataFormat.GetAnsiText: AnsiString;
+begin
+  if (FNeedAnsi) and (not FNeedUnicode) then
+  begin
+    SetLength(FAnsiText, Length(FUnicodeText));
+    // Take Locale into account and synthesize ANSI text from Unicode text.
+    WideCharToMultiByte(CodePage, 0, PWideChar(FUnicodeText), Length(FUnicodeText),
+      PAnsiChar(FAnsiText), Length(FAnsiText), nil, nil);
+    // FAnsiText := FUnicodeText;
+  end;
+  Result := FAnsiText;
+end;
+
+function TTextDataFormat.GetCodePage: integer;
+const
+  CP_ACP = 0;                                // system default code page
+  LOCALE_IDEFAULTANSICODEPAGE = $00001004;   // default ansi code page
+var
+  ResultCode: Integer;
+  Buffer: array [0..6] of Char;
+begin
+  GetLocaleInfo(Locale, LOCALE_IDEFAULTANSICODEPAGE, Buffer, Length(Buffer));
+  Val(Buffer, Result, ResultCode);
+  if ResultCode <> 0 then
+    Result := CP_ACP;
+end;
+
+function TTextDataFormat.GetLocale: DWORD;
+begin
+  if (FLocale = 0) and not(csDesigning in Owner.ComponentState) then
+    Result := GetThreadLocale
+  else
+    Result := FLocale;
+end;
+
+function TTextDataFormat.GetText: string;
+begin
+{$ifdef UNICODE}
+  Result := UnicodeText;
+{$else}
+  Result := AnsiText;
+{$endif}
+end;
+
+function TTextDataFormat.GetUnicodeText: UnicodeString;
+begin
+  if (FNeedUnicode) and (not FNeedAnsi) then
+  begin
+    SetLength(FUnicodeText, Length(FAnsiText));
+    // Take Locale into account and synthesize Unicode text from ANSI text.
+    MultiByteToWideChar(CodePage, 0, PAnsiChar(FAnsiText), Length(FAnsiText),
+      PWideChar(FUnicodeText), Length(FUnicodeText));
+    // FUnicodeText := FAnsiText;
+  end;
+  Result := FUnicodeText;
 end;
 
 procedure TTextDataFormat.SetText(const Value: string);
 begin
+{$ifdef UNICODE}
+  SetUnicodeText(Value);
+{$else}
+  SetAnsiText(Value);
+{$endif}
+end;
+
+procedure TTextDataFormat.SetAnsiText(const Value: AnsiString);
+begin
   Changing;
-  FText := Value;
+  FAnsiText := Value;
+  FUnicodeText := '';
+  FNeedAnsi := False;
+  FNeedUnicode := True;
   if (FLocale = 0) and not(csDesigning in Owner.ComponentState) then
     FLocale := GetThreadLocale;
 end;
 
-procedure TTextDataFormat.SetCSVText(const Value: string);
-begin
-  Changing;
-  FCSVText := Value;
-end;
-
-procedure TTextDataFormat.SetOEMText(const Value: string);
-begin
-  Changing;
-  FOEMText := Value;
-end;
-
-procedure TTextDataFormat.SetRichText(const Value: string);
-begin
-  Changing;
-  FRichText := Value;
-end;
-
-procedure TTextDataFormat.SetUnicodeText(const Value: WideString);
+procedure TTextDataFormat.SetUnicodeText(const Value: UnicodeString);
 begin
   Changing;
   FUnicodeText := Value;
-end;
-
-procedure TTextDataFormat.SetHTML(const Value: string);
-begin
-  Changing;
-  FHTML := Value;
+  FAnsiText := '';
+  FNeedUnicode := False;
+  FNeedAnsi := True;
 end;
 
 procedure TTextDataFormat.SetLocale(const Value: DWORD);
@@ -516,20 +710,36 @@ end;
 
 function TTextDataFormat.HasData: boolean;
 begin
-  Result := (FText <> '') or (FOEMText <> '') or (FCSVText <> '') or
-    (FRichText <> '') or (FUnicodeText <> '') or (FHTML <> '');
+  Result := ((not FNeedAnsi) and (FAnsiText <> '')) or
+    ((not FNeedUnicode) and (FUnicodeText <> ''));
 end;
 
 function TTextDataFormat.NeedsData: boolean;
 begin
-  Result := (FText = '') or (FOEMText = '') or (FCSVText = '') or
-    (FRichText = '') or (FUnicodeText = '') or (FHTML = '');
+  Result := (FNeedAnsi and (FAnsiText = '')) or
+    (FNeedUnicode and (FUnicodeText = ''));
 end;
 
 
+class procedure TTextDataFormat.RegisterCompatibleFormats;
+begin
+  inherited RegisterCompatibleFormats;
+
+  RegisterDataConversion(TAnsiTextClipboardFormat, AnsiBoost);
+  RegisterDataConversion(TLocaleClipboardFormat, AnsiBoost);
+  RegisterDataConversion(TUnicodeTextClipboardFormat, UnicodeBoost);
+  RegisterDataConversion(TOEMTextClipboardFormat, AnsiBoost);
+  RegisterDataConversion(TRichTextClipboardFormat);
+{$ifdef DROPSOURCE_TEXTSCRAP}
+  RegisterDataConversion(TFileContentsClipboardFormat, 3);
+  RegisterDataConsumer(TAnsiFileGroupDescritorClipboardFormat);
+  RegisterDataConsumer(TUnicodeFileGroupDescritorClipboardFormat);
+{$endif}
+end;
+
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropTextTarget
+//              TDropTextTarget
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TDropTextTarget.Create(AOwner: TComponent);
@@ -544,14 +754,9 @@ begin
   inherited Destroy;
 end;
 
-function TDropTextTarget.GetCSVText: string;
+function TDropTextTarget.GetAnsiText: AnsiString;
 begin
-  Result := FTextFormat.CSVText;
-end;
-
-function TDropTextTarget.GetHTML: string;
-begin
-  Result := FTextFormat.HTML;
+  Result := FTextFormat.AnsiText;
 end;
 
 function TDropTextTarget.GetLocale: DWORD;
@@ -559,30 +764,20 @@ begin
   Result := FTextFormat.Locale;
 end;
 
-function TDropTextTarget.GetOEMText: string;
-begin
-  Result := FTextFormat.OEMText
-end;
-
-function TDropTextTarget.GetRichText: string;
-begin
-  Result := FTextFormat.RichText;
-end;
-
 function TDropTextTarget.GetText: string;
 begin
-  Result := FTextFormat.Text
+  Result := FTextFormat.Text;
 end;
 
-function TDropTextTarget.GetUnicodeText: WideString;
+function TDropTextTarget.GetUnicodeText: UnicodeString;
 begin
-  Result := FTextFormat.UnicodeText
+  Result := FTextFormat.UnicodeText;
 end;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TDropTextSource
+//              TDropTextSource
 //
 ////////////////////////////////////////////////////////////////////////////////
 constructor TDropTextSource.Create(aOwner: TComponent);
@@ -597,14 +792,9 @@ begin
   inherited Destroy;
 end;
 
-function TDropTextSource.GetCSVText: string;
+function TDropTextSource.GetAnsiText: AnsiString;
 begin
-  Result := FTextFormat.CSVText;
-end;
-
-function TDropTextSource.GetHTML: string;
-begin
-  Result := FTextFormat.HTML;
+  Result := FTextFormat.AnsiText;
 end;
 
 function TDropTextSource.GetLocale: DWORD;
@@ -612,34 +802,19 @@ begin
   Result := FTextFormat.Locale;
 end;
 
-function TDropTextSource.GetOEMText: string;
-begin
-  Result := FTextFormat.OEMText;
-end;
-
-function TDropTextSource.GetRichText: string;
-begin
-  Result := FTextFormat.RichText;
-end;
-
 function TDropTextSource.GetText: string;
 begin
   Result := FTextFormat.Text;
 end;
 
-function TDropTextSource.GetUnicodeText: WideString;
+function TDropTextSource.GetUnicodeText: UnicodeString;
 begin
   Result := FTextFormat.UnicodeText;
 end;
 
-procedure TDropTextSource.SetCSVText(const Value: string);
+procedure TDropTextSource.SetAnsiText(const Value: AnsiString);
 begin
-  FTextFormat.CSVText := Value;
-end;
-
-procedure TDropTextSource.SetHTML(const Value: string);
-begin
-  FTextFormat.HTML := Value;
+  FTextFormat.AnsiText := Value;
 end;
 
 procedure TDropTextSource.SetLocale(const Value: DWORD);
@@ -647,29 +822,19 @@ begin
   FTextFormat.Locale := Value;
 end;
 
-procedure TDropTextSource.SetOEMText(const Value: string);
-begin
-  FTextFormat.OEMText := Value;
-end;
-
-procedure TDropTextSource.SetRichText(const Value: string);
-begin
-  FTextFormat.RichText := Value;
-end;
-
 procedure TDropTextSource.SetText(const Value: string);
 begin
   FTextFormat.Text := Value;
 end;
 
-procedure TDropTextSource.SetUnicodeText(const Value: WideString);
+procedure TDropTextSource.SetUnicodeText(const Value: UnicodeString);
 begin
   FTextFormat.UnicodeText := Value;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		Initialization/Finalization
+//              Initialization/Finalization
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -677,25 +842,13 @@ initialization
   // Data format registration
   TTextDataFormat.RegisterDataFormat;
   // Clipboard format registration
-  TTextDataFormat.RegisterCompatibleFormat(TTextClipboardFormat, 0, csSourceTarget, [ddRead]);
-  TTextDataFormat.RegisterCompatibleFormat(TUnicodeTextClipboardFormat, 0, csSourceTarget, [ddRead]);
-  TTextDataFormat.RegisterCompatibleFormat(TRichTextClipboardFormat, 0, csSourceTarget, [ddRead]);
-  TTextDataFormat.RegisterCompatibleFormat(TOEMTextClipboardFormat, 0, csSourceTarget, [ddRead]);
-  TTextDataFormat.RegisterCompatibleFormat(TCSVClipboardFormat, 0, csSourceTarget, [ddRead]);
-  TTextDataFormat.RegisterCompatibleFormat(TLocaleClipboardFormat, 0, csSourceTarget, [ddRead]);
-{$ifdef DROPSOURCE_TEXTSCRAP}
-  TTextDataFormat.RegisterCompatibleFormat(TFileContentsClipboardFormat, 1, csSourceTarget, [ddRead]);
-  TTextDataFormat.RegisterCompatibleFormat(TFileGroupDescritorClipboardFormat, 1, [csSource], [ddRead]);
-  TTextDataFormat.RegisterCompatibleFormat(TFileGroupDescritorWClipboardFormat, 1, [csSource], [ddRead]);
-{$endif}
+  TAnsiTextClipboardFormat.RegisterFormat;
+  TUnicodeTextClipboardFormat.RegisterFormat;
+  TRichTextClipboardFormat.RegisterFormat;
+  TOEMTextClipboardFormat.RegisterFormat;
+  TCSVClipboardFormat.RegisterFormat;
+  TLocaleClipboardFormat.RegisterFormat;
 
 finalization
-  // Data format unregistration
-  TTextDataFormat.UnregisterDataFormat;
-  // Clipboard format unregistration
-  TUnicodeTextClipboardFormat.UnregisterClipboardFormat;
-  TRichTextClipboardFormat.UnregisterClipboardFormat;
-  TOEMTextClipboardFormat.UnregisterClipboardFormat;
-  TCSVClipboardFormat.UnregisterClipboardFormat;
-  TLocaleClipboardFormat.UnregisterClipboardFormat;
+
 end.

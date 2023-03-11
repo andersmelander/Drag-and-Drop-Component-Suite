@@ -47,3 +47,12 @@ with it:
 
       tregsvr -u DragDropHandlerShellExt.dll
 
+
+Note that some version of the windows shell does not support owner draw and
+cascaded menus (IContextMenu and IContextMenu2 interfaces) for Drag Drop
+Handler shell extensions.
+
+The Windows XP shell appears to support cascaded menus, but not owner draw.
+
+These components presently required owner-draw is to display bitmaps in cascaded
+menus.

@@ -13,7 +13,7 @@ uses
 
 begin
   Application.Initialize;
-  Application.Title := 'Drag ''n'' Drop  Demo';
+  Application.Title := 'Drag and Drop Demo';
   Application.CreateForm(TFormDemo, FormDemo);
   Application.Run;
 end.

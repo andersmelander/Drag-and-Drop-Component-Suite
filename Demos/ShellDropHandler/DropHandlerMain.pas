@@ -162,7 +162,7 @@ begin
     // Write file name list to file.
     TDrophandler(Sender).Files.SaveToFile(Tmp);
     // Construct new command line parameters.
-    AppParams := '"'+TDrophandler(Sender).TargetFile+'" "@'+Tmp+'"';
+    AppParams := Format('"%s" "@%s"', [TDrophandler(Sender).TargetFile, Tmp]);
   end;
 
   WinExecAndWait(AppPath, AppParams, DeleteTmp);

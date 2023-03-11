@@ -9,7 +9,7 @@ object FormURL: TFormURL
   Font.Charset = ANSI_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'Arial'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = True
   Position = poMainFormCenter
@@ -17,13 +17,13 @@ object FormURL: TFormURL
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96
-  TextHeight = 14
+  TextHeight = 13
   object LabelURL: TLabel
     Left = 13
     Top = 130
-    Width = 196
-    Height = 14
-    Caption = 'http://www.melander.dk/delphi/dragdrop'
+    Width = 171
+    Height = 13
+    Caption = 'http://melander.dk/delphi/dragdrop'
   end
   object Panel1: TPanel
     Left = 10
@@ -38,7 +38,7 @@ object FormURL: TFormURL
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWhite
     Font.Height = -16
-    Font.Name = 'Arial'
+    Font.Name = 'MS Shell Dlg 2'
     Font.Style = [fsBold]
     ParentFont = False
     TabOrder = 0
@@ -53,7 +53,7 @@ object FormURL: TFormURL
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
-    Font.Name = 'Arial'
+    Font.Name = 'MS Shell Dlg 2'
     Font.Style = [fsBold]
     ParentFont = False
     TabOrder = 1
@@ -65,8 +65,10 @@ object FormURL: TFormURL
     Width = 372
     Height = 19
     Panels = <>
+    ParentFont = True
     SimplePanel = True
     SizeGrip = False
+    UseSystemFont = False
   end
   object Memo2: TMemo
     Left = 10
@@ -77,11 +79,13 @@ object FormURL: TFormURL
     Alignment = taCenter
     Color = clBtnFace
     Lines.Strings = (
-      'This demonstrates a very simple drag operation which allows '
       
-        'dragging the edit control URL TO and FROM other applications whi' +
-        'ch '
-      'accept Drag'#39'n'#39'Drop URL shortcuts (eg Netscape or Desktop). ')
+        'This demonstrates a very simple drag operation which allows drag' +
+        'ging '
+      
+        'the edit control URL TO and FROM other applications which accept' +
+        ' '
+      'Drag'#39'n'#39'Drop URL shortcuts (eg Firefox, IE or the Desktop). ')
     ReadOnly = True
     TabOrder = 3
     WantReturns = False
@@ -118,7 +122,7 @@ object FormURL: TFormURL
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWhite
     Font.Height = -16
-    Font.Name = 'Arial'
+    Font.Name = 'MS Shell Dlg 2'
     Font.Style = [fsBold]
     ParentFont = False
     TabOrder = 5
@@ -357,12 +361,12 @@ object FormURL: TFormURL
     BevelOuter = bvNone
     BorderWidth = 4
     BorderStyle = bsSingle
-    Caption = 'Drag and Drop HomePage'
+    Caption = 'The Drag and Drop Component Suite for Delphi'
     Color = clWindow
     Font.Charset = ANSI_CHARSET
     Font.Color = clBlue
     Font.Height = -11
-    Font.Name = 'Arial'
+    Font.Name = 'MS Shell Dlg 2'
     Font.Style = [fsUnderline]
     ParentFont = False
     TabOrder = 9

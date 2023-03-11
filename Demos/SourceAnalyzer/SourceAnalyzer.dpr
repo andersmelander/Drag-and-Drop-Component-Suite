@@ -8,6 +8,7 @@ uses
 
 begin
   Application.Initialize;
+  Application.Title := 'Drop Source analyzer';
   Application.CreateForm(TFormMain, FormMain);
   Application.Run;
 end.

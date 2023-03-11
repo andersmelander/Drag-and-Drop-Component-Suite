@@ -3,7 +3,7 @@ DropHandlerShellExt and FoobarEdit
 This application demonstrates how to create a Drop Handler shell extension
 using the TDropHandler component.
 
-Description of Drag Drop Handlers from MSDN:
+Description of Drop Handlers from MSDN:
   By default, files are not drop targets. You can make the members of a file
   class into drop targets by implementing and registering a drop handler.
   If a drop handler is registered for a file class, it is called whenever an

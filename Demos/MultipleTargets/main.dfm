@@ -1,39 +1,40 @@
 object Form1: TForm1
   Left = 639
   Top = 369
-  AutoScroll = False
   Caption = 'Multi Target demo'
   ClientHeight = 305
-  ClientWidth = 475
+  ClientWidth = 492
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'Arial'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = False
   Position = poScreenCenter
   OnDestroy = FormDestroy
   OnMouseMove = FormMouseMove
   PixelsPerInch = 96
-  TextHeight = 14
+  TextHeight = 13
   object Label1: TLabel
     Left = 0
     Top = 0
-    Width = 475
-    Height = 48
+    Width = 492
+    Height = 50
+    Margins.Bottom = 0
     Align = alTop
     Alignment = taCenter
     Caption = 
-      'Demo of multiple controls registrered to a single drop target co' +
-      'mponent'
+      'Example of multiple controls registrered to a single drop target' +
+      ' component'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -21
-    Font.Name = 'Arial'
+    Font.Name = 'MS Shell Dlg 2'
     Font.Style = []
     ParentFont = False
     WordWrap = True
+    ExplicitWidth = 486
   end
   object MemoLeft: TMemo
     Left = 40
@@ -62,7 +63,7 @@ object Form1: TForm1
   end
   object CheckBoxRight: TCheckBox
     Left = 296
-    Top = 56
+    Top = 57
     Width = 97
     Height = 17
     Caption = 'Drop target'
@@ -74,6 +75,7 @@ object Form1: TForm1
     Top = 192
     Width = 401
     Height = 97
+    Cursor = crHandPoint
     Alignment = taCenter
     Lines.Strings = (
       'Drag this text to one of the controls above...')
@@ -93,7 +95,6 @@ object Form1: TForm1
   end
   object DropTextSource1: TDropTextSource
     DragTypes = [dtCopy]
-    Locale = 0
     Left = 224
     Top = 232
   end

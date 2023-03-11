@@ -1,18 +1,19 @@
 object FormOutlookTarget: TFormOutlookTarget
   Left = 373
   Top = 288
-  Width = 680
-  Height = 427
   ActiveControl = MemoBody
   Caption = 'Outlook drop target demo'
+  ClientHeight = 393
+  ClientWidth = 672
   Color = clBtnFace
   Constraints.MinWidth = 200
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'MS Sans Serif'
+  Font.Name = 'MS Shell Dlg 2'
   Font.Style = []
   OldCreateOrder = False
+  PopupMenu = PopupMenuMain
   ShowHint = True
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -21,9 +22,7 @@ object FormOutlookTarget: TFormOutlookTarget
   object SplitterBrowser: TSplitter
     Left = 250
     Top = 0
-    Width = 3
     Height = 374
-    Cursor = crHSplit
     AutoSnap = False
     MinSize = 100
     ResizeStyle = rsUpdate
@@ -34,7 +33,9 @@ object FormOutlookTarget: TFormOutlookTarget
     Width = 672
     Height = 19
     Panels = <>
+    ParentFont = True
     SimplePanel = True
+    UseSystemFont = False
   end
   object ListViewBrowser: TListView
     Left = 0
@@ -92,11 +93,15 @@ object FormOutlookTarget: TFormOutlookTarget
       BevelOuter = bvNone
       Caption = ' '
       TabOrder = 0
+      DesignSize = (
+        419
+        16)
       object Label1: TLabel
         Left = 4
         Top = 0
-        Width = 26
+        Width = 28
         Height = 13
+        Margins.Bottom = 0
         Caption = 'From:'
       end
       object EditFrom: TEdit
@@ -111,7 +116,7 @@ object FormOutlookTarget: TFormOutlookTarget
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clBlue
         Font.Height = -11
-        Font.Name = 'MS Sans Serif'
+        Font.Name = 'MS Shell Dlg 2'
         Font.Style = [fsUnderline]
         ParentColor = True
         ParentFont = False
@@ -129,11 +134,15 @@ object FormOutlookTarget: TFormOutlookTarget
       BevelOuter = bvNone
       Caption = ' '
       TabOrder = 1
+      DesignSize = (
+        419
+        16)
       object Label2: TLabel
         Left = 4
         Top = 0
         Width = 16
         Height = 13
+        Margins.Bottom = 0
         Caption = 'To:'
       end
       object ScrollBox1: TScrollBox
@@ -146,6 +155,9 @@ object FormOutlookTarget: TFormOutlookTarget
         BorderStyle = bsNone
         Constraints.MaxHeight = 60
         TabOrder = 0
+        DesignSize = (
+          350
+          16)
         object ListViewTo: TListView
           Left = 0
           Top = 0
@@ -185,11 +197,15 @@ object FormOutlookTarget: TFormOutlookTarget
       BevelOuter = bvNone
       Caption = ' '
       TabOrder = 2
+      DesignSize = (
+        419
+        16)
       object Label3: TLabel
         Left = 4
         Top = 0
-        Width = 39
+        Width = 40
         Height = 13
+        Margins.Bottom = 0
         Caption = 'Subject:'
       end
       object EditSubject: TEdit
@@ -211,10 +227,10 @@ object FormOutlookTarget: TFormOutlookTarget
       Width = 419
       Height = 272
       Align = alClient
-      Font.Charset = DEFAULT_CHARSET
+      Font.Charset = ANSI_CHARSET
       Font.Color = clWindowText
       Font.Height = -11
-      Font.Name = 'Courier New'
+      Font.Name = 'Verdana'
       Font.Style = []
       Constraints.MinHeight = 50
       Lines.Strings = (
@@ -253,7 +269,7 @@ object FormOutlookTarget: TFormOutlookTarget
       LargeImages = ImageListBig
       ReadOnly = True
       RowSelect = True
-      PopupMenu = PopupMenu1
+      PopupMenu = PopupMenuList
       SmallImages = ImageListSmall
       TabOrder = 4
       Visible = False
@@ -266,32 +282,31 @@ object FormOutlookTarget: TFormOutlookTarget
     DragDropComponent = DropEmptyTarget1
     DataFormatName = 'TOutlookDataFormat'
     Left = 60
-    Top = 125
+    Top = 124
   end
   object DropEmptyTarget1: TDropEmptyTarget
     DragTypes = [dtCopy, dtLink]
     OnDrop = DropTextTarget1Drop
     Target = Owner
     Left = 28
-    Top = 125
+    Top = 124
   end
   object ImageListSmall: TImageList
     ShareImages = True
-    Left = 64
-    Top = 177
+    Left = 60
+    Top = 176
   end
   object ImageListBig: TImageList
     ShareImages = True
     Left = 28
     Top = 176
   end
-  object PopupMenu1: TPopupMenu
+  object PopupMenuList: TPopupMenu
     Left = 28
     Top = 220
     object MenuAttachmentOpen: TMenuItem
-      Caption = 'Open'
+      Action = ActionAttachmentOpen
       Default = True
-      OnClick = ListViewAttachmentsDblClick
     end
     object N1: TMenuItem
       Caption = '-'
@@ -299,26 +314,96 @@ object FormOutlookTarget: TFormOutlookTarget
     object MenuAttachmentView: TMenuItem
       Caption = 'View'
       object MenuAttachmentViewLargeIcons: TMenuItem
-        Caption = 'Large icons'
-        Checked = True
+        Action = ActionAttachmentViewLargeIcons
         RadioItem = True
-        OnClick = MenuAttachmentViewLargeIconsClick
       end
       object MenuAttachmentViewSmallIcons: TMenuItem
-        Caption = 'Small icons'
+        Action = ActionAttachmentViewSmallIcons
         RadioItem = True
-        OnClick = MenuAttachmentViewSmallIconsClick
       end
       object MenuAttachmentViewList: TMenuItem
-        Caption = 'List'
+        Action = ActionAttachmentViewList
         RadioItem = True
-        OnClick = MenuAttachmentViewListClick
       end
       object MenuAttachmentViewDetails: TMenuItem
-        Caption = 'Details'
+        Action = ActionAttachmentViewDetails
         RadioItem = True
-        OnClick = MenuAttachmentViewDetailsClick
       end
     end
+  end
+  object PopupMenuMain: TPopupMenu
+    Left = 60
+    Top = 220
+    object Savetofile1: TMenuItem
+      Action = ActionMessageSave
+    end
+    object N3: TMenuItem
+      Caption = '-'
+    end
+    object Clear1: TMenuItem
+      Action = ActionMessageClear
+    end
+    object N2: TMenuItem
+      Caption = '-'
+    end
+    object Paste1: TMenuItem
+      Action = ActionPaste
+    end
+  end
+  object ActionList1: TActionList
+    Left = 28
+    Top = 260
+    object ActionPaste: TAction
+      Category = 'Clipboard'
+      Caption = 'Paste'
+      ShortCut = 16470
+      OnExecute = ActionPasteExecute
+      OnUpdate = ActionPasteUpdate
+    end
+    object ActionAttachmentOpen: TAction
+      Category = 'Attachment'
+      Caption = 'Open'
+      OnExecute = ActionAttachmentOpenExecute
+      OnUpdate = ActionAttachmentOpenUpdate
+    end
+    object ActionAttachmentViewLargeIcons: TAction
+      Category = 'Attachment'
+      Caption = 'Large icons'
+      OnExecute = ActionAttachmentViewLargeIconsExecute
+    end
+    object ActionAttachmentViewSmallIcons: TAction
+      Category = 'Attachment'
+      Caption = 'Small icons'
+      OnExecute = ActionAttachmentViewSmallIconsExecute
+    end
+    object ActionAttachmentViewList: TAction
+      Category = 'Attachment'
+      Caption = 'List'
+      OnExecute = ActionAttachmentViewListExecute
+    end
+    object ActionAttachmentViewDetails: TAction
+      Category = 'Attachment'
+      Caption = 'Details'
+      OnExecute = ActionAttachmentViewDetailsExecute
+    end
+    object ActionMessageClear: TAction
+      Category = 'Message'
+      Caption = 'Clear'
+      OnExecute = ActionMessageClearExecute
+    end
+    object ActionMessageSave: TAction
+      Category = 'Message'
+      Caption = 'Save to file...'
+      OnExecute = ActionMessageSaveExecute
+      OnUpdate = ActionMessageSaveUpdate
+    end
+  end
+  object SaveDialog1: TSaveDialog
+    DefaultExt = '.msg'
+    Filter = 'Outlook messages (*.msg)|*.msg|All files (*.*)|*.*'
+    Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofEnableSizing]
+    Title = 'Save message'
+    Left = 108
+    Top = 176
   end
 end

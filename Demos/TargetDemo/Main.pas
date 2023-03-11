@@ -66,7 +66,7 @@ begin
     Item.Caption := DropFileTarget1.Files[i];
 
     // Display mapped names if present.
-    if (DropFileTarget1.MappedNames.Count > 0) then
+    if (DropFileTarget1.MappedNames.Count > i) then
       Item.SubItems.Add(DropFileTarget1.MappedNames[i]);
   end;
 
@@ -74,7 +74,7 @@ begin
   // done so the drop source doesn't think we actually did something usefull
   // with the data.
   // This is important when moving data or when dropping from the recycle bin;
-  // If we do not reject a move, the source will asumme that it is safe to
+  // If we do not reject a move, the source will assume that it is safe to
   // delete the source data. See also "Optimized move".
   if (Effect = DROPEFFECT_MOVE) then
     Effect := DROPEFFECT_NONE;

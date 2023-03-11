@@ -8,7 +8,7 @@ interface
 
 uses
   DragDrop, DropTarget, DragDropContext,
-  Forms, ShlObj, SysUtils, Classes, Menus, Graphics, Windows, ImgList,
+  Forms, ShlObj, SysUtils, Classes, Menus, Windows, Graphics, ImgList,
   Controls;
 
 {$include 'DragDrop.inc'}
@@ -36,13 +36,12 @@ type
     DropContextMenu1: TDropContextMenu;
     PopupMenu1: TPopupMenu;
     MenuCOMServer: TMenuItem;
-    MenuLineEnd: TMenuItem;
     MenuRegister: TMenuItem;
     MenuUnregister: TMenuItem;
-    MenuLineBegin: TMenuItem;
     MenuAbout: TMenuItem;
     MenuAboutInfo: TMenuItem;
-    ImageList1: TImageList;
+    N1: TMenuItem;
+    N2: TMenuItem;
     procedure DropContextMenu1Popup(Sender: TObject);
     procedure MenuRegisterClick(Sender: TObject);
     procedure MenuUnregisterClick(Sender: TObject);
@@ -69,7 +68,6 @@ type
 implementation
 
 {$R *.DFM}
-{$R ABOUT.RES}
 
 uses
   ComServ,
@@ -111,7 +109,7 @@ begin
   // We keep the bitmap in a resource in order to keep the size of the DFM file
   // down. The size of the RES file with the bitmap is 83Kb. The size of the DFM
   // file if it contained the bitmap would be ~3Mb.
-  ImageList1.ResourceLoad(rtBitmap, 'BM_ABOUT', clNone);
+  MenuAboutInfo.Bitmap.LoadFromResourceName(HInstance, 'BM_ABOUT');
 end;
 
 procedure TDataModuleContextMenuHandler.DropContextMenu1Popup(Sender: TObject);
@@ -176,7 +174,7 @@ begin
   Screen.Cursor := crAppStart;
   try
     Application.ProcessMessages; {otherwise cursor change will be missed}
-    ShellExecute(0, nil, PChar('http://www.melander.dk/'), nil, nil, SW_NORMAL);
+    ShellExecute(0, nil, PChar('http://melander.dk/'), nil, nil, SW_NORMAL);
   finally
     Screen.Cursor := crDefault;
   end;
@@ -235,7 +233,7 @@ end;
 procedure TDataModuleContextMenuHandler.RegisterActiveX(const Filename: string;
   Action: TRegAction);
 const
-  ProcName: array[TRegAction] of PChar =
+  ProcName: array[TRegAction] of PAnsiChar =
     ('DllRegisterServer', 'DllUnregisterServer');
 resourcestring
   sActiveXName = 'ActiveX file: %s';
@@ -377,14 +375,16 @@ begin
   ** menu item look nice. We also add room for a sunken bevel (2*2 pixels) and a
   ** small margin (2*3 pixels) between the edge of the menu item and the bevel.
   *)
-  Width := ImageList1.Width-16+10;
-  Height := ImageList1.Height+10;
+  Width := MenuAboutInfo.Bitmap.Width-16+10;
+  Height := MenuAboutInfo.Bitmap.Height+10;
   if (Win32Platform = VER_PLATFORM_WIN32_NT) and (Win32MajorVersion > 4) then
     Inc(Width, 4);
 end;
 
 procedure TDataModuleContextMenuHandler.MenuAboutInfoDrawItem(
   Sender: TObject; ACanvas: TCanvas; ARect: TRect; Selected: Boolean);
+var
+  Bitmap: TBitmap;
 begin
   (*
   ** Draw the menu item.
@@ -392,15 +392,36 @@ begin
   ** In this simple case we just draw a bitmap and a few decorations (bevel
   ** etc.) which completely fills the menu item.
   *)
+
   // Clear the background to whatever color it should be (selected/unselected).
   // We rely on the brush already being set up to the correct color.
   ACanvas.FillRect(ARect);
+
   // Adjust rect for margin.
   InflateRect(ARect, -3, -3);
+
   // Draw the sunken bevel.
   DrawEdge(ACanvas.Handle, ARect, EDGE_SUNKEN, BF_RECT or BF_ADJUST);
-  // Finally draw the bitmap.
-  ImageList1.Draw(ACanvas, ARect.Left, ARect.Top, 0);
+
+  // We can't modify the menu items bitmap since it is owned and managed by
+  // the menu item. Instead we create a temporary copy of it and mess with that
+  // instead. If we didn't need to disable the bitmaps transparency we could just
+  // have displayed the menu bitmap directly.
+  Bitmap := TBitmap.Create;
+  try
+    Bitmap.Assign(MenuAboutInfo.Bitmap);
+
+    // This particular bitmap does not need transparency.
+    Bitmap.Transparent := False;
+
+    // Finally draw the bitmap.
+    if (ARect.Right-ARect.Left >= Bitmap.Width) and (ARect.Bottom-ARect.Top >= Bitmap.Height) then
+      ACanvas.Draw(ARect.Left, ARect.Top, Bitmap)
+    else
+      ACanvas.StretchDraw(ARect, Bitmap)
+  finally
+    Bitmap.Free;
+  end;
 end;
 
 initialization

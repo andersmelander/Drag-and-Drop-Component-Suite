@@ -4,17 +4,18 @@ interface
 
 uses
   Windows, Classes, Controls, Forms, ExtCtrls, StdCtrls,
-  DragDrop, DropSource, DragDropFile, DropTarget, Graphics, ImgList, Menus;
+  DragDrop, DropSource, DragDropFile, DropTarget, Graphics, ImgList, Menus,
+  ActnList;
 
 type
   (*
   ** This is a custom data format.
   ** The data format supports TFileContentsClipboardFormat and
-  ** TFileGroupDescritorClipboardFormat.
+  ** T*FileGroupDescritorClipboardFormat.
   *)
   TVirtualFileDataFormat = class(TCustomDataFormat)
   private
-    FContents: string;
+    FContents: AnsiString;
     FFileName: string;
   public
     constructor Create(AOwner: TDragDropComponent); override;
@@ -24,7 +25,7 @@ type
     function HasData: boolean; override;
     function NeedsData: boolean; override;
     property FileName: string read FFileName write FFileName;
-    property Contents: string read FContents write FContents;
+    property Contents: AnsiString read FContents write FContents;
   end;
 
   TFormMain = class(TForm)
@@ -37,20 +38,24 @@ type
     PanelDragDrop: TPanel;
     Image1: TImage;
     ImageList1: TImageList;
-    PopupMenu1: TPopupMenu;
-    MenuCopy: TMenuItem;
-    MenuPaste: TMenuItem;
     DropEmptySource1: TDropEmptySource;
     DropEmptyTarget1: TDropEmptyTarget;
     Label3: TLabel;
+    PopupMenu1: TPopupMenu;
+    MenuCopy: TMenuItem;
+    MenuPaste: TMenuItem;
+    ActionList1: TActionList;
+    ActionCopy: TAction;
+    ActionPaste: TAction;
     procedure OnMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure FormCreate(Sender: TObject);
     procedure DropFileTarget1Drop(Sender: TObject; ShiftState: TShiftState;
       Point: TPoint; var Effect: Integer);
-    procedure PopupMenu1Popup(Sender: TObject);
-    procedure MenuCopyClick(Sender: TObject);
-    procedure MenuPasteClick(Sender: TObject);
+    procedure ActionCopyExecute(Sender: TObject);
+    procedure ActionCopyUpdate(Sender: TObject);
+    procedure ActionPasteExecute(Sender: TObject);
+    procedure ActionPasteUpdate(Sender: TObject);
   private
     { Private declarations }
     FSourceDataFormat: TVirtualFileDataFormat;
@@ -83,7 +88,8 @@ end;
 procedure TFormMain.OnMouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
-  if DragDetectPlus(Handle, Point(X,Y)) then
+  // Ignore right mouse button so popup menu can be invoked
+  if (Button = mbLeft) and DragDetectPlus(Handle, Point(X,Y)) then
   begin
     // Transfer the file name and contents to the data format...
     FSourceDataFormat.FileName := EditFileName.Text;
@@ -92,6 +98,59 @@ begin
     // ...and let it rip!
     DropEmptySource1.Execute;
   end;
+end;
+
+procedure TFormMain.ActionCopyExecute(Sender: TObject);
+begin
+  // Transfer the file name and contents to the data format...
+  FSourceDataFormat.FileName := EditFileName.Text;
+  FSourceDataFormat.Contents := MemoContents.Lines.Text;
+
+  // ...and copy to clipboard.
+  DropEmptySource1.CopyToClipboard;
+end;
+
+procedure TFormMain.ActionCopyUpdate(Sender: TObject);
+begin
+  TAction(Sender).Enabled := (EditFilename.Text <> '');
+end;
+
+procedure TFormMain.ActionPasteExecute(Sender: TObject);
+begin
+  DropEmptyTarget1.PasteFromClipboard;
+end;
+
+procedure TFormMain.ActionPasteUpdate(Sender: TObject);
+(*
+var
+  DataObject: IDataObject;
+*)
+begin
+  (*
+  ** The following shows two diffent methods of determining if the clipboard
+  ** contains any data that we can paste. The two methods are in fact identical.
+  ** Only the second method is used.
+  *)
+
+  (*
+  ** Method 1: Get the clipboard data object and test against it.
+  *)
+  (*
+  // Open the clipboard as an IDataObject
+  OleCheck(OleGetClipboard(DataObject));
+  try
+    // Enable paste menu if the clipboard contains data in any of
+    // the supported formats.
+    MenuPaste.Enabled := DropEmptyTarget1.HasValidFormats(DataObject);
+  finally
+    DataObject := nil;
+  end;
+  *)
+
+  (*
+  ** Method 2: Let the component do it for us.
+  *)
+  MenuPaste.Enabled := DropEmptyTarget1.CanPasteFromClipboard;
 end;
 
 procedure TFormMain.DropFileTarget1Drop(Sender: TObject;
@@ -107,53 +166,6 @@ begin
   MemoContents.Lines.Text := Copy(FTargetDataFormat.Contents, 1, 1024*32);
 end;
 
-procedure TFormMain.PopupMenu1Popup(Sender: TObject);
-var
-  DataObject: IDataObject;
-begin
-  MenuCopy.Enabled := (EditFilename.Text <> '');
-
-  (*
-  ** The following shows two diffent methods of determining if the clipboard
-  ** contains any data that we can paste. The two methods are in fact identical.
-  ** Only the first method is used.
-  *)
-
-  (*
-  ** Method 1: Get the clipboard data object and test against it.
-  *)
-  // Open the clipboard as an IDataObject
-  OleCheck(OleGetClipboard(DataObject));
-  try
-    // Enable paste menu if the clipboard contains data in any of
-    // the supported formats.
-    MenuPaste.Enabled := DropEmptyTarget1.HasValidFormats(DataObject);
-  finally
-    DataObject := nil;
-  end;
-
-  (*
-  ** Method 2: Let the component do it for us.
-  *)
-  // MenuPaste.Enabled := DropEmptyTarget1.CanPasteFromClipboard;
-
-end;
-
-procedure TFormMain.MenuCopyClick(Sender: TObject);
-begin
-  // Transfer the file name and contents to the data format...
-  FSourceDataFormat.FileName := EditFileName.Text;
-  FSourceDataFormat.Contents := MemoContents.Lines.Text;
-
-  // ...and copy to clipboard.
-  DropEmptySource1.CopyToClipboard;
-end;
-
-procedure TFormMain.MenuPasteClick(Sender: TObject);
-begin
-  DropEmptyTarget1.PasteFromClipboard;
-end;
-
 
 { TVirtualFileDataFormat }
 
@@ -167,7 +179,8 @@ begin
   // but since this data format is only used here, it is just as easy for us to
   // add the formats manually.
   CompatibleFormats.Add(TFileContentsClipboardFormat.Create);
-  CompatibleFormats.Add(TFileGroupDescritorClipboardFormat.Create);
+  CompatibleFormats.Add(TAnsiFileGroupDescriptorClipboardFormat.Create);
+  CompatibleFormats.Add(TUnicodeFileGroupDescriptorClipboardFormat.Create);
 end;
 
 function TVirtualFileDataFormat.Assign(Source: TClipboardFormat): boolean;
@@ -182,12 +195,20 @@ begin
     FContents := TFileContentsClipboardFormat(Source).Data
   end else
   (*
-  ** TFileGroupDescritorClipboardFormat
+  ** TAnsiFileGroupDescriptorClipboardFormat
   *)
-  if (Source is TFileGroupDescritorClipboardFormat) then
+  if (Source is TAnsiFileGroupDescriptorClipboardFormat) then
   begin
-    if (TFileGroupDescritorClipboardFormat(Source).FileGroupDescriptor^.cItems > 0) then
-      FFileName := TFileGroupDescritorClipboardFormat(Source).FileGroupDescriptor^.fgd[0].cFileName;
+    if (TAnsiFileGroupDescriptorClipboardFormat(Source).Count > 0) then
+      FFileName := TAnsiFileGroupDescriptorClipboardFormat(Source).Filenames[0];
+  end else
+  (*
+  ** TUnicodeFileGroupDescriptorClipboardFormat
+  *)
+  if (Source is TUnicodeFileGroupDescriptorClipboardFormat) then
+  begin
+    if (TUnicodeFileGroupDescriptorClipboardFormat(Source).Count > 0) then
+      FFileName := TUnicodeFileGroupDescriptorClipboardFormat(Source).Filenames[0];
   end else
   (*
   ** None of the above...
@@ -196,8 +217,6 @@ begin
 end;
 
 function TVirtualFileDataFormat.AssignTo(Dest: TClipboardFormat): boolean;
-var
-  FGD: TFileGroupDescriptor;
 begin
   Result := True;
 
@@ -209,15 +228,20 @@ begin
     TFileContentsClipboardFormat(Dest).Data := FContents;
   end else
   (*
-  ** TFileGroupDescritorClipboardFormat
+  ** TAnsiFileGroupDescriptorClipboardFormat
   *)
-  if (Dest is TFileGroupDescritorClipboardFormat) then
+  if (Dest is TAnsiFileGroupDescriptorClipboardFormat) then
   begin
-    FillChar(FGD, SizeOf(FGD), 0);
-    FGD.cItems := 1;
-    StrLCopy(@FGD.fgd[0].cFileName[0], PChar(FFileName),
-      SizeOf(FGD.fgd[0].cFileName));
-    TFileGroupDescritorClipboardFormat(Dest).CopyFrom(@FGD);
+    TAnsiFileGroupDescriptorClipboardFormat(Dest).Count := 1;
+    TAnsiFileGroupDescriptorClipboardFormat(Dest).Filenames[0] := FFileName;
+  end else
+  (*
+  ** TUnicodeFileGroupDescriptorClipboardFormat
+  *)
+  if (Dest is TUnicodeFileGroupDescriptorClipboardFormat) then
+  begin
+    TUnicodeFileGroupDescriptorClipboardFormat(Dest).Count := 1;
+    TUnicodeFileGroupDescriptorClipboardFormat(Dest).Filenames[0] := FFileName;
   end else
   (*
   ** None of the above...

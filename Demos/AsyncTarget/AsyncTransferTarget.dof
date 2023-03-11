@@ -135,15 +135,3 @@ ProductName=S-BOSS Designer
 ProductVersion=1.0.0.0
 mailto=s-boss@syntax.dk
 URL=http://www.syntax.dk
-[HistoryLists\hlUnitAliases]
-Count=1
-Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
-[HistoryLists\hlSearchPath]
-Count=1
-Item0=$(DELPHI)\Lib\Debug;..\..\Source
-[HistoryLists\hlUnitOutputDirectory]
-Count=1
-Item0=.
-[HistoryLists\hlOutputDirectorry]
-Count=1
-Item0=.

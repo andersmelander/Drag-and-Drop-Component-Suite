@@ -2,11 +2,13 @@ unit OutlookTarget;
 
 interface
 
+{$include dragdrop.inc} // Disables .NET warnings
+
 uses
   MapiDefs,
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   ExtCtrls, ComCtrls, StdCtrls, DragDrop, DropTarget, DragDropText, ImgList,
-  Menus;
+  Menus, ActnList;
 
 type
   TMessage = class(TObject)
@@ -18,6 +20,7 @@ type
   public
     constructor Create(const AMessage: IMessage);
     destructor Destroy; override;
+    procedure SaveToStream(Stream: TStream);
     property Msg: IMessage read FMessage;
     property Attachments: TInterfaceList read GetAttachments;
   end;
@@ -44,7 +47,7 @@ type
     SplitterAttachments: TSplitter;
     ListViewAttachments: TListView;
     SplitterBrowser: TSplitter;
-    PopupMenu1: TPopupMenu;
+    PopupMenuList: TPopupMenu;
     MenuAttachmentViewLargeIcons: TMenuItem;
     MenuAttachmentViewSmallIcons: TMenuItem;
     MenuAttachmentViewList: TMenuItem;
@@ -52,6 +55,22 @@ type
     MenuAttachmentOpen: TMenuItem;
     MenuAttachmentView: TMenuItem;
     N1: TMenuItem;
+    PopupMenuMain: TPopupMenu;
+    ActionList1: TActionList;
+    ActionPaste: TAction;
+    Paste1: TMenuItem;
+    ActionAttachmentOpen: TAction;
+    ActionAttachmentViewLargeIcons: TAction;
+    ActionAttachmentViewSmallIcons: TAction;
+    ActionAttachmentViewList: TAction;
+    ActionAttachmentViewDetails: TAction;
+    ActionMessageClear: TAction;
+    N2: TMenuItem;
+    Clear1: TMenuItem;
+    ActionMessageSave: TAction;
+    Savetofile1: TMenuItem;
+    N3: TMenuItem;
+    SaveDialog1: TSaveDialog;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure DropTextTarget1Drop(Sender: TObject; ShiftState: TShiftState;
@@ -64,14 +83,23 @@ type
     procedure ListViewBrowserDeletion(Sender: TObject; Item: TListItem);
     procedure ListViewBrowserSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
-    procedure MenuAttachmentViewLargeIconsClick(Sender: TObject);
-    procedure MenuAttachmentViewSmallIconsClick(Sender: TObject);
-    procedure MenuAttachmentViewListClick(Sender: TObject);
-    procedure MenuAttachmentViewDetailsClick(Sender: TObject);
     procedure ListViewAttachmentsResize(Sender: TObject);
+    procedure ActionPasteUpdate(Sender: TObject);
+    procedure ActionPasteExecute(Sender: TObject);
+    procedure ActionAttachmentOpenExecute(Sender: TObject);
+    procedure ActionAttachmentOpenUpdate(Sender: TObject);
+    procedure ActionAttachmentViewLargeIconsExecute(Sender: TObject);
+    procedure ActionAttachmentViewSmallIconsExecute(Sender: TObject);
+    procedure ActionAttachmentViewListExecute(Sender: TObject);
+    procedure ActionAttachmentViewDetailsExecute(Sender: TObject);
+    procedure ActionMessageClearExecute(Sender: TObject);
+    procedure ActionMessageSaveUpdate(Sender: TObject);
+    procedure ActionMessageSaveExecute(Sender: TObject);
   private
     FCleanUpList: TStringList;
     FOwnedMessage: TMessage;
+    FCurrentMessage: TMessage;
+    FHasMessageSession: boolean;
 
     procedure Reset;
     procedure ResetView;
@@ -102,9 +130,9 @@ uses
   // Note: In order to get the Outlook data format support linked into the
   // application, we have to include the appropriate units in the uses clause.
   // If you forget to do this, you will get a run time error.
-  // The DragDropFormats unit contains the TFileContentsStorageClipboardFormat class.
+  // The DragDropFile unit contains the TFileContentsStorageClipboardFormat class.
   // The DragDropInternet unit contains the TOutlookDataFormat class.
-  DragDropFormats,
+  DragDropFile,
   DragDropInternet;
 
 
@@ -117,6 +145,7 @@ end;
 destructor TMessage.Destroy;
 begin
   FAttachments.Free;
+  FMessage := nil;
   inherited Destroy;
 end;
 
@@ -143,13 +172,13 @@ begin
     ** Note: This will only succeed the first time it is called for an IMessage.
     ** The reason is probably that it is illegal (according to MSDN) to call
     ** IMessage.OpenAttach more than once for a given attachment. However, it
-    ** might also be a bug in my code, but whatever the reason the solution is
+    ** might also be a bug in my code, but, whatever the reason, the solution is
     ** beyond the scope of this demo.
     ** Let me know if you find a solution.
     *)
     if (Succeeded(FMessage.GetAttachmentTable(0, Table))) then
     begin
-      if (Succeeded(HrQueryAllRows(Table, @AttachmentTags, nil, nil, 0, Rows))) then
+      if (Succeeded(HrQueryAllRows(Table, PSPropTagArray(@AttachmentTags), nil, nil, 0, Rows))) then
         try
           for i := 0 to integer(Rows.cRows)-1 do
           begin
@@ -167,6 +196,112 @@ begin
   end;
   Result := FAttachments;
 end;
+
+procedure TMessage.SaveToStream(Stream: TStream);
+const
+  CLSID_MailMessage:TGUID='{00020D0B-0000-0000-C000-000000000046}';
+var
+  LockBytes: ILockBytes;
+  Storage: IStorage;
+  Malloc: IMalloc;
+  MsgSession: pointer;
+  NewMsg: IUnknown;
+  ExcludeTags: PSPropTagArray;
+  Memory: HGLOBAL;
+  Buffer: pointer;
+  Size: integer;
+begin
+  Memory := GlobalAlloc(GMEM_MOVEABLE, 0);
+  try
+
+    OleCheck(CreateILockBytesOnHGlobal(Memory, True, LockBytes));
+    try
+
+      // Create compound file
+      OleCheck(StgCreateDocfileOnILockBytes(LockBytes,
+        STGM_TRANSACTED or STGM_READWRITE or STGM_CREATE, 0, Storage));
+      try
+
+        Storage.Commit(STGC_DEFAULT);
+
+        Malloc := IMalloc(MAPIGetDefaultMalloc);
+        try
+
+          // Open an IMessage session.
+          OleCheck(OpenIMsgSession(Malloc, 0, MsgSession));
+          try
+
+            // Open an IMessage interface on an IStorage object
+            OleCheck(OpenIMsgOnIStg(MsgSession,
+              @MAPIAllocateBuffer, @MAPIAllocateMore, @MAPIFreeBuffer, Malloc,
+              nil, Storage, nil, 0, 0, NewMsg));
+            try
+
+              // write the CLSID to the IStorage instance - pStorage. This will
+              // only work with clients that support this compound document type
+              // as the storage medium. If the client does not support
+              // CLSID_MailMessage as the compound document, you will have to use
+              // the CLSID that it does support.
+              OleCheck(WriteClassStg(Storage, CLSID_MailMessage));
+
+              GetMem(ExcludeTags, SizeOf(TSPropTagArray)+SizeOf(ULONG)*6);
+              try
+
+                // Exclude a few properties - just like the MSDN sample
+                // MSDN: Save Message to MSG Compound File
+                // http://support.microsoft.com/kb/171907
+                ExcludeTags.cValues := 7;
+                ExcludeTags.aulPropTag[0] := PR_ACCESS;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-6] := PR_BODY;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-5] := PR_RTF_SYNC_BODY_COUNT;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-4] := PR_RTF_SYNC_BODY_CRC;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-3] := PR_RTF_SYNC_BODY_TAG;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-2] := PR_RTF_SYNC_PREFIX_COUNT;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-1] := PR_RTF_SYNC_TRAILING_COUNT;
+
+                // Copy message properties
+                OleCheck(Msg.CopyTo(0, TGUID(nil^), ExcludeTags, 0, nil, IMessage, pointer(NewMsg), 0, PSPropProblemArray(nil^)));
+
+              finally
+                FreeMem(ExcludeTags);
+              end;
+
+              IMessage(NewMsg).SaveChanges(0);
+              Storage.Commit(STGC_DEFAULT);
+
+            finally
+              pointer(NewMsg) := nil;
+            end;
+
+          finally
+            CloseIMsgSession(MsgSession);
+          end;
+
+        finally
+          Malloc := nil;
+        end;
+
+      finally
+        Storage := nil;
+      end;
+
+      Size := GlobalSize(Memory);
+      Buffer := GlobalLock(Memory);
+      try
+        Stream.Write(Buffer^, Size);
+      finally
+        GlobalUnlock(Memory);
+      end;
+
+    finally
+      LockBytes := nil;
+    end;
+
+  finally
+    GlobalFree(Memory);
+  end;
+end;
+
 {$RANGECHECKS ON}
 
 type
@@ -192,6 +327,8 @@ procedure TFormOutlookTarget.FormCreate(Sender: TObject);
 var
   SHFileInfo: TSHFileInfo;
 begin
+  LoadMAPI32;
+
   try
     // It appears that for for Win XP and later it is OK to let MAPI call
     // coInitialize.
@@ -223,14 +360,17 @@ procedure TFormOutlookTarget.FormDestroy(Sender: TObject);
 begin
   CleanUp;
   FreeAndNil(FCleanUpList);
-  FreeAndNil(FOwnedMessage); 
+  FreeAndNil(FOwnedMessage);
   MAPIUninitialize;
 end;
 
 procedure TFormOutlookTarget.CleanUp;
 var
   i: integer;
+  OutlookDataFormat: TOutlookDataFormat;
 begin
+  FCurrentMessage := nil;
+
   for i := 0 to FCleanUpList.Count-1 do
     try
       DeleteFile(FCleanUpList[i]);
@@ -239,6 +379,13 @@ begin
     end;
 
   FCleanUpList.Clear;
+
+  if (FHasMessageSession) then
+  begin
+    OutlookDataFormat := DataFormatAdapterOutlook.DataFormat as TOutlookDataFormat;
+    OutlookDataFormat.Messages.UnlockSession;
+    FHasMessageSession := False;
+  end;
 end;
 
 procedure TFormOutlookTarget.Reset;
@@ -251,6 +398,7 @@ end;
 
 procedure TFormOutlookTarget.ResetView;
 begin
+  FCurrentMessage := nil;
   ListViewTo.Items.Clear;
   ListViewTo.Height := 0;
   EditFrom.Text := '';
@@ -283,16 +431,23 @@ begin
 
     CleanUp;
 
+    OutlookDataFormat.Messages.LockSession;
+    FHasMessageSession := True;
+
     // Get all the dropped messages
     for i := 0 to OutlookDataFormat.Messages.Count-1 do
     begin
       // Get an IMessage interface
       if (Supports(OutlookDataFormat.Messages[i], IMessage, AMessage)) then
       begin
-        Item := ListViewBrowser.Items.Add;
-        Item.Caption := GetSender(AMessage);
-        Item.SubItems.Add(GetSubject(AMessage));
-        Item.Data := TMessage.Create(AMessage);
+        try
+          Item := ListViewBrowser.Items.Add;
+          Item.Caption := GetSender(AMessage);
+          Item.SubItems.Add(GetSubject(AMessage));
+          Item.Data := TMessage.Create(AMessage);
+        finally
+          AMessage := nil;
+        end;
       end;
     end;
 
@@ -339,7 +494,12 @@ var
 begin
   if (Succeeded(HrGetOneProp(AMessage, PR_SENDER_NAME, Prop))) then
     try
+{$ifdef UNICODE}
+      { TODO : TSPropValue.Value.lpszW is declared wrong }
+      Result := PWideChar(Prop.Value.lpszW);
+{$else}
       Result := Prop.Value.lpszA;
+{$endif}
     finally
       MAPIFreeBuffer(Prop);
     end
@@ -353,7 +513,12 @@ var
 begin
   if (Succeeded(HrGetOneProp(AMessage, PR_SUBJECT, Prop))) then
     try
+{$ifdef UNICODE}
+      { TODO : TSPropValue.Value.lpszW is declared wrong }
+      Result := PWideChar(Prop.Value.lpszW);
+{$else}
       Result := Prop.Value.lpszA;
+{$endif}
     finally
       MAPIFreeBuffer(Prop);
     end
@@ -367,41 +532,45 @@ const
   AddressTags: packed record
     Values: ULONG;
     PropTags: array[0..1] of ULONG;
-  end = (Values: 2; PropTags: (PR_DISPLAY_NAME, PR_EMAIL_ADDRESS));
+  end = (Values: 2; PropTags:
+    (PR_DISPLAY_NAME, PR_EMAIL_ADDRESS));
 
 var
-  i: integer;
+  i, j: integer;
   Prop: PSPropValue;
   Table: IMAPITable;
   Rows: PSRowSet;
-  Name, Address: string;
+  Value: string;
   r: TRect;
+  ListItem: TListItem;
 begin
   ResetView;
+
+  FCurrentMessage := AMessage;
 
   (*
   ** Get Recipients
   *)
   if (Succeeded(AMessage.Msg.GetRecipientTable(0, Table))) then
   begin
-    if (Succeeded(HrQueryAllRows(Table, @AddressTags, nil, nil, 0, Rows))) then
+    if (Succeeded(HrQueryAllRows(Table, PSPropTagArray(@AddressTags), nil, nil, 0, Rows))) then
       try
         for i := 0 to integer(Rows.cRows)-1 do
         begin
-          if (Rows.aRow[i].lpProps[0].ulPropTag = PR_DISPLAY_NAME) then
-            Name := Rows.aRow[i].lpProps[0].Value.lpszA
-          else
-            Name := '';
+          ListItem := ListViewTo.Items.Add;
 
-          if (Rows.aRow[i].lpProps[1].ulPropTag = PR_EMAIL_ADDRESS) then
-            Address := Rows.aRow[i].lpProps[1].Value.lpszA
-          else
-            Address := '';
-
-          with ListViewTo.Items.Add do
+          for j := 0 to Rows.aRow[i].cValues-1 do
           begin
-            Caption := Name;
-            SubItems.Add(Address);
+{$ifdef UNICODE}
+            { TODO : TSPropValue.Value.lpszW is declared wrong }
+            Value := PWideChar(Rows.aRow[i].lpProps[0].Value.lpszW);
+{$else}
+            Value := Rows.aRow[i].lpProps[0].Value.lpszA;
+{$endif}
+            if (j = 0) then
+              ListItem.Caption := Value
+            else
+              ListItem.SubItems.Add(Value);
           end;
         end;
 
@@ -422,14 +591,19 @@ begin
   *)
   if (Succeeded(HrGetOneProp(AMessage.Msg, PR_SENDER_EMAIL_ADDRESS, Prop))) then
     try
-      Address := Prop.Value.lpszA;
+{$ifdef UNICODE}
+      { TODO : TSPropValue.Value.lpszW is declared wrong }
+      Value := PWideChar(Prop.Value.lpszW);
+{$else}
+      Value := Prop.Value.lpszA;
+{$endif}
     finally
       MAPIFreeBuffer(Prop);
     end
   else
-    Address := '';
+    Value := '';
   EditFrom.Text := GetSender(AMessage.Msg);
-  EditFrom.Hint := Address;
+  EditFrom.Hint := Value;
 
   (*
   ** Get subject
@@ -473,10 +647,14 @@ end;
 
 procedure TFormOutlookTarget.ReadBodyText(const AMessage: IMessage);
 var
-  Data, Chunk: string;
+  Buffer: array of byte;
+  Data: TMemoryStream;
   SourceStream: IStream;
   Size: integer;
   Dummy: int64;
+const
+  BufferSize = 64*1024; // 64Kb
+  MaxMessageSize = 256*1024; // 256 Kb
 begin
   MemoBody.Lines.Clear;
 
@@ -495,18 +673,26 @@ begin
 
   if (Succeeded(AMessage.OpenProperty(PR_BODY, IStream, STGM_READ, 0, IUnknown(SourceStream)))) then
   begin
-    SetLength(Chunk, 64*1024);
-    Data := '';
-
-    // Read up to 256Kb from stream
-    SourceStream.Seek(0, STREAM_SEEK_SET, Dummy);
-    while (Succeeded(SourceStream.Read(PChar(Chunk), Length(Chunk), @Size))) and
-      (Size > 0) and (Length(Data) < 1024*1024*256) do
-    begin
-      Data := Data+Copy(Chunk, 1, Size);
+    SetLength(Buffer, BufferSize);
+    Data := TMemoryStream.Create;
+    try
+      // Read up to 256Kb from stream
+      SourceStream.Seek(0, STREAM_SEEK_SET, Dummy);
+      while (Data.Size < MaxMessageSize) and
+        (Succeeded(SourceStream.Read(@Buffer[0], Length(Buffer), @Size))) and
+        (Size > 0) do
+      begin
+        Data.Write(Buffer[0], Size);
+      end;
+      // Write terminating zero
+      Buffer[0] := 0;
+      Data.Write(Buffer[0], 1);
+      Data.Write(Buffer[0], 1);
+      // Transfer the data we just read from the buffer to the memo
+      MemoBody.Lines.Text := PChar(Data.Memory);
+    finally
+      Data.Free;
     end;
-
-    MemoBody.Lines.Text := Data;
   end;
 end;
 
@@ -516,6 +702,202 @@ const
   ColSize = 1;
   ColDisplay = 2;
   ColFile = 3;
+
+procedure TFormOutlookTarget.ActionAttachmentOpenExecute(Sender: TObject);
+
+  procedure Execute(const FileName: string);
+  begin
+    if (FileName = '') then
+      exit;
+
+    // ... launch the file's default application to open it.
+    Screen.Cursor := crAppStart;
+    try
+      Application.ProcessMessages; {otherwise cursor change will be missed}
+      ShellExecute(0, nil, PChar(FileName), nil, nil, SW_NORMAL);
+    finally
+      Screen.Cursor := crDefault;
+    end;
+
+    // Add temp file to list of files to be deleted before we exit
+    if (FCleanUpList.IndexOf(FileName) = -1) then
+      FCleanUpList.Add(FileName);
+  end;
+
+var
+  Attachment: IAttach;
+
+  Method: integer;
+  Prop: PSPropValue;
+
+  FileName: string;
+  SourceStream, DestStream: IStream;
+  Dummy: int64;
+
+  Msg: IMessage;
+begin
+  if (ListViewAttachments.Selected <> nil) and (ListViewAttachments.Selected.Data <> nil) then
+  begin
+    Attachment := IAttach(ListViewAttachments.Selected.Data);
+
+    if (not Succeeded(HrGetOneProp(Attachment, PR_ATTACH_METHOD, Prop))) then
+      exit;
+    try
+      Method := Prop.Value.l;
+    finally
+      MAPIFreeBuffer(Prop);
+    end;
+
+    case Method of
+      ATTACH_BY_VALUE:
+        // Attachment is a file stored in an IStream object
+        begin
+          OleCheck(Attachment.OpenProperty(PR_ATTACH_DATA_BIN, IStream, STGM_READ, 0, IUnknown(SourceStream)));
+
+          FileName := ExtractFilePath(Application.ExeName)+
+            ListViewAttachments.Selected.SubItems[ColFile];
+
+          // Extract the attachment to an external file and...
+          SourceStream.Seek(0, STREAM_SEEK_SET, Dummy);
+          OleCheck(OpenStreamOnFile(PAllocateBuffer(@MAPIAllocateBuffer), PFreeBuffer(@MAPIFreeBuffer), STGM_CREATE or STGM_READWRITE,
+            PChar(FileName), nil, DestStream));
+          // Another way to do it: DestStream := TFixedStreamAdapter.Create(TFileStream.Create(FileName, fmCreate), soOwned);
+          SourceStream.CopyTo(DestStream, -1, Dummy, Dummy);
+          DestStream := nil;
+
+          Execute(FileName);
+        end;
+
+      ATTACH_BY_REFERENCE,
+      ATTACH_BY_REF_RESOLVE,
+      ATTACH_BY_REF_ONLY:
+        // Attachment is a link to a file
+        begin
+          // Get attachment path
+          if (not Succeeded(HrGetOneProp(Attachment, PR_ATTACH_PATHNAME, Prop))) then
+            exit;
+          try
+{$ifdef UNICODE}
+            { TODO : TSPropValue.Value.lpszW is declared wrong }
+            FileName := PWideChar(Prop.Value.lpszW);
+{$else}
+            FileName := Prop.Value.lpszA;
+{$endif}
+          finally
+            MAPIFreeBuffer(Prop);
+          end;
+
+          Execute(FileName);
+        end;
+
+      ATTACH_EMBEDDED_MSG:
+        // Attachment is a message stored in an IMessage object
+        begin
+          // Get size of message
+          if (Succeeded(Attachment.OpenProperty(PR_ATTACH_DATA_OBJ, IMessage, 0, 0, IUnknown(Msg)))) then
+          begin
+            with TFormOutlookTarget.Create(Self) do
+            begin
+              OwnedMessage := TMessage.Create(Msg);
+              ViewMessage(OwnedMessage);
+              Show;
+              Msg := nil;
+            end;
+          end;
+        end;
+
+      // Attachment is a OLE object stored in a IStream or IStorage object
+      ATTACH_OLE:
+        // Note: The actual handling of the OLE object is beyond the scope of
+        // this demo. You'll have to figure it out for yourself.
+        exit;
+    else
+      // Unsupported attachment
+      exit;
+    end;
+  end;
+end;
+
+procedure TFormOutlookTarget.ActionAttachmentOpenUpdate(Sender: TObject);
+begin
+  TAction(Sender).Enabled := (ListViewAttachments.Selected <> nil) and
+    (ListViewAttachments.Selected.Data <> nil);
+end;
+
+procedure TFormOutlookTarget.ActionAttachmentViewDetailsExecute(
+  Sender: TObject);
+begin
+  FormatAttachmentList;
+  ListViewAttachments.ViewStyle := vsReport;
+end;
+
+procedure TFormOutlookTarget.ActionAttachmentViewLargeIconsExecute(
+  Sender: TObject);
+begin
+  FormatAttachmentList;
+  ListViewAttachments.ViewStyle := vsIcon;
+end;
+
+procedure TFormOutlookTarget.ActionAttachmentViewListExecute(Sender: TObject);
+begin
+  FormatAttachmentList;
+  ListViewAttachments.ViewStyle := vsList;
+end;
+
+procedure TFormOutlookTarget.ActionAttachmentViewSmallIconsExecute(
+  Sender: TObject);
+begin
+  FormatAttachmentList;
+  ListViewAttachments.ViewStyle := vsSmallIcon;
+end;
+
+procedure TFormOutlookTarget.ActionMessageClearExecute(Sender: TObject);
+begin
+  Reset;
+end;
+
+procedure TFormOutlookTarget.ActionMessageSaveExecute(Sender: TObject);
+var
+  Dest: TFileStream;
+  Prop: PSPropValue;
+  Filename: string;
+begin
+  // Use message subject as default file name
+  if (Succeeded(HrGetOneProp(FCurrentMessage.Msg, PR_SUBJECT, Prop))) then
+  begin
+    Filename := String(Prop.Value.lpszA);
+    Filename := StringReplace(Filename, ':', ' ', [rfReplaceAll]);
+    Filename := StringReplace(Filename, '\', ' ', [rfReplaceAll]);
+    Filename := StringReplace(Filename, '/', ' ', [rfReplaceAll]);
+    SaveDialog1.Filename := Filename;
+  end else
+    SaveDialog1.Filename := 'Message';
+
+  if (SaveDialog1.Execute) then
+  begin
+    Dest := TFileStream.Create(SaveDialog1.FileName, fmCreate);
+    try
+      FCurrentMessage.SaveToStream(Dest);
+    finally
+      Dest.Free;
+    end;
+  end;
+end;
+
+procedure TFormOutlookTarget.ActionMessageSaveUpdate(Sender: TObject);
+begin
+  TAction(Sender).Enabled := (FCurrentMessage <> nil);
+end;
+
+procedure TFormOutlookTarget.ActionPasteExecute(Sender: TObject);
+begin
+  DropEmptyTarget1.PasteFromClipboard;
+end;
+
+procedure TFormOutlookTarget.ActionPasteUpdate(Sender: TObject);
+begin
+  TAction(Sender).Enabled := DropEmptyTarget1.CanPasteFromClipboard;
+end;
 
 procedure TFormOutlookTarget.AddAttachment(const Attachment: IAttach; Number: integer);
 var
@@ -573,7 +955,12 @@ begin
         // Get attachment filename
         if (Succeeded(HrGetOneProp(Attachment, PR_ATTACH_FILENAME, Prop))) then
           try
+{$ifdef UNICODE}
+            { TODO : TSPropValue.Value.lpszW is declared wrong }
+            s := PWideChar(Prop.Value.lpszW);
+{$else}
             s := Prop.Value.lpszA;
+{$endif}
           finally
             MAPIFreeBuffer(Prop);
           end
@@ -594,7 +981,12 @@ begin
         // Get attachment path
         if (Succeeded(HrGetOneProp(Attachment, PR_ATTACH_PATHNAME, Prop))) then
           try
+{$ifdef UNICODE}
+            { TODO : TSPropValue.Value.lpszW is declared wrong }
+            s := PWideChar(Prop.Value.lpszW);
+{$else}
             s := Prop.Value.lpszA;
+{$endif}
           finally
             MAPIFreeBuffer(Prop);
           end
@@ -610,21 +1002,28 @@ begin
       // Attachment is a message stored in an IMessage object
       begin
         // Get size of message
-        if (Size = 0) and
-          (Succeeded(Attachment.OpenProperty(PR_ATTACH_DATA_OBJ, IMessage, 0, 0, IUnknown(Msg)))) then
+        if (Succeeded(Attachment.OpenProperty(PR_ATTACH_DATA_OBJ, IMessage, 0, 0, IUnknown(Msg)))) then
         begin
-          if (Succeeded(HrGetOneProp(Msg, PR_MESSAGE_SIZE, Prop))) then
-            try
-              Size := Prop.Value.l;
-            finally
-              MAPIFreeBuffer(Prop);
-            end
-          else
-            Size := 0;
-        end;
+          if (Size = 0) then
+          begin
+            if (Succeeded(HrGetOneProp(Msg, PR_MESSAGE_SIZE, Prop))) then
+              try
+                Size := Prop.Value.l;
+              finally
+                MAPIFreeBuffer(Prop);
+              end
+            else
+              Size := 0;
+          end;
+        end else
+          // See comment in TMessage.GetAttachments for a possible reason why might fail
+          Msg := nil;
 
 
-        s := GetSubject(Msg);
+        if (Msg <> nil) then
+          s := GetSubject(Msg)
+        else
+          s := 'Failed to open attachment';
         if (s = '') then
           s := format('Embedded message %d', [Number]);
         Item.SubItems[ColDisplay] := s;
@@ -686,115 +1085,8 @@ function MAPIAllocateBuffer(cbSize: ULONG; var lppBuffer: pointer): SCODE; stdca
 function MAPIFreeBuffer(lpBuffer: pointer): ULONG; stdcall; external 'mapi32.dll';
 
 procedure TFormOutlookTarget.ListViewAttachmentsDblClick(Sender: TObject);
-
-  procedure Execute(const FileName: string);
-  begin
-    if (FileName = '') then
-      exit;
-
-    // ... launch the file's default application to open it.
-    Screen.Cursor := crAppStart;
-    try
-      Application.ProcessMessages; {otherwise cursor change will be missed}
-      ShellExecute(0, nil, PChar(FileName), nil, nil, SW_NORMAL);
-    finally
-      Screen.Cursor := crDefault;
-    end;
-
-    // Add temp file to list of files to be deleted before we exit
-    if (FCleanUpList.IndexOf(FileName) = -1) then
-      FCleanUpList.Add(FileName);
-  end;
-
-var
-  Attachment: IAttach;
-
-  Method: integer;
-  Prop: PSPropValue;
-
-  FileName: string;
-  SourceStream, DestStream: IStream;
-  Dummy: int64;
-
-  Msg: IMessage;
-
 begin
-  if (ListViewAttachments.Selected <> nil) and (ListViewAttachments.Selected.Data <> nil) then
-  begin
-    Attachment := IAttach(ListViewAttachments.Selected.Data);
-
-    if (not Succeeded(HrGetOneProp(Attachment, PR_ATTACH_METHOD, Prop))) then
-      exit;
-
-    try
-      Method := Prop.Value.l;
-    finally
-      MAPIFreeBuffer(Prop);
-    end;
-
-    case Method of
-      ATTACH_BY_VALUE:
-        // Attachment is a file stored in an IStream object
-        begin
-          OleCheck(Attachment.OpenProperty(PR_ATTACH_DATA_BIN, IStream, STGM_READ, 0, IUnknown(SourceStream)));
-
-          FileName := ExtractFilePath(Application.ExeName)+
-            ListViewAttachments.Selected.SubItems[ColFile];
-
-          // Extract the attachment to an external file and...
-          SourceStream.Seek(0, STREAM_SEEK_SET, Dummy);
-          OleCheck(OpenStreamOnFile(@MAPIAllocateBuffer, @MAPIFreeBuffer, STGM_CREATE or STGM_READWRITE,
-            PChar(FileName), nil, DestStream));
-          // Another way to do it: DestStream := TFixedStreamAdapter.Create(TFileStream.Create(FileName, fmCreate), soOwned);
-          SourceStream.CopyTo(DestStream, -1, Dummy, Dummy);
-          DestStream := nil;
-
-          Execute(FileName);
-        end;
-
-      ATTACH_BY_REFERENCE,
-      ATTACH_BY_REF_RESOLVE,
-      ATTACH_BY_REF_ONLY:
-        // Attachment is a link to a file
-        begin
-          // Get attachment path
-          if (not Succeeded(HrGetOneProp(Attachment, PR_ATTACH_PATHNAME, Prop))) then
-            exit;
-          try
-            FileName := Prop.Value.lpszA;
-          finally
-            MAPIFreeBuffer(Prop);
-          end;
-
-          Execute(FileName);
-        end;
-
-      ATTACH_EMBEDDED_MSG:
-        // Attachment is a message stored in an IMessage object
-        begin
-          // Get size of message
-          if (Succeeded(Attachment.OpenProperty(PR_ATTACH_DATA_OBJ, IMessage, 0, 0, IUnknown(Msg)))) then
-          begin
-            with TFormOutlookTarget.Create(Self) do
-            begin
-              OwnedMessage := TMessage.Create(Msg);
-              ViewMessage(OwnedMessage);
-              Show;
-              Msg := nil;
-            end;
-          end;
-        end;
-
-      // Attachment is a OLE object stored in a IStream or IStorage object
-      ATTACH_OLE:
-        // Note: The actual handling of the OLE object is beyond the scope of
-        // this demo. You'll have to figure it out for yourself.
-        exit;
-    else
-      // Unsupported attachment
-      exit;
-    end;
-  end;
+  ActionAttachmentOpen.Execute;
 end;
 
 procedure TFormOutlookTarget.FormatAttachmentList;
@@ -815,34 +1107,6 @@ begin
           ListViewAttachments.Items[i].SubItems[ColDisplay];
     end else
       ListViewAttachments.Items[i].Caption := ListViewAttachments.Items[i].SubItems[ColDisplay];
-end;
-
-procedure TFormOutlookTarget.MenuAttachmentViewLargeIconsClick(Sender: TObject);
-begin
-  TMenuItem(Sender).Checked := True;
-  FormatAttachmentList;
-  ListViewAttachments.ViewStyle := vsIcon;
-end;
-
-procedure TFormOutlookTarget.MenuAttachmentViewSmallIconsClick(Sender: TObject);
-begin
-  TMenuItem(Sender).Checked := True;
-  FormatAttachmentList;
-  ListViewAttachments.ViewStyle := vsSmallIcon;
-end;
-
-procedure TFormOutlookTarget.MenuAttachmentViewListClick(Sender: TObject);
-begin
-  TMenuItem(Sender).Checked := True;
-  FormatAttachmentList;
-  ListViewAttachments.ViewStyle := vsList;
-end;
-
-procedure TFormOutlookTarget.MenuAttachmentViewDetailsClick(Sender: TObject);
-begin
-  TMenuItem(Sender).Checked := True;
-  FormatAttachmentList;
-  ListViewAttachments.ViewStyle := vsReport;
 end;
 
 procedure TFormOutlookTarget.ListViewAttachmentsResize(Sender: TObject);

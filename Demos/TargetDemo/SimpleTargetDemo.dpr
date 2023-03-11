@@ -1,7 +1,5 @@
 program SimpleTargetDemo;
 
-
-
 {%File 'readme.txt'}
 
 uses

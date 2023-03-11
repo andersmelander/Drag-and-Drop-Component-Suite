@@ -7,7 +7,7 @@ uses
   DropSource,
   DragDropFile,
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  StdCtrls, ExtCtrls, ComCtrls;
+  StdCtrls, ExtCtrls, ComCtrls, DropTarget, Menus;
 
 type
   TForm1 = class(TForm)
@@ -17,10 +17,22 @@ type
     ButtonClose: TButton;
     DropFileSource1: TDropFileSource;
     ListView1: TListView;
+    DropDummy1: TDropDummy;
+    PopupMenu1: TPopupMenu;
+    Just1: TMenuItem;
+    a1: TMenuItem;
+    test1: TMenuItem;
+    of1: TMenuItem;
+    popup1: TMenuItem;
+    menu1: TMenuItem;
     procedure ButtonCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure ListView1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure ListView1DragOver(Sender, Source: TObject; X, Y: Integer;
+      State: TDragState; var Accept: Boolean);
+    procedure DropFileSource1GetDragImage(Sender: TObject;
+      const DragSourceHelper: IDragSourceHelper; var Handled: Boolean);
   private
   public
   end;
@@ -32,9 +44,21 @@ implementation
 
 {$R *.DFM}
 
+uses
+  ActiveX, CommCtrl;
+
 procedure TForm1.ButtonCloseClick(Sender: TObject);
 begin
   Close;
+end;
+
+procedure TForm1.DropFileSource1GetDragImage(Sender: TObject;
+  const DragSourceHelper: IDragSourceHelper; var Handled: Boolean);
+var
+  Pt: TPoint;
+begin
+  GetCursorPos(Pt);
+  Handled := Succeeded(DragSourceHelper.InitializeFromWindow(Listview1.Handle, Pt, TCustomDropSource(Sender) as IDataObject));
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
@@ -64,10 +88,17 @@ begin
   end;
 end;
 
+procedure TForm1.ListView1DragOver(Sender, Source: TObject; X, Y: Integer;
+  State: TDragState; var Accept: Boolean);
+begin
+//
+end;
+
 procedure TForm1.ListView1MouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 var
   i: integer;
+  p: TPoint;
 begin
   // If no files selected then we can't drag.
   if (Listview1.SelCount = 0) then
@@ -86,6 +117,12 @@ begin
 
     // Start the drag operation.
     DropFileSource1.Execute;
+  end else
+  // Display popup-menu if right-click and drag wasn't initiated
+  if (Button = mbRight) then
+  begin
+    p := Listview1.ClientToScreen(Point(X, Y));
+    Listview1.PopupMenu.Popup(p.X, p.Y);
   end;
 end;
 

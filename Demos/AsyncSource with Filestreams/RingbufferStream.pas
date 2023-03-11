@@ -34,6 +34,9 @@ type
 
     FDebugFullBucketCount: integer;
     FDebugEmptyBucketCount: integer;
+{$ifopt D+}
+    procedure ValidateBucket(Bucket: PBucket);
+{$endif}
   public
     constructor Create(ABucketCount: integer; ABucketSize: integer);
     destructor Destroy; override;
@@ -105,14 +108,18 @@ constructor TRingBuffer.Create(ABucketCount, ABucketSize: integer);
 var
   Size: integer;
   i: integer;
-  p: PChar;
+  p: PAnsiChar;
 begin
   inherited Create;
 
   FBucketCount := ABucketCount;
   FBucketSize := ABucketSize;
 
-  Size := FBucketCount*(SizeOf(TBucket)+FBucketSize);
+  Size := FBucketCount*(SizeOf(TBucket)-1+FBucketSize);
+{$ifopt D+}
+  // Add guard bytes
+  inc(Size, FBucketCount*SizeOf(DWORD));
+{$endif}
   GetMem(FBuffer, Size);
   FillChar(FBuffer^, Size, 0);
 
@@ -121,14 +128,24 @@ begin
   for i := 0 to FBucketCount-1 do
   begin
     FBuckets[i] := PBucket(p);
-    inc(p, SizeOf(TBucket)+FBucketSize);
+    inc(p, SizeOf(TBucket)-1+FBucketSize);
+{$ifopt D+}
+    PDWORD(p)^:= $BAADF00D;
+    inc(p, SizeOf(DWORD));
+{$endif}
   end;
 
   FDebugEmptyBucketCount := FBucketCount;
-  
+
   FFullBucketSemaphore := CreateSemaphore(nil, 0, FBucketCount, nil);
+  if (FFullBucketSemaphore = 0) then
+    RaiseLastOSError;
   FEmptyBucketSemaphore := CreateSemaphore(nil, FBucketCount, FBucketCount, nil);
+  if (FEmptyBucketSemaphore = 0) then
+    RaiseLastOSError;
   FAbort := CreateEvent(nil, True, False, nil);
+  if (FAbort = 0) then
+    RaiseLastOSError;
 end;
 
 destructor TRingBuffer.Destroy;
@@ -157,13 +174,19 @@ begin
   begin
     Result := nil;
     exit;
-  end;
+  end else
+  if (Res = WAIT_FAILED) then
+    RaiseLastOSError;
 
   n := InterlockedDecrement(FDebugFullBucketCount);
   OutputDebugString(PChar(Format('< Full buckets: %d', [n])));
 
   ASSERT(Res = WAIT_OBJECT_0+1);
   ASSERT(Result.InUse, 'Full bucket marked empty');
+  ASSERT(Result.Size <= FBucketSize, 'Invalid bucket size');
+{$ifopt D+}
+  ValidateBucket(Result);
+{$endif}
 end;
 
 function TRingBuffer.PopEmptyBucket: PBucket;
@@ -179,16 +202,22 @@ begin
   Handles[1] := FEmptyBucketSemaphore;
   Res := WaitForMultipleObjects(Length(Handles), @Handles[0], False, INFINITE);
   if (Res = WAIT_OBJECT_0) or ((Res >= WAIT_ABANDONED_0) and (Res <= WAIT_ABANDONED_0+Length(Handles)-1)) then
-    begin
-      Result := nil;
-      exit;
-    end;
+  begin
+    Result := nil;
+    exit;
+  end else
+  if (Res = WAIT_FAILED) then
+    RaiseLastOSError;
 
   n := InterlockedDecrement(FDebugEmptyBucketCount);
   OutputDebugString(PChar(Format('< Empty buckets: %d', [n])));
 
   ASSERT(Res = WAIT_OBJECT_0+1);
   ASSERT(not Result.InUse, 'Empty bucket marked full');
+  ASSERT(Result.Size = 0, 'Invalid bucket size');
+{$ifopt D+}
+  ValidateBucket(Result);
+{$endif}
 end;
 
 procedure TRingBuffer.PushEmptyBucket(Buffer: PBucket);
@@ -196,13 +225,17 @@ var
   n: integer;
 begin
   ASSERT(FBuckets[FReadTail] = Buffer, 'Push of empty bucket not at tail');
-  Buffer^.InUse := False;
-  Buffer^.Size := 0;
+  ASSERT(Buffer.InUse, 'New empty bucket already marked empty');
+{$ifopt D+}
+  ValidateBucket(Buffer);
+{$endif}
+  Buffer.InUse := False;
+  Buffer.Size := 0;
   FReadTail := (FReadTail+1) mod FBucketCount;
   n := InterlockedIncrement(FDebugEmptyBucketCount);
   OutputDebugString(PChar(Format('> Empty buckets: %d', [n])));
   // Make empty bucket available
-  ReleaseSemaphore(FEmptyBucketSemaphore, 1, nil)
+  Win32Check(ReleaseSemaphore(FEmptyBucketSemaphore, 1, nil));
 end;
 
 procedure TRingBuffer.PushFullBucket(Buffer: PBucket);
@@ -210,27 +243,31 @@ var
   n: integer;
 begin
   ASSERT(FBuckets[FWriteHead] = Buffer, 'Push of full bucket not at head');
+  ASSERT(not Buffer.InUse, 'New full bucket already marked full');
+  ASSERT(Buffer.Size <= FBucketSize, 'Invalid bucket size');
+{$ifopt D+}
+  ValidateBucket(Buffer);
+{$endif}
   Buffer.InUse := True;
   FWriteHead := (FWriteHead+1) mod FBucketCount;
   n := InterlockedIncrement(FDebugFullBucketCount);
   OutputDebugString(PChar(Format('> Full buckets: %d', [n])));
   // Make filled bucket available
-  ReleaseSemaphore(FFullBucketSemaphore, 1, nil);
+  Win32Check(ReleaseSemaphore(FFullBucketSemaphore, 1, nil));
 end;
 
 procedure TRingBuffer.Release;
-var
-  n: integer;
 begin
-  n := InterlockedDecrement(FRefCount);
-
-  if (n = 1) then
-    Abort // Abort if one of the owners leaves the party
-  else
-  if (n = 0) then
+  if (InterlockedDecrement(FRefCount) = 0) then
     Free;
 end;
 
+{$ifopt D+}
+procedure TRingBuffer.ValidateBucket(Bucket: PBucket);
+begin
+  ASSERT(PDWORD(integer(Bucket)+SizeOf(TBucket)-1+FBucketSize)^ = $BAADF00D, 'Bucket corrupt');
+end;
+{$endif}
 
 procedure TFifoStream.Abort;
 begin
@@ -349,7 +386,7 @@ function TFifoStream.Write(const Buffer; Count: Integer): Longint;
 var
   Bucket: PBucket;
   Size: integer;
-  p: PChar;
+  p: pointer;
 begin
   if (FReadOnly) or (FReset) then
     raise Exception.Create('Invalid stream operation');
@@ -385,7 +422,7 @@ begin
 
     dec(Count, Size);
     inc(Result, Size);
-    inc(p, Size);
+    inc(integer(p), Size);
 
     if (FWriteOnly) then
       inc(FPosition, Result);
