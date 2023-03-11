@@ -1013,22 +1013,48 @@ function TClipboardFormat.HasValidFormats(const ADataObject: IDataObject): boole
 var
   Mask: longInt;
   AFormatEtc: TFormatEtc;
+  FormatEnumerator: IEnumFormatEtc;
+  GetNum, GotNum: longInt;
+  SourceFormatEtc: TFormatEtc;
 begin
-  // Because some IDataObject.QueryGetData implementations (e.g. Outlook
-  // Express) can't handle multiple TYMED values specified in the same
-  // FormatEtc, we have to try each in turn.
-  Mask := $0000001;
-  AFormatEtc := FormatEtc;
   Result := False;
-  while (not Result) and (Mask <> 0) and (Mask <= FormatEtc.tymed) do
+
+  // QueryGetData does not actually guarantee that a positive result mean that a
+  // GetData call with the same parameters will succeed. E.g. Win XP Explorer
+  // will return True on QueryGetData("FileContents") even though it would return
+  // False on GetData("FileContents").
+  // To work around this we perform an additional steps and only test against
+  // the formats returned from EnumFormatEtc.
+  if (ADataObject.EnumFormatEtc(DATADIR_GET, FormatEnumerator) <> S_OK) or (FormatEnumerator.Reset <> S_OK) then
+    exit;
+
+  GetNum := 1; // Get one format at a time.
+
+  // Enumerate all data formats offered by the drop source.
+  // Note: Depends on order of evaluation.
+  while (FormatEnumerator.Next(GetNum, SourceFormatEtc, @GotNum) = S_OK) and (GetNum = GotNum) do
   begin
-    AFormatEtc.tymed := FormatEtc.tymed and Mask;
-    if (AFormatEtc.tymed <> 0) then
-      Result := (ADataObject.QueryGetData(AFormatEtc) = S_OK);
-    Mask := Mask shl 1;
+
+    if (SourceFormatEtc.cfFormat = FormatEtc.cfFormat) and (SourceFormatEtc.tymed and FormatEtc.tymed <> 0) then
+    begin
+      // Because some IDataObject.QueryGetData implementations (e.g. Outlook
+      // Express) can't handle multiple TYMED values specified in the same
+      // FormatEtc, we have to try each in turn.
+      Mask := $0000001;
+      AFormatEtc := FormatEtc;
+      while (not Result) and (Mask <> 0) and (Mask <= FormatEtc.tymed) do
+      begin
+        AFormatEtc.tymed := FormatEtc.tymed and Mask;
+        if (AFormatEtc.tymed <> 0) then
+          Result := (ADataObject.QueryGetData(AFormatEtc) = S_OK);
+        Mask := Mask shl 1;
+      end;
+      // We could have used Result := (GetValidMedia(ADataObjecy) <> 0), but the
+      // above is a bit more efficient.
+
+      break;
+    end;
   end;
-  // We could have used Result := (GetValidMedia(ADataObjecy) <> 0), but the
-  // above is a bit more efficient.
 end;
 
 class procedure TClipboardFormat.RegisterCompatibleFormats;
