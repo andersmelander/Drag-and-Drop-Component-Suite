@@ -78,7 +78,6 @@ type
   published
     property OnAcceptFormat;
     property Formats: TComboFormatTypes read FFormats write FFormats default AllComboFormats;
-    property OptimizedMove default True;
   end;
 
 
@@ -93,7 +92,6 @@ implementation
 constructor TDropComboTarget.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  OptimizedMove := True;
   FFileFormat := TFileDataFormat.Create(Self);
   FURLFormat := TURLDataFormat.Create(Self);
   FBitmapFormat := TBitmapDataFormat.Create(Self);
