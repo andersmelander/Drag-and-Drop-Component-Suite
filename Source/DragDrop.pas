@@ -1003,7 +1003,7 @@ begin
   begin
     AFormatEtc.tymed := FormatEtc.tymed and Mask;
     if (AFormatEtc.tymed <> 0) then
-      if (Succeeded(ADataObject.QueryGetData(AFormatEtc))) then
+      if (ADataObject.QueryGetData(AFormatEtc) = S_OK) then
         Result := Result or Mask;
     Mask := Mask shl 1;
   end;
@@ -1024,7 +1024,7 @@ begin
   begin
     AFormatEtc.tymed := FormatEtc.tymed and Mask;
     if (AFormatEtc.tymed <> 0) then
-      Result := (Succeeded(ADataObject.QueryGetData(AFormatEtc)));
+      Result := (ADataObject.QueryGetData(AFormatEtc) = S_OK);
     Mask := Mask shl 1;
   end;
   // We could have used Result := (GetValidMedia(ADataObjecy) <> 0), but the
@@ -1101,7 +1101,7 @@ begin
   // we ask for more than they can deliver.
   AFormatEtc.tymed := GetValidMedia(ADataObject);
 
-  if (Succeeded(ADataObject.GetData(AFormatEtc, Medium))) then
+  if (ADataObject.GetData(AFormatEtc, Medium) = S_OK) then
     Result := GetDataFromMedium(ADataObject, Medium)
   else
     Result := False;
@@ -1149,7 +1149,7 @@ begin
 
   // Call IDataObject to set data
   if (Result) then
-    Result := (Succeeded(ADataObject.SetData(FormatEtc, AMedium, True)));
+    Result := (ADataObject.SetData(FormatEtc, AMedium, True) = S_OK);
 
   // If we didn't succeed in transfering ownership of the data medium to the
   // IDataObject, we must deallocate the medium ourselves.
