@@ -1,6 +1,6 @@
 
-Drag and Drop Component Suite Version 5.1
-Released 29-jan-2010
+Drag and Drop Component Suite Version 5.2
+Released 17-aug-2010
 © 1997-2010 Anders Melander
 http://melander.dk/delphi/dragdrop/
 
@@ -18,7 +18,8 @@ Table of Contents:
 1. Supported platforms:
 -------------------------------------------
 This version of the library has been tested with Delphi 5, Delphi 7, Delphi 2007,
-Delphi 2009 and Delphi 2010 on Windows XP Professional SP2.
+Delphi 2009 and Delphi 2010 on Windows XP Professional SP3.
+Other versions of Delphi, C++ Builder and Windows may be supported.
 
 
 -------------------------------------------

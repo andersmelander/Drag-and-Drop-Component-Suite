@@ -108,7 +108,7 @@ THrQueryAllRows = function (ptable : IMAPITABLE;
 TOpenStreamOnFile = function (lpAllocateBuffer:PALLOCATEBUFFER;
                           lpFreeBuffer:PFREEBUFFER;
                           ulFlags:ULONG;
-                          lpszFileName:PChar;
+                          lpszFileName:PAnsiChar;
                           lpszPrefix:PChar;
                           var Stream:IStream):HRESULT;stdcall;
 

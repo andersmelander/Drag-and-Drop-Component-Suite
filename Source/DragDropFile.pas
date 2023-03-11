@@ -3,12 +3,12 @@ unit DragDropFile;
 // Project:         Drag and Drop Component Suite.
 // Module:          DragDropFile
 // Description:     Implements Dragging and Dropping of files and folders.
-// Version:         5.0
-// Date:            22-NOV-2009
+// Version:         5.2
+// Date:            17-AUG-2010
 // Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2009 Anders Melander
+//                  © 2000-2010 Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -631,7 +631,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-  published
+
     property Files: TUnicodeStrings read GetFiles write SetFiles;
     // MappedNames is only needed if files need to be renamed during a drag op.
     // E.g. dragging from 'Recycle Bin'.
@@ -2272,7 +2272,7 @@ end;
 function TFileContentsStreamClipboardFormat.GetData(const DataObject: IDataObject): boolean;
 var
   AFormatEtc: TFormatEtc;
-  FGD: TFileGroupDescriptorClipboardFormat;
+  FGD: TFileGroupDescriptorCustomClipboardFormat;
   Count: integer;
   Medium: TStgMedium;
   Stream: IStream;
@@ -2286,16 +2286,24 @@ begin
   Result := False;
 
   Clear;
-  FGD := TFileGroupDescriptorClipboardFormat.Create;
+  FGD := nil;
   try
+    FGD := TUnicodeFileGroupDescriptorClipboardFormat.Create;
+    if (not FGD.HasValidFormats(DataObject)) then
+    begin
+      FreeAndNil(FGD);
+      FGD := TAnsiFileGroupDescriptorClipboardFormat.Create;
+    end;
+
     // Make copy of original FormatEtc and work with the copy.
     // If we modify the original, we *must* change it back when we are done with
     // it.
     AFormatEtc := FormatEtc;
+
     if (FGD.GetData(DataObject)) then
     begin
       // Multiple objects, retrieve one at a time
-      Count := FGD.FileGroupDescriptor^.cItems;
+      Count := FGD.Count;
       AFormatEtc.lindex := 0;
     end else
     begin
@@ -2304,6 +2312,7 @@ begin
       AFormatEtc.lindex := -1;
       Name := '';
     end;
+
     while (AFormatEtc.lindex < Count) do
     begin
       FillChar(Medium, SizeOf(Medium), 0);
@@ -2355,7 +2364,7 @@ begin
           Stream.Seek(0, STREAM_SEEK_SET, PLargeint(nil)^);
 
           if (AFormatEtc.lindex > 0) then
-            Name := FGD.FileGroupDescriptor^.fgd[AFormatEtc.lindex-1].cFileName;
+            Name := FGD.Filenames[AFormatEtc.lindex-1];
           Streams.AddNamed(MemStream, Name);
         except
           MemStream.Free;
@@ -2615,7 +2624,7 @@ end;
 {$ENDIF}
 function TFileContentsStorageClipboardFormat.GetData(const DataObject: IDataObject): boolean;
 var
-  FGD: TAnsiFileGroupDescriptorClipboardFormat;
+  FGD: TFileGroupDescriptorCustomClipboardFormat;
   Count: integer;
   Medium: TStgMedium;
   Storage: IStorage;
@@ -2627,15 +2636,21 @@ begin
   Clear;
   // The FileContents formats is always accompanied by the FileGroupDescriptor
   // format, so we can get the names from the FileGroupDescriptor format.
-  FGD := TAnsiFileGroupDescriptorClipboardFormat.Create;
+  FGD := nil;
   try
+    FGD := TAnsiFileGroupDescriptorClipboardFormat.Create;
+    if (not FGD.HasValidFormats(DataObject)) then
+    begin
+      FreeAndNil(FGD);
+      FGD := TUnicodeFileGroupDescriptorClipboardFormat.Create;
+    end;
     // Work on a temporary copy of the FormatEtc structure so we can modify it
     // without side effects (Thanks Tom!).
     AFormatEtc := FormatEtc;
     if (FGD.GetData(DataObject)) then
     begin
       // Multiple objects, retrieve one at a time
-      Count := FGD.FileGroupDescriptor^.cItems;
+      Count := FGD.Count;
       AFormatEtc.lindex := 0;
     end else
     begin
@@ -2656,7 +2671,7 @@ begin
         Storage := IStorage(Medium.stg);
         try
           if (AFormatEtc.lindex > 0) then
-            Name := String(FGD.FileGroupDescriptor^.fgd[AFormatEtc.lindex-1].cFileName);
+            Name := FGD.Filenames[AFormatEtc.lindex-1];
           Storages.AddNamed(Storage, Name);
         finally
           Storage := nil;
@@ -2841,7 +2856,7 @@ begin
   if (Source is TAnsiFileGroupDescriptorClipboardFormat) then
   begin
     FFileDescriptors.Clear;
-    for i := 0 to TAnsiFileGroupDescriptorClipboardFormat(Source).FileGroupDescriptor^.cItems-1 do
+    for i := 0 to TAnsiFileGroupDescriptorClipboardFormat(Source).Count-1 do
     begin
       GetMem(FDW, SizeOf(TFileDescriptorW));
       try
@@ -2870,7 +2885,7 @@ begin
   if (Source is TUnicodeFileGroupDescriptorClipboardFormat) then
   begin
     FFileDescriptors.Clear;
-    for i := 0 to TUnicodeFileGroupDescriptorClipboardFormat(Source).FileGroupDescriptor^.cItems-1 do
+    for i := 0 to TUnicodeFileGroupDescriptorClipboardFormat(Source).Count-1 do
     begin
       GetMem(FDW, SizeOf(TFileDescriptorW));
       try

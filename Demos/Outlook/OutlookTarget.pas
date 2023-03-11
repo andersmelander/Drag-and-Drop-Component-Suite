@@ -135,6 +135,7 @@ uses
 //!!!  ActiveX,
   ShellAPI,
   Contnrs,
+  DragDropFormats,
   // Note: In order to get the Outlook data format support linked into the
   // application, we have to include the appropriate units in the uses clause.
   // If you forget to do this, you will get a run time error.
@@ -542,12 +543,11 @@ var
 begin
   if (Succeeded(HrGetOneProp(AMessage, PR_SENDER_NAME, Prop))) then
     try
-{$ifdef UNICODE}
-      { TODO : TSPropValue.Value.lpszW is declared wrong }
-      Result := PWideChar(Prop.Value.lpszW);
-{$else}
-      Result := Prop.Value.lpszA;
-{$endif}
+      if (Prop.ulPropTag and PT_UNICODE = PT_UNICODE) then
+        { TODO : TSPropValue.Value.lpszW is declared wrong }
+        Result := String(PWideChar(Prop.Value.lpszW))
+      else
+        Result := String(Prop.Value.lpszA);
     finally
       MAPIFreeBuffer(Prop);
     end
@@ -561,12 +561,11 @@ var
 begin
   if (Succeeded(HrGetOneProp(AMessage, PR_SUBJECT, Prop))) then
     try
-{$ifdef UNICODE}
-      { TODO : TSPropValue.Value.lpszW is declared wrong }
-      Result := PWideChar(Prop.Value.lpszW);
-{$else}
-      Result := Prop.Value.lpszA;
-{$endif}
+      if (Prop.ulPropTag and PT_UNICODE = PT_UNICODE) then
+        { TODO : TSPropValue.Value.lpszW is declared wrong }
+        Result := String(PWideChar(Prop.Value.lpszW))
+      else
+        Result := String(Prop.Value.lpszA);
     finally
       MAPIFreeBuffer(Prop);
     end
@@ -580,8 +579,7 @@ const
   AddressTags: packed record
     Values: ULONG;
     PropTags: array[0..1] of ULONG;
-  end = (Values: 2; PropTags:
-    (PR_DISPLAY_NAME, PR_EMAIL_ADDRESS));
+  end = (Values: 2; PropTags: (PR_DISPLAY_NAME, PR_EMAIL_ADDRESS_A));
 
 var
   i, j: integer;
@@ -609,12 +607,11 @@ begin
 
           for j := 0 to Rows.aRow[i].cValues-1 do
           begin
-{$ifdef UNICODE}
-            { TODO : TSPropValue.Value.lpszW is declared wrong }
-            Value := PWideChar(Rows.aRow[i].lpProps[0].Value.lpszW);
-{$else}
-            Value := Rows.aRow[i].lpProps[0].Value.lpszA;
-{$endif}
+            if (Rows.aRow[i].lpProps[j].ulPropTag and PT_UNICODE = PT_UNICODE) then
+              { TODO : TSPropValue.Value.lpszW is declared wrong }
+              Value := String(PWideChar(Rows.aRow[i].lpProps[j].Value.lpszW))
+            else
+              Value := String(Rows.aRow[i].lpProps[j].Value.lpszA);
             if (j = 0) then
               ListItem.Caption := Value
             else
@@ -637,19 +634,15 @@ begin
   (*
   ** Get sender
   *)
-  if (Succeeded(HrGetOneProp(AMessage.Msg, PR_SENDER_EMAIL_ADDRESS, Prop))) then
+  if (Succeeded(HrGetOneProp(AMessage.Msg, PR_SENDER_EMAIL_ADDRESS_A, Prop))) then
     try
-{$ifdef UNICODE}
-      { TODO : TSPropValue.Value.lpszW is declared wrong }
-      Value := PWideChar(Prop.Value.lpszW);
-{$else}
-      Value := Prop.Value.lpszA;
-{$endif}
+      Value := String(Prop.Value.lpszA);
     finally
       MAPIFreeBuffer(Prop);
     end
   else
     Value := '';
+
   EditFrom.Text := GetSender(AMessage.Msg);
   EditFrom.Hint := Value;
 
@@ -779,7 +772,7 @@ var
   Method: integer;
   Prop: PSPropValue;
 
-  FileName: string;
+  FileName: AnsiString;
   SourceStream, DestStream: IStream;
   Dummy: int64;
 
@@ -803,18 +796,26 @@ begin
         begin
           OleCheck(Attachment.OpenProperty(PR_ATTACH_DATA_BIN, IStream, STGM_READ, 0, IUnknown(SourceStream)));
 
-          FileName := ExtractFilePath(Application.ExeName)+
-            ListViewAttachments.Selected.SubItems[ColFile];
+          FileName := AnsiString(ExtractFilePath(Application.ExeName) +
+            ListViewAttachments.Selected.SubItems[ColFile]);
 
           // Extract the attachment to an external file and...
           SourceStream.Seek(0, STREAM_SEEK_SET, Dummy);
-          OleCheck(OpenStreamOnFile(PAllocateBuffer(@MAPIAllocateBuffer), PFreeBuffer(@MAPIFreeBuffer), STGM_CREATE or STGM_READWRITE,
-            PChar(FileName), nil, DestStream));
-          // Another way to do it: DestStream := TFixedStreamAdapter.Create(TFileStream.Create(FileName, fmCreate), soOwned);
+
+          // Note:
+          // You can either use OpenStreamOnFile to create an IStream interface
+          // to a newly created file, or you can use TFileStream/TStreamAdapter.
+          // Either way should work.
+          OleCheck(OpenStreamOnFile(PAllocateBuffer(@MAPIAllocateBuffer), PFreeBuffer(@MAPIFreeBuffer),
+            // Filename must be AnsiChar even when using Unicode.
+            STGM_CREATE or STGM_READWRITE, PAnsiChar(FileName), nil, DestStream));
+          // Another way to do it:
+          // DestStream := TFixedStreamAdapter.Create(TFileStream.Create(FileName, fmCreate), soOwned);
+
           SourceStream.CopyTo(DestStream, -1, Dummy, Dummy);
           DestStream := nil;
 
-          Execute(FileName);
+          Execute(String(FileName));
         end;
 
       ATTACH_BY_REFERENCE,
@@ -823,20 +824,15 @@ begin
         // Attachment is a link to a file
         begin
           // Get attachment path
-          if (not Succeeded(HrGetOneProp(Attachment, PR_ATTACH_PATHNAME, Prop))) then
+          if (not Succeeded(HrGetOneProp(Attachment, PR_ATTACH_PATHNAME_A, Prop))) then
             exit;
           try
-{$ifdef UNICODE}
-            { TODO : TSPropValue.Value.lpszW is declared wrong }
-            FileName := PWideChar(Prop.Value.lpszW);
-{$else}
             FileName := Prop.Value.lpszA;
-{$endif}
           finally
             MAPIFreeBuffer(Prop);
           end;
 
-          Execute(FileName);
+          Execute(String(FileName));
         end;
 
       ATTACH_EMBEDDED_MSG:
@@ -912,7 +908,7 @@ var
   p: PAnsiChar;
 begin
   // Use message subject as default file name
-  if (Succeeded(HrGetOneProp(FCurrentMessage.Msg, PR_SUBJECT, Prop))) then
+  if (Succeeded(HrGetOneProp(FCurrentMessage.Msg, PR_SUBJECT_A, Prop))) then
   begin
     Filename := Prop.Value.lpszA;
 
@@ -1010,12 +1006,11 @@ begin
         // Get attachment filename
         if (Succeeded(HrGetOneProp(Attachment, PR_ATTACH_FILENAME, Prop))) then
           try
-{$ifdef UNICODE}
-            { TODO : TSPropValue.Value.lpszW is declared wrong }
-            s := PWideChar(Prop.Value.lpszW);
-{$else}
-            s := Prop.Value.lpszA;
-{$endif}
+            if (Prop.ulPropTag and PT_UNICODE = PT_UNICODE) then
+              { TODO : TSPropValue.Value.lpszW is declared wrong }
+              s := String(PWideChar(Prop.Value.lpszW))
+            else
+              s := String(Prop.Value.lpszA);
           finally
             MAPIFreeBuffer(Prop);
           end
@@ -1036,12 +1031,11 @@ begin
         // Get attachment path
         if (Succeeded(HrGetOneProp(Attachment, PR_ATTACH_PATHNAME, Prop))) then
           try
-{$ifdef UNICODE}
-            { TODO : TSPropValue.Value.lpszW is declared wrong }
-            s := PWideChar(Prop.Value.lpszW);
-{$else}
-            s := Prop.Value.lpszA;
-{$endif}
+            if (Prop.ulPropTag and PT_UNICODE = PT_UNICODE) then
+              { TODO : TSPropValue.Value.lpszW is declared wrong }
+              s := String(PWideChar(Prop.Value.lpszW))
+            else
+              s := String(Prop.Value.lpszA);
           finally
             MAPIFreeBuffer(Prop);
           end

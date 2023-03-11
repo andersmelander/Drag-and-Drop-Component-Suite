@@ -4,7 +4,7 @@
 // Description:     This include file contains common defines used by the
 //                  library.
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
-// Copyright        © 1997-2009 Anders Melander
+// Copyright        © 1997-2010 Anders Melander
 // -----------------------------------------------------------------------------
 
 

@@ -3,12 +3,12 @@ unit DragDropText;
 // Project:         Drag and Drop Component Suite.
 // Module:          DragDropText
 // Description:     Implements Dragging and Dropping of different text formats.
-// Version:         5.0
-// Date:            22-NOV-2009
+// Version:         5.2
+// Date:            17-AUG-2010
 // Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2009 Anders Melander
+//                  © 2000-2010 Anders Melander
 // -----------------------------------------------------------------------------
 
 {.$define DROPSOURCE_TEXTSCRAP}

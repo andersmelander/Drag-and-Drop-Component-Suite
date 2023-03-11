@@ -1,10 +1,10 @@
 object FormOutlookTarget: TFormOutlookTarget
   Left = 348
   Top = 343
+  Width = 680
+  Height = 427
   ActiveControl = MemoBody
   Caption = 'Outlook drop target demo'
-  ClientHeight = 393
-  ClientWidth = 672
   Color = clBtnFace
   Constraints.MinWidth = 200
   Font.Charset = DEFAULT_CHARSET
@@ -101,7 +101,6 @@ object FormOutlookTarget: TFormOutlookTarget
         Top = 0
         Width = 28
         Height = 13
-        Margins.Bottom = 0
         Caption = 'From:'
       end
       object EditFrom: TEdit
@@ -142,7 +141,6 @@ object FormOutlookTarget: TFormOutlookTarget
         Top = 0
         Width = 16
         Height = 13
-        Margins.Bottom = 0
         Caption = 'To:'
       end
       object ScrollBox1: TScrollBox
@@ -205,7 +203,6 @@ object FormOutlookTarget: TFormOutlookTarget
         Top = 0
         Width = 40
         Height = 13
-        Margins.Bottom = 0
         Caption = 'Subject:'
       end
       object EditSubject: TEdit

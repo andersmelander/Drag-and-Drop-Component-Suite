@@ -3,12 +3,12 @@ unit DragDropContext;
 // Project:         Drag and Drop Component Suite.
 // Module:          DragDropContext
 // Description:     Implements Context Menu Handler Shell Extensions.
-// Version:         5.0
-// Date:            22-NOV-2009
+// Version:         5.2
+// Date:            17-AUG-2010
 // Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2009 Anders Melander
+//                  © 2000-2010 Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -298,16 +298,7 @@ function TDropContextMenu.QueryContextMenu(Menu: HMENU; indexMenu, idCmdFirst,
     i: integer;
     MenuItemInfo: TMenuItemInfo;
   begin
-    if (MenuItem.Count > 0) then
-    begin
-      MenuIndex := 0;
-      for i := 0 to MenuItem.Count-1 do
-        if (MenuItem[i].Visible) then
-        begin
-          TraverseMenu(MenuItem[i], MenuIndex, MenuID);
-          inc(MenuIndex);
-        end;
-    end else
+    if (MenuItem.Parent.Parent <> nil) then
     begin
       // Store the command ID and a reference to the TMenuItem
       FillChar(MenuItemInfo, SizeOf(MenuItemInfo), 0);
@@ -320,6 +311,15 @@ function TDropContextMenu.QueryContextMenu(Menu: HMENU; indexMenu, idCmdFirst,
 
       inc(MenuID);
     end;
+
+    MenuIndex := 0;
+
+    for i := 0 to MenuItem.Count-1 do
+      if (MenuItem[i].Visible) then
+      begin
+        TraverseMenu(MenuItem[i], MenuIndex, MenuID);
+        inc(MenuIndex);
+      end;
   end;
 
 var
@@ -394,7 +394,7 @@ begin
         // http://support.microsoft.com/default.aspx? scid=kb;en-us;214477
 
         // Reserve a command ID for the menu entry now in case we have to
-        //  process a sub menu before the item is created.
+        // process a sub menu before the item is created.
         MenuItemInfo.fMask := MenuItemInfo.fMask or MIIM_ID;
         MenuItemInfo.wID := NextMenuID;
         inc(NextMenuID);
@@ -601,6 +601,7 @@ begin
 {$ifopt D+}
   OutputDebugString('IShellExtInit.Initialize');
 {$endif}
+  Result := NOERROR;
 
   FFiles.Clear;
   SetFolder(pidlFolder);
@@ -632,8 +633,6 @@ begin
   finally
     FDataObject := nil;
   end;
-
-  Result := NOERROR;
 end;
 
 {$ifndef VER13_PLUS}
@@ -932,7 +931,7 @@ begin
         **    position. We do this by shifting the draw rect 8 pixels to the
         **    right for top level menu items. When this happens...
         ** 2) ...the menu item background will also be shifted 8 pixels to the
-        **    right. Because of this we have draw the background manually.
+        **    right. Because of this we have to draw the background manually.
         ** 3) The VCLs drawing of selected menu bitmaps interferes with 1 & 2,
         **    so we have to fool the VCL into believing that the menu item isn't
         **    selected even if it is.
@@ -1114,6 +1113,10 @@ begin
     finally
       ReleaseDC(GetForegroundWindow, DC);
     end;
+
+    // Make room for sub menu arrow
+    if (MenuItem.Count > 0) then
+      inc(MeasureItemStruct.itemWidth, 16);
   end else
   begin
     MeasureItemStruct.itemWidth := 150;

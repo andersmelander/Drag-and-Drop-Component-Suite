@@ -1,6 +1,6 @@
 ﻿	<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 		<PropertyGroup>
-			<ProjectGuid>{438AEB64-A7E1-41A0-9170-9CA2AED41B5A}</ProjectGuid>
+			<ProjectGuid>{1BC1C940-729D-4455-B126-2BC80AD17EC8}</ProjectGuid>
 			<MainSource>ComboTargetDemo.dpr</MainSource>
 			<Config Condition="'$(Config)'==''">Debug</Config>
 			<DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
@@ -104,7 +104,7 @@
 						<VersionInfoKeys Name="FileDescription"/>
 						<VersionInfoKeys Name="FileVersion">1.0.0.28</VersionInfoKeys>
 						<VersionInfoKeys Name="InternalName"/>
-						<VersionInfoKeys Name="LegalCopyright">Copyright Â© 1999 by Anders Melander</VersionInfoKeys>
+						<VersionInfoKeys Name="LegalCopyright">Copyright © 1999 by Anders Melander</VersionInfoKeys>
 						<VersionInfoKeys Name="LegalTrademarks"/>
 						<VersionInfoKeys Name="OriginalFilename"/>
 						<VersionInfoKeys Name="ProductName"/>

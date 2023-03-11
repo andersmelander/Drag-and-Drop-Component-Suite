@@ -3,12 +3,12 @@ unit DragDrop;
 // Project:         Drag and Drop Component Suite
 // Module:          DragDrop
 // Description:     Implements base classes and utility functions.
-// Version:         5.0
-// Date:            22-NOV-2009
+// Version:         5.2
+// Date:            17-AUG-2010
 // Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2009 Anders Melander
+//                  © 2000-2010 Anders Melander
 // -----------------------------------------------------------------------------
 // TODO -oanme -cPortability : Replace all public use of HWND with THandle. BCB's HWND <> Delphi's HWND.
 
@@ -69,7 +69,7 @@ const
   DragDropSuiteVersionMinor = 0;
 
 // Pre-unicode compatibility
-{$ifndef VER20_PLUS}
+{$ifndef UNICODE}
 type
   UnicodeString = type WideString;
 {$endif}
@@ -604,15 +604,14 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TRawDataFormat = class(TCustomDataFormat)
   private
-    FMedium: TStgMedium;
   protected
   public
     procedure Clear; override;
     function HasData: boolean; override;
     function NeedsData: boolean; override;
-    property Medium: TStgMedium read FMedium write FMedium;
   end;
 
+  // TODO : Check TRawClipboardFormat for leak of medium
   TRawClipboardFormat = class(TClipboardFormat)
   private
     FMedium: TStgMedium;
@@ -627,6 +626,7 @@ type
     procedure SetString(const Value: AnsiString);
   public
     constructor Create; override;
+    destructor Destroy; override;
     constructor CreateFormatEtc(const AFormatEtc: TFormatEtc); override;
     function Assign(Source: TCustomDataFormat): boolean; override;
     function AssignTo(Dest: TCustomDataFormat): boolean; override;
@@ -637,8 +637,8 @@ type
     function NeedsData: boolean;
 
     // All of these should be moved/mirrored in TRawDataFormat:
-    procedure CopyFromStgMedium(const AMedium: TStgMedium);
-    procedure CopyToStgMedium(var AMedium: TStgMedium);
+    function CopyFromStgMedium(const AMedium: TStgMedium): boolean;
+    function CopyToStgMedium(var AMedium: TStgMedium): boolean;
     property Medium: TStgMedium read FMedium write FMedium;
     // Debug info:
     property AsString: AnsiString read GetString write SetString;
@@ -798,6 +798,10 @@ const
   CP_THREAD_ACP = 3; // current thread's ANSI code page
   DefaultSystemCodePage = CP_THREAD_ACP;
 {$endif}
+
+const
+  // AnsiString makes the linker include the string even if it isn't referenced
+  sDragDropCopyright: AnsiString = 'Drag and Drop Component Suite. Copyright © 1997-2010 Anders Melander';
 
 
 (*******************************************************************************
@@ -2042,6 +2046,9 @@ begin
   // Since TRawClipboardFormat performs storage for TRawDataFormat we only allow
   // TRawDataFormat to clear. To accomplish this TRawClipboardFormat ignores
   // calls to the clear method and instead introduces the ClearData method.
+
+  // Since Clear() doesn't do anything the class must make sure that ClearData()
+  // is called before FMedium is modified. Otherwise we will leak. 
 end;
 
 procedure TRawClipboardFormat.ClearData;
@@ -2060,20 +2067,29 @@ begin
   Result := (FMedium.tymed = TYMED_NULL);
 end;
 
-procedure TRawClipboardFormat.CopyFromStgMedium(const AMedium: TStgMedium);
+function TRawClipboardFormat.CopyFromStgMedium(const AMedium: TStgMedium): boolean;
 begin
-  CopyStgMedium(AMedium, FMedium);
+  // Release old data before new is set.
+  ClearData;
+  Result := CopyStgMedium(AMedium, FMedium);
 end;
 
-procedure TRawClipboardFormat.CopyToStgMedium(var AMedium: TStgMedium);
+function TRawClipboardFormat.CopyToStgMedium(var AMedium: TStgMedium): boolean;
 begin
-  CopyStgMedium(FMedium, AMedium);
+  Result := CopyStgMedium(FMedium, AMedium);
+end;
+
+destructor TRawClipboardFormat.Destroy;
+begin
+  ClearData;
+  inherited Destroy;
 end;
 
 function TRawClipboardFormat.DoGetData(const ADataObject: IDataObject;
   const AMedium: TStgMedium): boolean;
 begin
-  Result := CopyStgMedium(AMedium, FMedium);
+  Result := CopyFromStgMedium(AMedium);
+
   // Quote from .\Samples\winui\Shell\DragImg\DragImg.doc from the
   // Platform SDK:
   // Currently, there is a bug in that the Drag Source Helper assumes the
@@ -2082,16 +2098,16 @@ begin
   // is resolved, it is necessary for the data object to set the IStream's seek
   // pointer to the beginning of the stream.
 
-  // This doesn't seem to be nescessary on any version of Win2K, but if they
+  // This doesn't seem to be necessary on any version of Win2K, but if they
   // say it must be done then I'll better do it...
-  if (FMedium.tymed = TYMED_ISTREAM) then
+  if (Result) and (FMedium.tymed = TYMED_ISTREAM) then
     IStream(FMedium.stm).Seek(0, STREAM_SEEK_SET, PLargeint(nil)^);
 end;
 
 function TRawClipboardFormat.DoSetData(const FormatEtcIn: TFormatEtc;
   var AMedium: TStgMedium): boolean;
 begin
-  Result := CopyStgMedium(FMedium, AMedium);
+  Result := CopyToStgMedium(AMedium);
 end;
 
 function TRawClipboardFormat.GetString: AnsiString;
@@ -2110,6 +2126,8 @@ end;
 
 procedure TRawClipboardFormat.SetString(const Value: AnsiString);
 begin
+  ClearData;
+
   with TAnsiStringClipboardFormat.Create do
     try
       FFormatEtc := Self.FFormatEtc;

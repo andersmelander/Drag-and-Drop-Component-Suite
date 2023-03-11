@@ -5,12 +5,12 @@ unit DropTarget;
 // Description:     Implements the drop target base classes which allows your
 //                  application to accept data dropped on it from other
 //                  applications.
-// Version:         5.0
-// Date:            22-NOV-2009
+// Version:         5.2
+// Date:            17-AUG-2010
 // Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2009 Anders Melander
+//                  © 2000-2010 Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -114,6 +114,7 @@ type
     FScrollTimer: TTimer;
     FAutoScroll: boolean;
     FNoScrollZone: TRect;
+    FCustomScrollZone: boolean;
     FMouseSample: TMouseSample;
     FMouseNextSample: TMouseSample;
     FIsAsync: boolean;
@@ -122,6 +123,7 @@ type
     FAllowAsync: boolean;
     FAutoRegister: boolean;
     FEnabled: boolean;
+    procedure SetNoScrollZone(const Value: TRect);
   protected
     // IDropTarget  implementation
     function DragEnter(const DataObj: IDataObject; grfKeyState: Longint;
@@ -144,39 +146,41 @@ type
     function DoGetData: boolean; virtual; abstract;
     procedure ClearData; virtual; abstract;
     function GetValidDropEffect(ShiftState: TShiftState; pt: TPoint;
-      dwEffect: LongInt): LongInt; virtual; // V4: Improved
-    function GetPreferredDropEffect: LongInt; virtual; // V4: New
-    function SetPerformedDropEffect(Effect: LongInt): boolean; virtual; // V4: New
-    function SetPasteSucceeded(Effect: LongInt): boolean; virtual; // V4: New
-    procedure DoRegister(ATarget: TWinControl); // V4: New
-    procedure DoUnregister(ATarget: TWinControl); // V4: New
+      dwEffect: LongInt): LongInt; virtual;
+    function GetPreferredDropEffect: LongInt; virtual;
+    function SetPerformedDropEffect(Effect: LongInt): boolean; virtual;
+    function SetPasteSucceeded(Effect: LongInt): boolean; virtual;
+    procedure DoRegister(ATarget: TWinControl);
+    procedure DoUnregister(ATarget: TWinControl);
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     function GetTarget: TWinControl;
     procedure SetTarget(const Value: TWinControl);
-    procedure DoAutoScroll(Sender: TObject); // V4: Renamed from DoTargetScroll.
+    procedure DoAutoScroll(Sender: TObject);
     function SampleMouse(MousePos: TPoint; First: boolean = False): boolean;
     procedure SetShowImage(Show: boolean);
-    procedure SetDataObject(Value: IDataObject); // V4: New
+    procedure SetDataObject(Value: IDataObject);
     procedure DoEndAsyncTransfer(Sender: TObject);
     property DropTargetHelper: IDropTargetHelper read FDropTargetHelper;
+    property CustomScrollZone: boolean read FCustomScrollZone write FCustomScrollZone;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure Register(ATarget: TWinControl);
     procedure Unregister(ATarget: TWinControl = nil);
-    function FindTarget(p: TPoint): TWinControl; virtual; // V4: New
-    function FindNearestTarget(p: TPoint): TWinControl; // V4: New
-    procedure Assign(Source: TPersistent); override; // V4: New
-    function HasValidFormats(const ADataObject: IDataObject): boolean; virtual; abstract; // V4: Improved
-    function PasteFromClipboard: longint; virtual; // V4: Improved
-    function CanPasteFromClipboard: boolean; virtual; // V4: New
+    function FindTarget(p: TPoint): TWinControl; virtual;
+    function FindNearestTarget(p: TPoint): TWinControl;
+    procedure Assign(Source: TPersistent); override;
+    function HasValidFormats(const ADataObject: IDataObject): boolean; virtual; abstract;
+    function PasteFromClipboard: longint; virtual;
+    function CanPasteFromClipboard: boolean; virtual;
+    procedure ResetScrollZone; virtual;
 
     procedure GetCompatibleClipboardFormats(const DataFormatClass: TDataFormatClass;
       ClipboardFormats: TClipboardFormats); override;
 
     property DataObject: IDataObject read FDataObject;
-    property Targets: TControlList read FTargets; // V4: New
-    property NoScrollZone: TRect read FNoScrollZone write FNoScrollZone; // V4: New
+    property Targets: TControlList read FTargets;
+    property NoScrollZone: TRect read FNoScrollZone write SetNoScrollZone;
     property AsyncTransfer: boolean read FIsAsync;
   published
     property DragTypes: TDragTypes read FDragTypes write FDragTypes;
@@ -188,8 +192,8 @@ type
     property OnLeave: TNotifyEvent read FOnLeave write FOnLeave;
     property OnDrop: TDropTargetEvent read FOnDrop write FOnDrop;
     property OnGetDropEffect: TDropTargetEvent read FOnGetDropEffect
-      write FOnGetDropEffect; // V4: Improved
-    property OnScroll: TDropTargetScrollEvent read FOnScroll write FOnScroll; // V4: New
+      write FOnGetDropEffect;
+    property OnScroll: TDropTargetScrollEvent read FOnScroll write FOnScroll;
     property OnStartAsyncTransfer: TNotifyEvent read FOnStartAsyncTransfer
       write FOnStartAsyncTransfer;
     property OnEndAsyncTransfer: TNotifyEvent read FOnEndAsyncTransfer
@@ -197,13 +201,13 @@ type
     // Drag Images...
     property ShowImage: boolean read FShowImage write SetShowImage default True;
     // Target
-    property Target: TWinControl read GetTarget write SetTarget; // V4: Improved
-    property MultiTarget: boolean read FMultiTarget write FMultiTarget default False; // V4: New
+    property Target: TWinControl read GetTarget write SetTarget;
+    property MultiTarget: boolean read FMultiTarget write FMultiTarget default False;
     property AutoRegister: boolean read FAutoRegister write FAutoRegister default True;
     // Auto-scroll
-    property AutoScroll: boolean read FAutoScroll write FAutoScroll default True; // V4: New
+    property AutoScroll: boolean read FAutoScroll write FAutoScroll default True;
     // Misc
-    property OptimizedMove: boolean read FOptimizedMove write FOptimizedMove default False; // V4: New
+    property OptimizedMove: boolean read FOptimizedMove write FOptimizedMove default False;
     // Async transfer...
     property AllowAsyncTransfer: boolean read FAllowAsync write FAllowAsync default False;
   end;
@@ -434,16 +438,19 @@ function TCustomDropTarget.DragEnter(const dataObj: IDataObject; grfKeyState: Lo
   pt: TPoint; var dwEffect: Longint): HRESULT;
 var
   ShiftState: TShiftState;
-  TargetStyles: longint;
   ClientPt: TPoint;
 begin
   try
-    ClearData;
-    FDataObject := dataObj;
+    if (Enabled) then
+    begin
+      ClearData;
+      FDataObject := dataObj;
+    end;
     Result := S_OK;
 
 
     // Find the target control.
+    // TODO : FTarget is modified even when Enabled=False.
     FTarget := FindTarget(pt);
 
     (*
@@ -474,37 +481,7 @@ begin
     *)
     if (Enabled) and (HasValidFormats(FDataObject)) then
     begin
-
-      FScrollBars := [];
-
-      if (AutoScroll) then
-      begin
-        // Determine if the target control has scroll bars (and which).
-        TargetStyles := GetWindowLong(FTarget.Handle, GWL_STYLE);
-        if (TargetStyles and WS_HSCROLL <> 0) then
-          include(FScrollBars, sbHorizontal);
-        if (TargetStyles and WS_VSCROLL <> 0) then
-          include(FScrollBars, sbVertical);
-
-        // The Windows UI guidelines recommends that the scroll margin be based on
-        // the width/height of the scroll bars:
-        // From "The Windows Interface Guidelines for Software Design", page 82:
-        //   "Use twice the width of a vertical scroll bar or height of a
-        //   horizontal scroll bar to determine the width of the hot zone."
-        // Previous versions of these components used the height of the current
-        // target control font as the scroll margin. Yet another approach would be
-        // to use the DragDropScrollInset constant.
-        if (FScrollBars <> []) then
-        begin
-          FNoScrollZone := FTarget.ClientRect;
-          if (sbVertical in FScrollBars) then
-            InflateRect(FNoScrollZone, 0, -2*GetSystemMetrics(SM_CYHSCROLL));
-            // InflateRect(FNoScrollZone, 0, -abs(TDummyWinControl(FTarget).Font.Height));
-          if (sbHorizontal in FScrollBars) then
-            InflateRect(FNoScrollZone, -2*GetSystemMetrics(SM_CXHSCROLL), 0);
-            // InflateRect(FNoScrollZone, -abs(TDummyWinControl(FTarget).Font.Height), 0);
-        end;
-      end;
+      ResetScrollZone; // Updates FScrollBars and FNoScrollZone
 
       // It's generally more efficient to get data only if and when a drop occurs
       // rather than on entering a potential target window.
@@ -616,17 +593,19 @@ begin
   end;
 
   try
-
     ClientPt := FTarget.ScreenToClient(pt);
 
-
     ShiftState := KeysToShiftStatePlus(grfKeyState);
+
+    // Update scroll zone unless user has specified a custom scroll zone
+    if (not CustomScrollZone) then
+      ResetScrollZone; // Updates FScrollBars and FNoScrollZone
 
     // Create a default drop effect based on the shift state and allowed
     // drop effects (or an OnGetDropEffect event if implemented).
     dwEffect := GetValidDropEffect(ShiftState, ClientPt, dwEffect);
 
-    if (FDataObject <> nil) then
+    if (Enabled) and (FDataObject <> nil) then
     begin
       // Generate an OnDragOver event
       DoDragOver(ShiftState, ClientPt, dwEffect);
@@ -691,10 +670,14 @@ end;
 function TCustomDropTarget.DragLeave: HResult;
 begin
   try
-    ClearData;
     FScrollTimer.Enabled := False;
 
-    FDataObject := nil;
+    // Don't mess with our stuff if DragLeave is fired while an async is in progress
+    if (not AsyncTransfer) then
+    begin
+      ClearData;
+      FDataObject := nil;
+    end;
 
     if (DropTargetHelper <> nil) then
     begin
@@ -740,7 +723,7 @@ begin
     // Refuse drop if we have lost the data object somehow.
     // This can happen if the drop is rejected in one of the other IDropTarget
     // methods (e.g. DragOver).
-    if (FDataObject = nil) then
+    if (not Enabled) or (FDataObject = nil) then
     begin
       dwEffect := DROPEFFECT_NONE;
       Result := E_UNEXPECTED;
@@ -984,10 +967,10 @@ end;
 procedure TCustomDropTarget.DoEndAsyncTransfer(Sender: TObject);
 begin
   // Reset async transfer flag and clean up once transfer completes and...
-  FIsAsync := False;
-  ClearData;
   FDataObject := nil;
   FTarget := nil;
+  FIsAsync := False; // Set this last to minimize race condition with DragLeave
+  ClearData;
 
   // ...Fire event.
   if Assigned(FOnEndAsyncTransfer) then
@@ -1194,6 +1177,44 @@ begin
   DoUnregister(ATarget);
 end;
 
+procedure TCustomDropTarget.ResetScrollZone;
+var
+  TargetStyles: longint;
+begin
+  CustomScrollZone := False;
+
+  FScrollBars := [];
+
+  if (AutoScroll) and (FTarget <> nil) then
+  begin
+    // Determine if the target control has scroll bars (and which).
+    TargetStyles := GetWindowLong(FTarget.Handle, GWL_STYLE);
+    if (TargetStyles and WS_HSCROLL <> 0) then
+      include(FScrollBars, sbHorizontal);
+    if (TargetStyles and WS_VSCROLL <> 0) then
+      include(FScrollBars, sbVertical);
+
+    // The Windows UI guidelines recommends that the scroll margin be based on
+    // the width/height of the scroll bars:
+    // From "The Windows Interface Guidelines for Software Design", page 82:
+    //   "Use twice the width of a vertical scroll bar or height of a
+    //   horizontal scroll bar to determine the width of the hot zone."
+    // Previous versions of these components used the height of the current
+    // target control font as the scroll margin. Yet another approach would be
+    // to use the DragDropScrollInset constant.
+    if (FScrollBars <> []) then
+    begin
+      FNoScrollZone := FTarget.ClientRect;
+      if (sbVertical in FScrollBars) then
+        InflateRect(FNoScrollZone, 0, -2*GetSystemMetrics(SM_CYHSCROLL));
+        // InflateRect(FNoScrollZone, 0, -abs(TDummyWinControl(FTarget).Font.Height));
+      if (sbHorizontal in FScrollBars) then
+        InflateRect(FNoScrollZone, -2*GetSystemMetrics(SM_CXHSCROLL), 0);
+        // InflateRect(FNoScrollZone, -abs(TDummyWinControl(FTarget).Font.Height), 0);
+    end;
+  end;
+end;
+
 procedure TCustomDropTarget.DoUnregister(ATarget: TWinControl);
 var
   i: integer;
@@ -1367,6 +1388,12 @@ end;
 procedure TCustomDropTarget.SetDataObject(Value: IDataObject);
 begin
   FDataObject := Value;
+end;
+
+procedure TCustomDropTarget.SetNoScrollZone(const Value: TRect);
+begin
+  FNoScrollZone := Value;
+  FCustomScrollZone := True;
 end;
 
 procedure TCustomDropTarget.SetShowImage(Show: boolean);

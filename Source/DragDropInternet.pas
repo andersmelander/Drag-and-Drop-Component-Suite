@@ -3,12 +3,12 @@ unit DragDropInternet;
 // Project:         Drag and Drop Component Suite.
 // Module:          DragDropInternet
 // Description:     Implements Dragging and Dropping of internet related data.
-// Version:         5.0
-// Date:            22-NOV-2009
+// Version:         5.2
+// Date:            17-AUG-2010
 // Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2009 Anders Melander
+//                  © 2000-2010 Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -36,6 +36,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
 
   TAnsiURLClipboardFormat = class(TCustomAnsiTextClipboardFormat)
+  private
   public
     function GetClipboardFormat: TClipFormat; override;
     property URL: AnsiString read GetString write SetString;
@@ -626,9 +627,9 @@ end;
 var
   CF_URL: TClipFormat = 0;
 
-// Note: CFSTR_INETURL = CFSTR_SHELLURL
 function TAnsiURLClipboardFormat.GetClipboardFormat: TClipFormat;
 begin
+  // Note: CFSTR_INETURL = CFSTR_SHELLURL
   if (CF_URL = 0) then
     CF_URL := RegisterClipboardFormat(CFSTR_SHELLURL);
   Result := CF_URL;
@@ -1333,14 +1334,15 @@ end;
 destructor TStorageDataFormat.Destroy;
 begin
   Clear;
-  FStorages.Free;
+  FreeAndNil(FStorages);
   inherited Destroy;
 end;
 
 procedure TStorageDataFormat.Clear;
 begin
   Changing;
-  FStorages.Clear;
+  if (FStorages <> nil) then
+    FStorages.Clear;
 end;
 
 function TStorageDataFormat.Assign(Source: TClipboardFormat): boolean;
@@ -1582,7 +1584,9 @@ end;
 procedure TOutlookDataFormat.Clear;
 begin
   inherited Clear;
-  FMessages.Clear;
+  // Clear is called by base class destructor
+  if (FMessages <> nil) then
+    FMessages.Clear;
 end;
 
 constructor TOutlookDataFormat.Create(AOwner: TDragDropComponent);
@@ -1593,8 +1597,8 @@ end;
 
 destructor TOutlookDataFormat.Destroy;
 begin
+  FreeAndNil(FMessages);
   inherited Destroy;
-  FMessages.Free;
 end;
 
 

@@ -40,6 +40,9 @@ object Form1: TForm1
     BevelOuter = bvNone
     Caption = ' '
     TabOrder = 1
+    DesignSize = (
+      394
+      45)
     object ButtonClose: TButton
       Left = 159
       Top = 12

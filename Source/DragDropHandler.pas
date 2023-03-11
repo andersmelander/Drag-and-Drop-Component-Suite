@@ -4,12 +4,12 @@ unit DragDropHandler;
 // Module:          DragDropHandler
 // Description:     Implements Drop and Drop Context Menu Shell Extenxions
 //                  (a.k.a. drag-and-drop handlers).
-// Version:         5.0
-// Date:            22-NOV-2009
+// Version:         5.2
+// Date:            17-AUG-2010
 // Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2009 Anders Melander
+//                  © 2000-2010 Anders Melander
 // -----------------------------------------------------------------------------
 
 interface

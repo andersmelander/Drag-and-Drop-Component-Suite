@@ -4,12 +4,12 @@ unit DropSource;
 // Module:          DropSource
 // Description:     Implements Dragging & Dropping of data
 //                  FROM your application to another.
-// Version:         5.0
-// Date:            22-NOV-2009
+// Version:         5.2
+// Date:            17-AUG-2010
 // Target:          Win32, Delphi 5-2010
 // Authors:         Anders Melander, anders@melander.dk, http://melander.dk
 // Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2009 Anders Melander
+//                  © 2000-2010 Anders Melander
 // -----------------------------------------------------------------------------
 // TODO -oanme -cCheckItOut : OleQueryLinkFromData
 // TODO -oanme -cDocumentation : CutToClipboard and CopyToClipboard alters the value of PreferredDropEffect.
@@ -1694,6 +1694,7 @@ var
 
 const
   sOleDropTargetInterface = 'OleDropTargetInterface';
+  sOleDropTargetInterfaceSaved = 'OleDropTargetInterfaceSaved';
 
 type
   TDropTargetData = record
@@ -1709,9 +1710,19 @@ var
 begin
   // Warning : This is completely undocumented!
   DropTarget := GetProp(Window, sOleDropTargetInterface);
+
+  // If the debugged application is reset or otherwise stopped before
+  // RestoreDelphiDropTargets is called, then the saved handle will be lost.
+  // In order to recover from this scenario we also save the target handle in
+  // a window property.
+  if (DropTarget = 0) then
+    DropTarget := GetProp(Window, sOleDropTargetInterfaceSaved);
+
   if (DropTarget <> 0) then
   begin
     RemoveProp(Window, sOleDropTargetInterface);
+    // Save target handle in case we need to recover it
+    SetProp(Window, sOleDropTargetInterfaceSaved, DropTarget);
 
     if (DelphiDropTargets = nil) then
       DelphiDropTargets := TList.Create;
@@ -1757,7 +1768,8 @@ begin
 
       // Warning : This is completely undocumented!
       SetProp(DropTargetData.Window, sOleDropTargetInterface, DropTargetData.DropTarget);
-      
+      RemoveProp(DropTargetData.Window, sOleDropTargetInterfaceSaved);
+
       Dispose(DropTargetData);
     end;
     DelphiDropTargets.Free;
