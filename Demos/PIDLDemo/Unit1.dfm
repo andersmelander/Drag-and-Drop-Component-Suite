@@ -1,10 +1,9 @@
 object Form1: TForm1
   Left = 216
   Top = 237
-  AutoScroll = False
+  Width = 445
+  Height = 295
   Caption = 'TDropPidlSource & TDropPidlTarget demo'
-  ClientHeight = 261
-  ClientWidth = 437
   Color = clBtnFace
   Font.Charset = ANSI_CHARSET
   Font.Color = clWindowText
@@ -49,7 +48,7 @@ object Form1: TForm1
       Top = 10
       Width = 149
       Height = 14
-      Caption = #169'1997-99 Johnson && Melander'
+      Caption = '©1997-99 Johnson && Melander'
       Font.Charset = ANSI_CHARSET
       Font.Color = clWindowText
       Font.Height = -11

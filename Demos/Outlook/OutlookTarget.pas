@@ -143,8 +143,9 @@ begin
     ** Note: This will only succeed the first time it is called for an IMessage.
     ** The reason is probably that it is illegal (according to MSDN) to call
     ** IMessage.OpenAttach more than once for a given attachment. However, it
-    ** might also be a bug in my code, but whatever the reason is the solution is
+    ** might also be a bug in my code, but whatever the reason the solution is
     ** beyond the scope of this demo.
+    ** Let me know if you find a solution.
     *)
     if (Succeeded(FMessage.GetAttachmentTable(0, Table))) then
     begin
@@ -510,7 +511,7 @@ begin
 end;
 
 const
-  // Attachment listview column indexes
+  // Attachment listview column indices
   ColType = 0;
   ColSize = 1;
   ColDisplay = 2;

@@ -74,7 +74,7 @@ begin
     Exit;
 
   // Wait for user to move mouse before we start the drag/drop.
-  if (DragDetectPlus(TWinControl(Sender).Handle, Point(X,Y))) then
+  if (DragDetectPlus(TWinControl(Sender))) then
   begin
     // Delete anything from a previous drag.
     DropFileSource1.Files.Clear;

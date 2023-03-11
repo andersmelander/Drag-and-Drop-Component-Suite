@@ -207,7 +207,7 @@ begin
     Exit;
 
   // Wait for user to move cursor before we start the drag/drop.
-  if (DragDetectPlus(TWinControl(Sender).Handle, Point(X,Y))) then
+  if (DragDetectPlus(TWinControl(Sender))) then
   begin
     Statusbar1.SimpleText := '';
     DropSource1.Files.Clear;

@@ -17,10 +17,10 @@ uses
   ActiveX, Windows, Classes, Controls, Forms, StdCtrls, ComCtrls, ExtCtrls;
 
 const
-  MSG_DROPSTART = WM_USER;
-  MSG_DROPINIT = WM_USER+1;
-  MSG_DROPPROGRESS = WM_USER+2;
-  MSG_DROPDONE = WM_USER+3;
+  MSG_DROPPROGRESS = WM_USER;
+
+type
+  TDropProgress = (dpStart, dpInit, dpProgress, dpTransferStart, dpTransferEnd, dpDone);
 
 type
   TFormMain = class(TForm)
@@ -52,10 +52,8 @@ type
   private
     Tick: integer;
     EvenOdd: boolean;
-    procedure MsgDropStart(var Msg: TMessage); message MSG_DROPSTART;
-    procedure MsgDropInit(var Msg: TMessage); message MSG_DROPINIT;
     procedure MsgDropProgress(var Msg: TMessage); message MSG_DROPPROGRESS;
-    procedure MsgDropEnd(var Msg: TMessage); message MSG_DROPDONE;
+    procedure UpdateProgress(Kind: TDropProgress; Value: integer = 0);
   public
   end;
 
@@ -160,6 +158,36 @@ begin
   DrawPie(Tick);
 end;
 
+procedure TFormMain.UpdateProgress(Kind: TDropProgress; Value: integer);
+begin
+  // Make sure this method is only called in the context of the main thread.
+  if (GetCurrentThreadId <> MainThreadID) then
+  begin
+    PostMessage(Handle, MSG_DROPPROGRESS, Ord(Kind), Value);
+    exit;
+  end;
+
+  case Kind of
+    dpStart:
+      StatusBar1.SimpleText := 'Drop detected - getting data...';
+    dpInit:
+      begin
+        ProgressBar1.Max := Value;
+        ProgressBar1.Position := 0;
+      end;
+    dpProgress:
+      ProgressBar1.Position := Value;
+    dpTransferStart:
+      StatusBar1.SimpleText := 'Asynchronous transfer starting...';
+    dpTransferEnd:
+      StatusBar1.SimpleText := 'Asynchronous transfer ending...';
+    dpDone:
+      StatusBar1.SimpleText := 'Drop completed.';
+  end;
+  ProgressBar1.Update;
+  StatusBar1.Update;
+end;
+
 procedure TFormMain.RadioButtonNormalClick(Sender: TObject);
 begin
   DropEmptyTarget1.AllowAsyncTransfer := False;
@@ -193,10 +221,7 @@ begin
   ** the status and progress bar.
   *)
 
-  if (DropEmptyTarget1.AsyncTransfer) then
-    SendMessage(Handle, MSG_DROPSTART, 0, 0)
-  else
-    StatusBar1.SimpleText := 'Drop completed - getting data...';
+  UpdateProgress(dpStart, 0);
 
   // Data was dropped on us.
   // Transfer the file contents from the drop source via the stream we
@@ -215,14 +240,7 @@ begin
         // Determine size of stream.
         Stream.Stat(StatStg, STATFLAG_NONAME);
         Size := StatStg.cbSize;
-        if (DropEmptyTarget1.AsyncTransfer) then
-          SendMessage(Handle, MSG_DROPINIT, Size, 0)
-        else
-        begin
-          ProgressBar1.Max := Size;
-          ProgressBar1.Position := 0;
-          ProgressBar1.Update;
-        end;
+        UpdateProgress(dpInit, Size);
         Progress := 0;
 
         // Read data from source in 1Mb chunks.
@@ -241,13 +259,7 @@ begin
 
             Inc(Progress, Chunk);
 
-            if (DropEmptyTarget1.AsyncTransfer) then
-              SendMessage(Handle, MSG_DROPPROGRESS, Progress, 0)
-            else
-            begin
-              ProgressBar1.Position := Progress;
-              ProgressBar1.Update;
-            end;
+            UpdateProgress(dpProgress, Progress);
             dec(Size, Chunk);
           end;
         finally
@@ -256,43 +268,22 @@ begin
       end;
     end;
   end;
-  if (DropEmptyTarget1.AsyncTransfer) then
-    SendMessage(Handle, MSG_DROPDONE, 0, 0)
-  else
-    StatusBar1.SimpleText := 'Drop completed.';
-end;
-
-procedure TFormMain.MsgDropEnd(var Msg: TMessage);
-begin
-  StatusBar1.SimpleText := 'Drop completed.';
-end;
-
-procedure TFormMain.MsgDropInit(var Msg: TMessage);
-begin
-  ProgressBar1.Max := Msg.WParam;
-  ProgressBar1.Position := 0;
-  ProgressBar1.Update;
+  UpdateProgress(dpDone);
 end;
 
 procedure TFormMain.MsgDropProgress(var Msg: TMessage);
 begin
-  ProgressBar1.Position := Msg.WParam;
-  ProgressBar1.Update;
-end;
-
-procedure TFormMain.MsgDropStart(var Msg: TMessage);
-begin
-  StatusBar1.SimpleText := 'Drop completed - getting data...';
+  UpdateProgress(dpProgress, Msg.LParam);
 end;
 
 procedure TFormMain.DropEmptyTarget1StartAsyncTransfer(Sender: TObject);
 begin
-  StatusBar1.SimpleText := 'Asynchronous transfer starting...';
+  UpdateProgress(dpTransferStart);
 end;
 
 procedure TFormMain.DropEmptyTarget1EndAsyncTransfer(Sender: TObject);
 begin
-  StatusBar1.SimpleText := 'Asynchronous transfer ending...';
+  UpdateProgress(dpTransferEnd);
 end;
 
 end.

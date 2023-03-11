@@ -1,8 +1,6 @@
 object DataModuleContextMenuHandler: TDataModuleContextMenuHandler
   OldCreateOrder = False
   OnCreate = DataModuleCreate
-  Left = 285
-  Top = 161
   Height = 479
   Width = 741
   object DropContextMenu1: TDropContextMenu

@@ -45,7 +45,7 @@ var
   Item: TListItem;
 begin
   (*
-  ** The OnDrop event handler is called when the user drags files and drops them
+  ** The OnDrop event handler is called when the user drag and drop files
   ** onto your application.
   *)
 
@@ -69,6 +69,15 @@ begin
     if (DropFileTarget1.MappedNames.Count > 0) then
       Item.SubItems.Add(DropFileTarget1.MappedNames[i]);
   end;
+
+  // For this demo we reject the drop if a move operation was performed. This is
+  // done so the drop source doesn't think we actually did something usefull
+  // with the data.
+  // This is important when moving data or when dropping from the recycle bin;
+  // If we do not reject a move, the source will asumme that it is safe to
+  // delete the source data. See also "Optimized move".
+  if (Effect = DROPEFFECT_MOVE) then
+    Effect := DROPEFFECT_NONE;
 end;
 
 end.

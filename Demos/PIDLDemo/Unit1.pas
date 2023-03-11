@@ -515,7 +515,7 @@ begin
         ItemData.SortStr := '9'+ GetPathName(CurrentShellFolder,tmpPIDL);
     end;
   end;
-  ListView1.CustomSort(@ListviewSort, 0);
+  ListView1.CustomSort(TLVCompare(@ListviewSort), 0);
   if Listview1.items.count > 0 then
     Listview1.items[0].focused := true;
 end;

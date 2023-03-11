@@ -4,8 +4,16 @@ interface
 
 uses
   DragDrop, DropSource, DragDropFormats,
+  Messages,
   ActiveX, Windows, Classes, Controls, Forms, StdCtrls, ComCtrls, ExtCtrls,
   Buttons;
+
+const
+  MSG_PROGRESS = WM_USER;
+  MSG_STATUS = WM_USER+1;
+
+type
+  TDragDropStage = (dsNone, dsIdle, dsDrag, dsDragAsync, dsDragAsyncFailed, dsDrop, dsGetData, dsGetStream, dsDropComplete);
 
 type
   TFormMain = class(TForm)
@@ -37,16 +45,21 @@ type
     procedure OnMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure FormCreate(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
     procedure ButtonAbortClick(Sender: TObject);
     procedure StatusBar1Resize(Sender: TObject);
   private
+    FStatus: TDragDropStage;
+    FAbort: boolean;
     Tick: integer;
     EvenOdd: boolean;
-    DoAbort: boolean;
+    procedure SetStatus(const Value: TDragDropStage);
+    procedure SetProgress(Count, MaxCount: integer);
     procedure OnGetStream(Sender: TFileContentsStreamOnDemandClipboardFormat;
       Index: integer; out AStream: IStream);
     procedure OnProgress(Sender: TObject; Count, MaxCount: integer);
+    procedure MsgProgress(var Message: TMessage); message MSG_PROGRESS;
+    procedure MsgStatus(var Message: TMessage); message MSG_STATUS;
+    property Status: TDragDropStage read FStatus write SetStatus;
   public
   end;
 
@@ -58,12 +71,11 @@ implementation
 {$R *.DFM}
 
 uses
-  Messages,
   ShlObj,
   Graphics;
 
 const
-  TestFileSize = 1024*1024*10; // 10Mb
+  TestFileSize = 1024*1024*100; // 100Mb
 
 procedure TFormMain.FormCreate(Sender: TObject);
 begin
@@ -71,61 +83,13 @@ begin
   (DataFormatAdapterSource.DataFormat as TVirtualFileStreamDataFormat).OnGetStream := OnGetStream;
 
   StatusBar1.ControlStyle := StatusBar1.ControlStyle +[csAcceptsControls];
+  Status := dsIdle;
 (*
   // Reparent abort button to statusbar
   ButtonAbort.Top := 3;
   ButtonAbort.Height := StatusBar1.Height-4;
   ButtonAbort.Left := StatusBar1.Width-ButtonAbort.Width-1;
 *)
-end;
-
-procedure TFormMain.FormDestroy(Sender: TObject);
-begin
-  // Reparent abort button to form
-  Timer1.Enabled := False;
-end;
-
-procedure TFormMain.OnMouseDown(Sender: TObject; Button: TMouseButton;
-  Shift: TShiftState; X, Y: Integer);
-begin
-  StatusBar1.SimpleText := '';
-  if DragDetectPlus(Handle, Point(X, Y)) then
-  begin
-    StatusBar1.SimpleText := 'Dragging data';
-
-    // Transfer the file names to the data format. The content will be extracted
-    // by the target on-demand.
-    TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileNames.Clear;
-    TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileNames.Add('big text file.txt');
-    // Set the size and timestamp attributes of the filename we just added.
-    with PFileDescriptor(TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileDescriptors[0])^ do
-    begin
-      GetSystemTimeAsFileTime(ftLastWriteTime);
-      nFileSizeLow := TestFileSize;
-      nFileSizeHigh := 0; // I assume the test file doesn't grow beyond 4Gb...
-      dwFlags := FD_WRITESTIME or FD_FILESIZE or FD_PROGRESSUI;
-    end;
-
-    // Determine if we should perform an async drag or a normal drag.
-    if (RadioButtonAsync.Checked) then
-    begin
-      DoAbort := False;
-      ButtonAbort.Visible := True;
-      ButtonAbort.Enabled := True;
-
-      // Create a thread to perform the drag...
-      if (DropEmptySource1.Execute(True) = drAsync) then
-        StatusBar1.SimpleText := 'Asynchronous drag in progress...'
-      else
-        StatusBar1.SimpleText := 'Asynchronous drag failed'
-    end else
-    begin
-      // Perform a normal drag (in the main thread).
-      DropEmptySource1.Execute;
-
-      StatusBar1.SimpleText := 'Drop completed';
-    end;
-  end;
 end;
 
 procedure TFormMain.Timer1Timer(Sender: TObject);
@@ -181,24 +145,70 @@ begin
   DrawPie(Tick);
 end;
 
+procedure TFormMain.OnMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  Status := dsIdle;
+  if DragDetectPlus(Handle, Point(X, Y)) then
+  begin
+    Status := dsDrag;
+
+    // Transfer the file names to the data format.
+    // The content will be extracted by the target on-demand.
+    TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileNames.Clear;
+    TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileNames.Add('big text file.txt');
+    // Set the size and timestamp attributes of the filename we just added.
+    with PFileDescriptor(TVirtualFileStreamDataFormat(DataFormatAdapterSource.DataFormat).FileDescriptors[0])^ do
+    begin
+      GetSystemTimeAsFileTime(ftLastWriteTime);
+      nFileSizeLow := TestFileSize and $00000000FFFFFFFF;
+      nFileSizeHigh := (TestFileSize and $FFFFFFFF00000000) shr 32;
+      dwFlags := FD_WRITESTIME or FD_FILESIZE or FD_PROGRESSUI;
+    end;
+
+    // Determine if we should perform an async drag or a normal drag.
+    if (RadioButtonAsync.Checked) then
+    begin
+      FAbort := False;
+
+      // Perform an asynchronous drag (in a separate thread).
+      if (DropEmptySource1.Execute(True) = drAsync) then
+        Status := dsDragAsync
+      else
+        Status := dsDragAsyncFailed;
+    end else
+    begin
+      // Perform a normal drag (in the main thread).
+      DropEmptySource1.Execute;
+
+      Status := dsIdle;
+    end;
+  end;
+end;
+
 procedure TFormMain.DropEmptySource1Drop(Sender: TObject;
   DragType: TDragType; var ContinueDrop: Boolean);
 begin
-  StatusBar1.SimpleText := 'Target processing drop';
+  // Warning:
+  // This event will be called in the context of the transfer thread during an
+  // asynchronous transfer. See TFormMain.OnProgress for a comment on this.
+  Status := dsDrop;
 end;
 
 procedure TFormMain.DropEmptySource1AfterDrop(Sender: TObject;
   DragResult: TDragResult; Optimized: Boolean);
 begin
-  StatusBar1.SimpleText := 'Drop completed';
-  ButtonAbort.Visible := False;
+  Status := dsDropComplete;
 end;
 
 procedure TFormMain.DropEmptySource1GetData(Sender: TObject;
   const FormatEtc: tagFORMATETC; out Medium: tagSTGMEDIUM;
   var Handled: Boolean);
 begin
-  StatusBar1.SimpleText := 'Target reading data';
+  // Warning:
+  // This event will be called in the context of the transfer thread during an
+  // asynchronous transfer. See TFormMain.OnProgress for a comment on this.
+  Status := dsGetData;
 end;
 
 type
@@ -279,25 +289,26 @@ begin
   Result := 0;
 end;
 
-procedure TFormMain.OnGetStream(
-  Sender: TFileContentsStreamOnDemandClipboardFormat; Index: integer;
-  out AStream: IStream);
+procedure TFormMain.OnGetStream(Sender: TFileContentsStreamOnDemandClipboardFormat;
+  Index: integer; out AStream: IStream);
 var
   Stream: TStream;
 begin
-  // Note: This method might be called in the context of the transfer thread.
-  // See TFormMain.OnProgress for a comment on this.
+  // Warning:
+  // This method will be called in the context of the transfer thread during an
+  // asynchronous transfer. See TFormMain.OnProgress for a comment on this.
 
   // This event handler is called by TFileContentsStreamOnDemandClipboardFormat
   // when the drop target requests data from the drop source (that's us).
-  StatusBar1.SimpleText := 'Transfering data';
+  Status := dsGetStream;
 
-  // Create a stream which contains the data we will transfer...
-  // In this case we just create a dummy stream which contains 10Mb of 'X'
+  // In this demo we just create a dummy stream which contains 10Mb of 'X'
   // characters. In order to provide smoth feedback through the progress bar
   // (and slow the transfer down a bit) the stream will only transfer up to 32K
-  // at a time - Each time TStream.Read is called the progress bar is updated
+  // at a time - Each time TStream.Read is called, the progress bar is updated
   // via the stream's progress event.
+
+  // Create a stream which contains the data to transfer...
   Stream := TFakeStream.Create(TestFileSize, 32*1024);
   try
     TFakeStream(Stream).OnProgress := OnProgress;
@@ -309,28 +320,26 @@ begin
     raise;
   end;
 
-  ProgressBar1.Position := 0;
+  // Initialize progress bar
+  SetProgress(0, 0);
 end;
 
 procedure TFormMain.OnProgress(Sender: TObject; Count, MaxCount: integer);
 begin
-  // Note that during an asyncronous transfer, the progress event handler is
-  // being called in the context of the transfer thread. This means that this
-  // event handler should adhere to all the normal thread safety rules (i.e.
+  // Note that during an asynchronous transfer, some event handlers are
+  // being called in the context of the transfer thread. This means that these
+  // event handlers should adhere to all the normal thread safety rules (i.e.
   // don't call GDI or mess with non-thread safe objects).
 
   // Update progress bar to show how much data has been transfered so far.
-  // This isn't really thread safe since it modifies the form, but so far it
-  // hasn't crashed on me.
-  ProgressBar1.Max := MaxCount;
-  ProgressBar1.Position := Count;
-  if (DoAbort) then
+  SetProgress(Count, MaxCount);
+  if (FAbort) then
     TFakeStream(Sender).Abort;
 end;
 
 procedure TFormMain.ButtonAbortClick(Sender: TObject);
 begin
-  DoAbort := True;
+  FAbort := True;
   TButton(Sender).Enabled := False;
 end;
 
@@ -338,6 +347,74 @@ procedure TFormMain.StatusBar1Resize(Sender: TObject);
 begin
   // This is nescessary to get controls inside TStatusBar to honour Anchors.
   StatusBar1.Realign;
+end;
+
+procedure TFormMain.MsgProgress(var Message: TMessage);
+begin
+  SetProgress(Message.WParam, Message.LParam);
+end;
+
+procedure TFormMain.SetProgress(Count, MaxCount: integer);
+begin
+  // Make sure GUI updates are performed in the main thread.
+  if (GetCurrentThreadID <> MainThreadID) then
+  begin
+    PostMessage(Handle, MSG_PROGRESS, Count, MaxCount);
+    exit;
+  end;
+
+  ProgressBar1.Max := MaxCount;
+  ProgressBar1.Position := Count;
+end;
+
+procedure TFormMain.MsgStatus(var Message: TMessage);
+begin
+  SetStatus(TDragDropStage(Message.WParam));
+end;
+
+procedure TFormMain.SetStatus(const Value: TDragDropStage);
+begin
+  // Make sure GUI updates are performed in the main thread.
+  if (GetCurrentThreadID <> MainThreadID) then
+  begin
+    PostMessage(Handle, MSG_STATUS, ord(Value), 0);
+    exit;
+  end;
+
+  if (FStatus <> Value) then
+  begin
+    FStatus := Value;
+    case FStatus of
+      dsIdle:
+        StatusBar1.SimpleText := 'Ready';
+      dsDrag:
+        StatusBar1.SimpleText := 'Drag in progress';
+      dsDragAsync:
+        StatusBar1.SimpleText := 'Asynchronous drag started';
+      dsDragAsyncFailed:
+        StatusBar1.SimpleText := 'Asynchronous drag failed';
+      dsDrop:
+        begin
+          StatusBar1.SimpleText := 'Data dropped';
+          if (RadioButtonAsync.Checked) then
+          begin
+            ButtonAbort.Visible := True;
+            ButtonAbort.Enabled := True;
+          end;
+        end;
+      dsGetData:
+        StatusBar1.SimpleText := 'Target reading data';
+      dsGetStream:
+        StatusBar1.SimpleText := 'Source writing data';
+      dsDropComplete:
+        begin
+          StatusBar1.SimpleText := 'Drop completed';
+          ButtonAbort.Visible := False;
+        end;
+    else
+      StatusBar1.SimpleText := '';
+    end;
+  end;
 end;
 
 end.

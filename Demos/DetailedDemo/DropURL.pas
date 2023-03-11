@@ -126,7 +126,7 @@ var
   DragImage: TBitmap;
 begin
   // Wait for user to move cursor before we start the drag/drop.
-  if (DragDetectPlus(TWincontrol(Sender).Handle, Point(X,Y))) then
+  if (DragDetectPlus(TWincontrol(Sender))) then
   begin
     // This demonstrates how to create a drag image based on the source control.
     // Note: DropURLSource1.Images = ImageList1
@@ -185,18 +185,13 @@ begin
   if (Button = mbRight) or (TImage(Sender).Picture.Graphic = nil) then
     exit;
 
+  // First convert the mouse coordinates from Image relative coordinates
+  // to screen coordinates.
+  p := TControl(Sender).ClientToScreen(Point(X,Y));
+
   // Since the TImage component hasn't got a window handle, we must
   // use the TPanel behind it instead...
-  // First convert the mouse coordinates from Image relative coordinates
-  // to screen coordinates...
-  p := Point(X,Y);
-  p := TImage(Sender).ClientToScreen(p);
-  // ...and then back to to TPanel relative ones.
-  p := TImage(Sender).Parent.ScreenToClient(p);
-
-  // Now that the coordinates are relative to the panel, we can use
-  // the panel's window handle for DragDetectPlus:
-  if (DragDetectPlus(TImage(Sender).Parent.Handle, Point(X,Y))) then
+  if (DragDetectPlus(TImage(Sender).Parent.Handle, p)) then
   begin
     // Freeze clipboard contents if we have live data on it.
     // This is only nescessary because the TGraphic based data formats (such as

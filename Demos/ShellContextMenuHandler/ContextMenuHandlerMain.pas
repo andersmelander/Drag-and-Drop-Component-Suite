@@ -11,7 +11,7 @@ uses
   Forms, ShlObj, SysUtils, Classes, Menus, Graphics, Windows, ImgList,
   Controls;
 
-{$include '..\..\Components\DragDrop.inc'}
+{$include 'DragDrop.inc'}
 
 {$ifndef VER13_PLUS}
 type

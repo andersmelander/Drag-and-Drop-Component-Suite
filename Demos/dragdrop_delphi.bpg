@@ -9,13 +9,13 @@ MAKE = $(ROOT)\bin\make.exe -$(MAKEFLAGS) -f$**
 DCC = $(ROOT)\bin\dcc32.exe $**
 BRCC = $(ROOT)\bin\brcc32.exe $**
 #------------------------------------------------------------------------------
-PROJECTS = SimpleSourceDemo.exe SimpleTargetDemo.exe DragDropDemo.exe \
-  MultiTarget.exe ComboTargetDemo.exe Adapter.exe CustomFormat1.exe \
-  CustomFormat2.exe AutoScroll.exe ExtractDemo.exe NetscapeDemo.exe \
-  OutlookDemo.exe PIDLDemo.exe VirtualFile.exe VirtualFileStream.exe \
-  AsyncTransferSource.exe AsyncTransferTarget.exe \
-  SimpleContextMenuHandlerShellExt.dll ContextMenuHandlerShellExt.exe \
-  DragDropHandlerShellExt.dll DropHandlerShellExt.dll FoobarEdit.exe
+PROJECTS = SimpleSourceDemo.exe SimpleTargetDemo.exe MultiTarget.exe \
+  ComboTargetDemo.exe Adapter.exe CustomFormat1.exe CustomFormat2.exe \
+  AutoScroll.exe ExtractDemo.exe OutlookDemo.exe PIDLDemo.exe VirtualFile.exe \
+  VirtualFileStream.exe AsyncTransferSource.exe AsyncTransferTarget.exe \
+  SourceAnalyzer.exe SimpleContextMenuHandlerShellExt.dll \
+  ContextMenuHandlerShellExt.exe DragDropHandlerShellExt.dll \
+  DropHandlerShellExt.dll FoobarEdit.exe DragDropDemo.exe
 #------------------------------------------------------------------------------
 default: $(PROJECTS)
 #------------------------------------------------------------------------------
@@ -74,9 +74,6 @@ AsyncTransferSource.exe: AsyncSource\AsyncTransferSource.dpr
 DragDropHandlerShellExt.dll: ShellDragDropHandler\DragDropHandlerShellExt.dpr
   $(DCC)
 
-NetscapeDemo.exe: NetscapeDemo\NetscapeDemo.dpr
-  $(DCC)
-
 SimpleContextMenuHandlerShellExt.dll: ShellContextMenuHandlerSimple\SimpleContextMenuHandlerShellExt.dpr
   $(DCC)
 
@@ -84,6 +81,9 @@ AsyncTransferTarget.exe: AsyncTarget\AsyncTransferTarget.dpr
   $(DCC)
 
 OutlookDemo.exe: Outlook\OutlookDemo.dpr
+  $(DCC)
+
+SourceAnalyzer.exe: SourceAnalyzer\SourceAnalyzer.dpr
   $(DCC)
 
 

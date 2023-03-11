@@ -1,10 +1,9 @@
 object FormAutoScroll: TFormAutoScroll
   Left = 251
   Top = 176
-  AutoScroll = False
+  Width = 436
+  Height = 443
   Caption = 'Custom auto scroll demo'
-  ClientHeight = 409
-  ClientWidth = 428
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -12,7 +11,6 @@ object FormAutoScroll: TFormAutoScroll
   Font.Name = 'Arial'
   Font.Style = []
   OldCreateOrder = False
-  Position = poDefaultPosOnly
   OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 14
@@ -33,8 +31,10 @@ object FormAutoScroll: TFormAutoScroll
       Height = 215
       Align = alClient
       ColCount = 50
+      Ctl3D = False
       RowCount = 26
       Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goThumbTracking]
+      ParentCtl3D = False
       TabOrder = 0
       RowHeights = (
         24
@@ -124,7 +124,6 @@ object FormAutoScroll: TFormAutoScroll
   object DropTextSource1: TDropTextSource
     DragTypes = [dtCopy]
     OnFeedback = DropTextSource1Feedback
-    Locale = 0
     Left = 24
     Top = 8
   end

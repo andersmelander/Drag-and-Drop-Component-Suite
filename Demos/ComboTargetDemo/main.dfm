@@ -1,6 +1,6 @@
 object FormMain: TFormMain
-  Left = 142
-  Top = 172
+  Left = 250
+  Top = 194
   AutoScroll = False
   Caption = 'ComboTarget Demo'
   ClientHeight = 371

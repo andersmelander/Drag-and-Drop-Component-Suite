@@ -1,9 +1,9 @@
 object Form1: TForm1
   Left = 236
   Top = 162
+  Width = 395
+  Height = 292
   Caption = 'Simple Source Demo'
-  ClientHeight = 258
-  ClientWidth = 387
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -29,7 +29,6 @@ object Form1: TForm1
       Top = 13
       Width = 246
       Height = 13
-      Margins.Bottom = 0
       Caption = 'Drag files from this Listbox onto Windows Explorer ...'
     end
   end
@@ -42,9 +41,6 @@ object Form1: TForm1
     BevelOuter = bvNone
     Caption = ' '
     TabOrder = 1
-    DesignSize = (
-      387
-      41)
     object ButtonClose: TButton
       Left = 157
       Top = 8
@@ -68,14 +64,15 @@ object Form1: TForm1
         Caption = 'Filenames'
         Width = 380
       end>
+    ColumnClick = False
     MultiSelect = True
+    ReadOnly = True
     TabOrder = 2
     ViewStyle = vsReport
     OnMouseDown = ListView1MouseDown
   end
   object DropFileSource1: TDropFileSource
-    DragTypes = [dtCopy, dtLink]
-    AllowAsyncTransfer = True
+    DragTypes = [dtCopy, dtMove, dtLink]
     Left = 355
     Top = 224
   end

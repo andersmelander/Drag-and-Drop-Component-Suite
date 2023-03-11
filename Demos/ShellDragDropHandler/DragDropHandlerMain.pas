@@ -6,7 +6,7 @@ uses
   DragDrop, DropTarget, DragDropHandler, DragDropContext,
   Forms, ShlObj, SysUtils, Classes, Menus;
 
-{$include '..\..\Components\DragDrop.inc'}
+{$include 'DragDrop.inc'}
 
 {$ifndef VER13_PLUS}
 type

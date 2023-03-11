@@ -1,10 +1,10 @@
 object FormOutlookTarget: TFormOutlookTarget
   Left = 373
   Top = 288
-  AutoScroll = False
+  Width = 680
+  Height = 427
+  ActiveControl = MemoBody
   Caption = 'Outlook drop target demo'
-  ClientHeight = 393
-  ClientWidth = 672
   Color = clBtnFace
   Constraints.MinWidth = 200
   Font.Charset = DEFAULT_CHARSET
@@ -13,7 +13,6 @@ object FormOutlookTarget: TFormOutlookTarget
   Font.Name = 'MS Sans Serif'
   Font.Style = []
   OldCreateOrder = False
-  Position = poDefaultPosOnly
   ShowHint = True
   OnCreate = FormCreate
   OnDestroy = FormDestroy

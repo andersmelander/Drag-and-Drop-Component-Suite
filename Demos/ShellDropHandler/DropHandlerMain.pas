@@ -6,7 +6,7 @@ uses
   DragDrop, DropTarget, DragDropFile, DropHandler,
   Forms, ActiveX, Classes, Windows;
 
-{$include '..\..\Components\DragDrop.inc'}
+{$include 'DragDrop.inc'}
 
 {$ifndef VER13_PLUS}
 type

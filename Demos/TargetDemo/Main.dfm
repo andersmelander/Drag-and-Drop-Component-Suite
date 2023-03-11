@@ -1,10 +1,9 @@
 object Form1: TForm1
   Left = 286
   Top = 171
-  AutoScroll = False
+  Width = 402
+  Height = 288
   Caption = 'Simple Target Demo'
-  ClientHeight = 254
-  ClientWidth = 394
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -74,7 +73,7 @@ object Form1: TForm1
     ViewStyle = vsReport
   end
   object DropFileTarget1: TDropFileTarget
-    DragTypes = [dtCopy, dtLink]
+    DragTypes = [dtCopy, dtMove, dtLink]
     OnDrop = DropFileTarget1Drop
     Target = ListView1
     OptimizedMove = True

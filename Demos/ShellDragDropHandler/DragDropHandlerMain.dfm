@@ -1,7 +1,5 @@
 object DataModuleDragDropHandler: TDataModuleDragDropHandler
   OldCreateOrder = False
-  Left = 285
-  Top = 161
   Height = 479
   Width = 741
   object PopupMenu1: TPopupMenu

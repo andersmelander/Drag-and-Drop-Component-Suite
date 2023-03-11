@@ -1,6 +1,6 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <ProjectGuid>{eb921022-d95d-4231-a20f-de282686472c}</ProjectGuid>
+    <ProjectGuid>{ea08f370-a1c6-4e2f-9994-53632e63d240}</ProjectGuid>
     <MainSource>SimpleSourceDemo.dpr</MainSource>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -18,10 +18,13 @@
     <DCC_TypedAtParameter>True</DCC_TypedAtParameter>
     <DCC_GenerateStackFrames>True</DCC_GenerateStackFrames>
     <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
-    <DCC_UnitSearchPath>$(DELPHI)\Lib\Debug</DCC_UnitSearchPath>
-    <DCC_ResourcePath>$(DELPHI)\Lib\Debug</DCC_ResourcePath>
-    <DCC_ObjPath>$(DELPHI)\Lib\Debug</DCC_ObjPath>
-    <DCC_IncludePath>$(DELPHI)\Lib\Debug</DCC_IncludePath>
+    <DCC_DcuOutput>.</DCC_DcuOutput>
+    <DCC_ObjOutput>.</DCC_ObjOutput>
+    <DCC_HppOutput>.</DCC_HppOutput>
+    <DCC_UnitSearchPath>$(DELPHI)\Lib\Debug;..\..\Source</DCC_UnitSearchPath>
+    <DCC_ResourcePath>$(DELPHI)\Lib\Debug;..\..\Source</DCC_ResourcePath>
+    <DCC_ObjPath>$(DELPHI)\Lib\Debug;..\..\Source</DCC_ObjPath>
+    <DCC_IncludePath>$(DELPHI)\Lib\Debug;..\..\Source</DCC_IncludePath>
     <DCC_Define>RELEASE</DCC_Define>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -32,61 +35,22 @@
     <DCC_RangeChecking>True</DCC_RangeChecking>
     <DCC_TypedAtParameter>True</DCC_TypedAtParameter>
     <DCC_GenerateStackFrames>True</DCC_GenerateStackFrames>
-    <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
-    <DCC_UnitSearchPath>$(DELPHI)\Lib\Debug;..\..\Components</DCC_UnitSearchPath>
-    <DCC_ResourcePath>$(DELPHI)\Lib\Debug;..\..\Components</DCC_ResourcePath>
-    <DCC_ObjPath>$(DELPHI)\Lib\Debug;..\..\Components</DCC_ObjPath>
-    <DCC_IncludePath>$(DELPHI)\Lib\Debug;..\..\Components</DCC_IncludePath>
-    <DCC_Define>DEBUG</DCC_Define>
-    <DCC_ExeOutput>.</DCC_ExeOutput>
+    <DCC_SymbolReferenceInfo>2</DCC_SymbolReferenceInfo>
     <DCC_DcuOutput>.</DCC_DcuOutput>
     <DCC_ObjOutput>.</DCC_ObjOutput>
     <DCC_HppOutput>.</DCC_HppOutput>
+    <DCC_UnitSearchPath>$(BDS)\lib\Debug;$(BDS)\Lib\Debug\Indy10;$(DELPHI)\Lib\Debug;..\..\Source</DCC_UnitSearchPath>
+    <DCC_ResourcePath>$(BDS)\lib\Debug;$(BDS)\Lib\Debug\Indy10;$(DELPHI)\Lib\Debug;..\..\Source</DCC_ResourcePath>
+    <DCC_ObjPath>$(BDS)\lib\Debug;$(BDS)\Lib\Debug\Indy10;$(DELPHI)\Lib\Debug;..\..\Source</DCC_ObjPath>
+    <DCC_IncludePath>$(BDS)\lib\Debug;$(BDS)\Lib\Debug\Indy10;$(DELPHI)\Lib\Debug;..\..\Source</DCC_IncludePath>
+    <DCC_Define>DEBUG</DCC_Define>
+    <DCC_ExeOutput>.</DCC_ExeOutput>
   </PropertyGroup>
   <ProjectExtensions>
     <Borland.Personality>Delphi.Personality</Borland.Personality>
     <Borland.ProjectType>VCLApplication</Borland.ProjectType>
     <BorlandProject>
-<BorlandProject xmlns=""> <Delphi.Personality>   <Parameters>
-      <Parameters Name="RunParams">xxx</Parameters>
-      <Parameters Name="HostApplication">C:\WINNT\NOTEPAD.EXE</Parameters>
-      <Parameters Name="UseLauncher">False</Parameters>
-      <Parameters Name="LoadAllSymbols">True</Parameters>
-      <Parameters Name="LoadUnspecifiedSymbols">False</Parameters>
-    </Parameters>
-    <VersionInfo>
-      <VersionInfo Name="IncludeVerInfo">False</VersionInfo>
-      <VersionInfo Name="AutoIncBuild">False</VersionInfo>
-      <VersionInfo Name="MajorVer">4</VersionInfo>
-      <VersionInfo Name="MinorVer">0</VersionInfo>
-      <VersionInfo Name="Release">3</VersionInfo>
-      <VersionInfo Name="Build">6</VersionInfo>
-      <VersionInfo Name="Debug">False</VersionInfo>
-      <VersionInfo Name="PreRelease">False</VersionInfo>
-      <VersionInfo Name="Special">False</VersionInfo>
-      <VersionInfo Name="Private">False</VersionInfo>
-      <VersionInfo Name="DLL">False</VersionInfo>
-      <VersionInfo Name="Locale">1030</VersionInfo>
-      <VersionInfo Name="CodePage">1252</VersionInfo>
-    </VersionInfo>
-    <VersionInfoKeys>
-      <VersionInfoKeys Name="CompanyName">Anders Melander</VersionInfoKeys>
-      <VersionInfoKeys Name="FileDescription">Drag Drop Source Demo</VersionInfoKeys>
-      <VersionInfoKeys Name="FileVersion">4.0.3.6</VersionInfoKeys>
-      <VersionInfoKeys Name="InternalName">SimpleSourceDemo</VersionInfoKeys>
-      <VersionInfoKeys Name="LegalCopyright">© 1997-2000 Anders Melander</VersionInfoKeys>
-      <VersionInfoKeys Name="LegalTrademarks"></VersionInfoKeys>
-      <VersionInfoKeys Name="OriginalFilename">SimpleSourceDemo.exe</VersionInfoKeys>
-      <VersionInfoKeys Name="ProductName">Drag and Drop Component Suite</VersionInfoKeys>
-      <VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys>
-      <VersionInfoKeys Name="Comments">This is freeware - Use as you please!</VersionInfoKeys>
-      <VersionInfoKeys Name="mailto">anders@melander.dk</VersionInfoKeys>
-      <VersionInfoKeys Name="URL">http://www.melander.dk</VersionInfoKeys>
-    </VersionInfoKeys>
-    <Source>
-      <Source Name="MainSource">SimpleSourceDemo.dpr</Source>
-    </Source>
-  </Delphi.Personality> </BorlandProject></BorlandProject>
+<BorlandProject><Delphi.Personality><Parameters><Parameters Name="RunParams">xxx</Parameters><Parameters Name="HostApplication">C:\WINNT\NOTEPAD.EXE</Parameters><Parameters Name="UseLauncher">False</Parameters><Parameters Name="LoadAllSymbols">True</Parameters><Parameters Name="LoadUnspecifiedSymbols">False</Parameters></Parameters><VersionInfo><VersionInfo Name="IncludeVerInfo">False</VersionInfo><VersionInfo Name="AutoIncBuild">False</VersionInfo><VersionInfo Name="MajorVer">4</VersionInfo><VersionInfo Name="MinorVer">0</VersionInfo><VersionInfo Name="Release">3</VersionInfo><VersionInfo Name="Build">6</VersionInfo><VersionInfo Name="Debug">False</VersionInfo><VersionInfo Name="PreRelease">False</VersionInfo><VersionInfo Name="Special">False</VersionInfo><VersionInfo Name="Private">False</VersionInfo><VersionInfo Name="DLL">False</VersionInfo><VersionInfo Name="Locale">1030</VersionInfo><VersionInfo Name="CodePage">1252</VersionInfo></VersionInfo><VersionInfoKeys><VersionInfoKeys Name="CompanyName">Anders Melander</VersionInfoKeys><VersionInfoKeys Name="FileDescription">Drag Drop Source Demo</VersionInfoKeys><VersionInfoKeys Name="FileVersion">4.0.3.6</VersionInfoKeys><VersionInfoKeys Name="InternalName">SimpleSourceDemo</VersionInfoKeys><VersionInfoKeys Name="LegalCopyright">© 1997-2000 Anders Melander</VersionInfoKeys><VersionInfoKeys Name="LegalTrademarks"></VersionInfoKeys><VersionInfoKeys Name="OriginalFilename">SimpleSourceDemo.exe</VersionInfoKeys><VersionInfoKeys Name="ProductName">Drag and Drop Component Suite</VersionInfoKeys><VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys><VersionInfoKeys Name="Comments">This is freeware - Use as you please!</VersionInfoKeys><VersionInfoKeys Name="mailto">anders@melander.dk</VersionInfoKeys><VersionInfoKeys Name="URL">http://www.melander.dk</VersionInfoKeys></VersionInfoKeys><Source><Source Name="MainSource">SimpleSourceDemo.dpr</Source></Source></Delphi.Personality></BorlandProject></BorlandProject>
   </ProjectExtensions>
   <Import Project="$(MSBuildBinPath)\Borland.Delphi.Targets" />
   <ItemGroup>

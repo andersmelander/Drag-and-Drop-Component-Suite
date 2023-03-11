@@ -11,14 +11,13 @@ object FormMain: TFormMain
   Font.Name = 'Arial'
   Font.Style = []
   OldCreateOrder = False
-  Position = poDefaultPosOnly
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 14
   object StatusBar1: TStatusBar
     Left = 0
-    Top = 349
+    Top = 342
     Width = 573
     Height = 19
     Panels = <>
@@ -29,7 +28,7 @@ object FormMain: TFormMain
   end
   object ProgressBar1: TProgressBar
     Left = 0
-    Top = 334
+    Top = 327
     Width = 573
     Height = 15
     Align = alBottom
@@ -84,7 +83,7 @@ object FormMain: TFormMain
     Left = 0
     Top = 105
     Width = 573
-    Height = 229
+    Height = 222
     Cursor = crHandPoint
     Align = alClient
     BevelOuter = bvNone
@@ -95,7 +94,7 @@ object FormMain: TFormMain
       Left = 0
       Top = 0
       Width = 109
-      Height = 229
+      Height = 222
       Align = alLeft
       BevelOuter = bvLowered
       Caption = ' '
@@ -105,7 +104,7 @@ object FormMain: TFormMain
         Left = 1
         Top = 1
         Width = 107
-        Height = 227
+        Height = 220
         Align = alClient
       end
     end
@@ -113,7 +112,7 @@ object FormMain: TFormMain
       Left = 109
       Top = 0
       Width = 464
-      Height = 229
+      Height = 222
       Align = alClient
       BevelOuter = bvLowered
       BorderWidth = 8

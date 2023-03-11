@@ -16,3 +16,7 @@ While asynchronous drop targets (see the AsyncTransferTarget application)
 requires the cooperation of the drop source, an asynchronous drop source can
 perform its magic independently of the drop target.
 
+Note that since the Drag and Drop Component Suite, and thus this demo, supports
+asynchronous drop targets, you will not notice any difference between the two
+modes of operation demonstrated by this application if you drop onto an
+application that supports asynchronous transfer, such as the Windows Explorer.
