@@ -611,7 +611,6 @@ type
     destructor Destroy; override;
     property Files: TUnicodeStrings read GetFiles;
     property MappedNames: TUnicodeStrings read GetMappedNames;
-    property OptimizedMove default True;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3184,7 +3183,6 @@ end;
 constructor TDropFileTarget.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  OptimizedMove := True;
 
   FFileFormat := TFileDataFormat.Create(Self);
   FFileMapFormat := TFileMapDataFormat.Create(Self);
