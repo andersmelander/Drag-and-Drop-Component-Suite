@@ -1,6 +1,6 @@
 object FormOutlookTarget: TFormOutlookTarget
-  Left = 373
-  Top = 288
+  Left = 348
+  Top = 343
   ActiveControl = MemoBody
   Caption = 'Outlook drop target demo'
   ClientHeight = 393

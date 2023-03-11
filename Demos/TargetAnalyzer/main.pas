@@ -69,6 +69,7 @@ type
     FStartTime: DWORD;
 //    FDragContextClipboardFormatID: TClipFormat;
     FFormats: array of TRequestedFormat;
+    FAbortCount: integer;
     procedure Trace(Kind: TTraceKind; const Action: string; const Details: string = '');
     procedure AddClipboardFormat(Format: TClipFormat; Medium: integer);
     procedure OnQueryGetData(const FormatEtc: TFormatEtc; var Result: HRESULT; var Handled: boolean);
@@ -212,6 +213,7 @@ begin
 //    TFileDataFormat(DataFormatAdapter1.DataFormat).Files.Text := Application.ExeName;
 
   FStartTime := GetTickCount;
+  FAbortCount := 0;
   Trace(tkSourceBegin, 'DropSource.CopyToClipboard');
   DragResult := DropEmptySource1.CopyToClipboard;
   Trace(tkSourceEnd, 'DropSource.CopyToClipboard', sCopyResult[DragResult]);
@@ -302,6 +304,11 @@ begin
   Trace(tkTargetEnd, 'IDataObject.QueryGetData', Format('%d: %s on %s', [FormatEtc.cfFormat, GetClipboardFormatNameStr(FormatEtc.cfFormat), GetMediaName(FormatEtc.tymed)]));
   Result := S_OK;
   Handled := True;
+
+  if (GetAsyncKeyState(VK_ESCAPE) and $0001 = $0001) then
+    inc(FAbortCount);
+  if (FAbortCount >= 3) then
+    Result := E_UNEXPECTED;
 end;
 
 procedure TFormTarget.Panel1MouseDown(Sender: TObject; Button: TMouseButton;
@@ -320,8 +327,9 @@ begin
       TFileDataFormat(DataFormatAdapter1.DataFormat).Files.Text := Application.ExeName;
 
     FStartTime := GetTickCount;
+    FAbortCount := 0;
     Trace(tkSourceBegin, 'DropSource.Execute (DoDragDrop)');
-    DragResult := DropEmptySource1.Execute;
+    DragResult := DropEmptySource1.Execute(True);
     Trace(tkSourceEnd, 'DropSource.Execute (DoDragDrop)', sDragResult[DragResult]);
   end;
 end;
@@ -342,12 +350,18 @@ var
   Delta: DWORD;
 begin
   Delta := GetTickCount-FStartTime;
-  Item := ListViewTrace.Items.Add;
-  Item.Caption := Format('%d.%.3d', [Delta div 1000, Delta mod 1000]);
-  Item.ImageIndex := ord(Kind);
-  Item.SubItems.Add(Action);
-  Item.SubItems.Add(Details);
+  ListViewTrace.Items.BeginUpdate;
+  try
+    Item := ListViewTrace.Items.Add;
+    Item.Caption := Format('%d.%.3d', [Delta div 1000, Delta mod 1000]);
+    Item.ImageIndex := ord(Kind);
+    Item.SubItems.Add(Action);
+    Item.SubItems.Add(Details);
+  finally
+    ListViewTrace.Items.EndUpdate;
+  end;
   Item.MakeVisible(False);
+  ListViewTrace.Update;
 end;
 
 { TDragContextClipboardFormat }

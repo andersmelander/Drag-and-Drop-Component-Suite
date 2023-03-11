@@ -661,10 +661,14 @@ function ShiftStateToDropEffect(Shift: TShiftState; AllowedEffects: longint;
   Fallback: boolean): longint;
 
 // Replacement for the buggy DragDetect API function.
-function DragDetectPlus(Handle: THandle; Position: TPoint): boolean;  overload; // V4: New
+// Differences from DragDetect:
+// - Does not eat mouse messages. I.e. leaves mouse-down and mouse-up messages
+//   in the message queue.
+// - Works with both left and right mouse button.
+function DragDetectPlus(Handle: THandle; Position: TPoint): boolean;  overload;
 function DragDetectPlus(Handle: THandle): boolean; overload;
-function DragDetectPlus(Control: TWinControl; Position: TPoint): boolean;  overload; // V4: New
-function DragDetectPlus(Control: TWinControl): boolean;  overload; // V4: New
+function DragDetectPlus(Control: TWinControl; Position: TPoint): boolean;  overload;
+function DragDetectPlus(Control: TWinControl): boolean;  overload;
 
 
 // Wrapper for urlmon.CopyStgMedium.
@@ -2222,7 +2226,17 @@ begin
   Result := DragDetectPlus(Handle, Position);
 end;
 
+{.$define DEBUG_DRAGDETECT}
 function DragDetectPlus(Handle: THandle; Position: TPoint): boolean;
+{$ifdef DEBUG_DRAGDETECT}
+  function GetCapture: THandle;
+  begin
+    Result := Handle;
+  end;
+  procedure SetCapture(Handle: THandle);
+  begin
+  end;
+{$endif DEBUG_DRAGDETECT}
 var
   DragRect: TRect;
   Msg: TMsg;
@@ -2251,10 +2265,12 @@ begin
         exit;
   end;
 
-  // Check asynchronous mouse state, and punt if the mouse isn't down.
-  if (GetAsyncKeyState(VK_LBUTTON) AND $8000 = 0) and
-    (GetAsyncKeyState(VK_RBUTTON) AND $8000 = 0) then
+  // Check mouse state, and punt if the mouse isn't down.
+{$ifndef DEBUG_DRAGDETECT}
+  if ((GetKeyState(VK_LBUTTON) AND $8000) = 0) and
+    ((GetKeyState(VK_RBUTTON) AND $8000) = 0) then
     exit;
+{$endif DEBUG_DRAGDETECT}
 
   // Calculate the drag rect.
   // If the mouse leaves this rect, while the mouse button is pressed, a drag is
@@ -2277,11 +2293,17 @@ begin
     begin
       // Wait for mouse or keyboard events.
       // - but do not eat mouse button messages (so we don't break popup menus etc).
-      if (PeekMessage(Msg, 0, WM_LBUTTONDOWN, WM_MBUTTONDBLCLK, PM_NOREMOVE)) then
+      if (PeekMessage(Msg, 0, WM_LBUTTONDOWN, WM_LBUTTONUP, PM_NOREMOVE)) or
+        (PeekMessage(Msg, 0, WM_RBUTTONDOWN, WM_RBUTTONUP, PM_NOREMOVE)) or
+        (PeekMessage(Msg, 0, WM_MBUTTONDOWN, WM_MBUTTONUP, PM_NOREMOVE)) then
+      begin
         // Mouse button was changed - bail out.
-        break;
+        exit;
+      end;
 
-      while (not PeekMessage(Msg, 0, WM_LBUTTONDOWN, WM_MBUTTONDBLCLK, PM_NOREMOVE)) and
+      while (not PeekMessage(Msg, 0, WM_LBUTTONDOWN, WM_LBUTTONUP, PM_NOREMOVE)) and
+        (not PeekMessage(Msg, 0, WM_RBUTTONDOWN, WM_RBUTTONUP, PM_NOREMOVE)) and
+        (not PeekMessage(Msg, 0, WM_MBUTTONDOWN, WM_MBUTTONUP, PM_NOREMOVE)) and
        (not PeekMessage(Msg, 0, 0, 0, PM_REMOVE or PM_QS_KEY or PM_QS_MOUSEMOVE)) and
         (GetCapture = Handle) do
       begin

@@ -27,10 +27,15 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure DropFileSource1AfterDrop(Sender: TObject;
       DragResult: TDragResult; Optimized: Boolean);
+    procedure DropFileSource1GetData(Sender: TObject;
+      const FormatEtc: tagFORMATETC; out Medium: tagSTGMEDIUM;
+      var Handled: Boolean);
   private
-    TempPath: string; // path to temp folder
-    ExtractedFiles: TStringList;
+    FTempPath: string; // path to temp folder
+    FExtractedFiles: TStringList;
+    FHasExtracted: boolean;
     procedure ExtractFile(FileIndex: integer; Filename: string);
+    procedure ExtractFiles;
     procedure RemoveFile(FileIndex: integer);
   public
     { Public declarations }
@@ -90,17 +95,17 @@ end;
 procedure TFormMain.FormCreate(Sender: TObject);
 begin
   // Get path to temporary directory
-  TempPath := GetTempPath;
+  FTempPath := GetTempPath;
   // List of all extracted files
-  ExtractedFiles := TStringList.Create;
+  FExtractedFiles := TStringList.Create;
 end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
 var
   i: integer;
 begin
-  // Before we exit, we make sure that we aren't leaving any extracted
-  // files behind. Since it is the drop target's responsibility to
+  // Before we exit, we make sure that we aren't leaving any of the files we
+  // created behind. Since it is the drop target's responsibility to
   // clean up after an optimized drag/move operation, we might get away with
   // just deleting all drag/copied files, but since many ill behaved drop
   // targets doesn't clean up after them selves, we will do it for them
@@ -108,17 +113,17 @@ begin
   // this step.
   // Note that this means that you shouldn't exit this application before
   // the drop target has had a chance of actually copy/move the files.
-  for i := 0 to ExtractedFiles.Count-1 do
-    if (FileExists(ExtractedFiles[i])) then
+  for i := 0 to FExtractedFiles.Count-1 do
+    if (FileExists(FExtractedFiles[i])) then
       try
-        DeleteFile(ExtractedFiles[i]);
+        DeleteFile(FExtractedFiles[i]);
       except
         // Ignore any errors we might get
       end;
   // Note: We should also remove any folders we created, but this example
   // doesn't do that.
 
-  ExtractedFiles.Free;
+  FExtractedFiles.Free;
 end;
 
 procedure TFormMain.ButtonCloseClick(Sender: TObject);
@@ -174,16 +179,18 @@ begin
           // Item is a subfolder...
 
           // Get the top level subfolder.
-          s := copy(Listview1.Items[i].Caption, 1, j-1);
+          s := Copy(Listview1.Items[i].Caption, 1, j-1);
 
           // Add folder if it hasn't already been done.
-          if DropFileSource1.Files.IndexOf(TempPath + s) = -1 then
-            DropFileSource1.Files.Add(TempPath + s);
+          if DropFileSource1.Files.IndexOf(FTempPath + s) = -1 then
+            DropFileSource1.Files.Add(FTempPath + s);
         end else
           // [B]
           // Item is a file in the root folder...
-          DropFileSource1.Files.Add(TempPath + Listview1.Items[i].Caption);
+          DropFileSource1.Files.Add(FTempPath + Listview1.Items[i].Caption);
       end;
+
+    FHasExtracted := False;
 
     // Start the drag operation...
     DropFileSource1.Execute;
@@ -200,8 +207,6 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 procedure TFormMain.DropFileSource1Drop(Sender: TObject; DragType: TDragType;
   var ContinueDrop: Boolean);
-var
-  i			: integer;
 begin
   // If the user actually dropped the filenames somewhere, we would now
   // have to extract the files from the archive. The files should be
@@ -209,14 +214,33 @@ begin
   // in the drag operation. Otherwise the drop source will not be able
   // to find the files.
 
-  // 'Extract' all the selected files into the temporary folder tree...
-  for i := Listview1.Items.Count-1 downto 0 do
-    if (Listview1.Items[i].Selected) then
-      ExtractFile(i, TempPath + Listview1.Items[i].Caption);
+  ExtractFiles;
 
   // As soon as this method returns, the destination's (e.g. Explorer's)
   // DropTarget.OnDrop event will trigger and the destination will
   // start copying/moving the files.
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//		OnGetData handler.
+//
+////////////////////////////////////////////////////////////////////////////////
+// Executes when the drop target requests data from the drop source.
+//
+// This is a good place to create the physical files so they are actually
+// present when the filenames are returned to the drop target.
+// Even though it would be more efficient to only create the files in the OnDrop
+// handler, some drop targets expect the files to be present and valid at the
+// time the cursor enters the drop target (i.e. at the time IDataObject.GetData
+// is first called).
+////////////////////////////////////////////////////////////////////////////////
+procedure TFormMain.DropFileSource1GetData(Sender: TObject;
+  const FormatEtc: tagFORMATETC; out Medium: tagSTGMEDIUM;
+  var Handled: Boolean);
+begin
+  if (FormatEtc.cfFormat = CF_HDROP) then
+    ExtractFiles;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -247,9 +271,9 @@ begin
         try
           DeleteFile(DropFileSource1.Files[i]);
           // Remove the files we just deleted from the "to do" list.
-          j := ExtractedFiles.IndexOf(DropFileSource1.Files[i]);
+          j := FExtractedFiles.IndexOf(DropFileSource1.Files[i]);
           if (j <> -1) then
-            ExtractedFiles.Delete(j);
+            FExtractedFiles.Delete(j);
         except
           // Ignore any errors we might get.
         end;
@@ -272,8 +296,28 @@ begin
   // Of course, this is a demo so we'll just make phoney files here...
   MakeBlankFile(Filename);
   // Remember that we have extracted this file
-  if (ExtractedFiles.IndexOf(Filename) = -1) then
-    ExtractedFiles.Add(Filename);
+  if (FExtractedFiles.IndexOf(Filename) = -1) then
+    FExtractedFiles.Add(Filename);
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//		Extract files
+//
+////////////////////////////////////////////////////////////////////////////////
+procedure TFormMain.ExtractFiles;
+var
+  i: integer;
+begin
+  if (FHasExtracted) then
+    exit;
+
+  // 'Extract' all the selected files into the temporary folder tree...
+  for i := Listview1.Items.Count-1 downto 0 do
+    if (Listview1.Items[i].Selected) then
+      ExtractFile(i, FTempPath + Listview1.Items[i].Caption);
+
+  FHasExtracted := True;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -87,6 +87,7 @@ object FormMain: TFormMain
     DragTypes = [dtCopy, dtMove]
     OnDrop = DropFileSource1Drop
     OnAfterDrop = DropFileSource1AfterDrop
+    OnGetData = DropFileSource1GetData
     Left = 398
     Top = 92
   end

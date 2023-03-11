@@ -23,7 +23,10 @@ type
 
   TDropData = record
     FormatEtc: TFormatEtc;
+    ActualTymed: longInt;
     Data: AnsiString;
+    HasFetched: boolean;
+    HasData: boolean;
   end;
   PDropData = ^TDropData;
 
@@ -51,6 +54,16 @@ type
     osource1: TMenuItem;
     ActionDir: TAction;
     IntroView: TRichEdit;
+    ActionPrefetch: TAction;
+    ToolButton4: TToolButton;
+    PanelError: TPanel;
+    PanelErrorInner: TPanel;
+    Panel3: TPanel;
+    Label1: TLabel;
+    LabelError: TLabel;
+    Panel4: TPanel;
+    Image1: TImage;
+    ImageList2: TImageList;
     procedure FormCreate(Sender: TObject);
     procedure ListViewDataFormatsDeletion(Sender: TObject;
       Item: TListItem);
@@ -65,14 +78,19 @@ type
     procedure ActionDirTargetExecute(Sender: TObject);
     procedure ActionDirSourceExecute(Sender: TObject);
     procedure ActionDirExecute(Sender: TObject);
+    procedure ActionPrefetchExecute(Sender: TObject);
+    procedure ListViewDataFormatsAdvancedCustomDrawSubItem(
+      Sender: TCustomListView; Item: TListItem; SubItem: Integer;
+      State: TCustomDrawState; Stage: TCustomDrawStage;
+      var DefaultDraw: Boolean);
   private
     FDataObject: IDataObject;
     FDropTarget: TCustomDropTarget;
-    FHexVisible: boolean;
     procedure OnDrop(Sender: TObject; ShiftState: TShiftState;
       APoint: TPoint; var Effect: Longint);
     function DataToHexDump(const Data: AnsiString): string;
     function GetDataSize(const FormatEtc: TFormatEtc): integer;
+    function VerifyMedia(var FormatEtc: TFormatEtc): longInt;
     procedure OnDragOver(Sender: TObject; ShiftState: TShiftState;
       APoint: TPoint; var Effect: Integer);
     procedure OnDragEnter(Sender: TObject; ShiftState: TShiftState;
@@ -80,9 +98,10 @@ type
     procedure OnDragLeave(Sender: TObject);
   protected
     procedure LoadRTF(const s: string);
+    procedure Error(const Msg: string);
     procedure Init;
     procedure Clear;
-    function GetDropData(DropData: PDropData): AnsiString;
+    function GetDropData(var DropData: TDropData): AnsiString;
     property DataObject: IDataObject read FDataObject;
   public
   end;
@@ -95,7 +114,8 @@ implementation
 {$R *.dfm}
 
 uses
-  DragDropFormats;
+  DragDropFormats,
+  CommCtrl;
 
 resourcestring
   sIntro = '{\rtf1\ansi\ansicpg1252\deff0\deflang1030{\fonttbl{\f0\fswiss\fcharset0 Arial;}{\f1\fnil\fcharset2 Symbol;}}'+#13+
@@ -212,7 +232,7 @@ begin
   Result := '';
   MediumNum := 0;
   Medium := $0001;
-  while (Media >= Medium) do
+  while (Media >= Medium) and (MediumNum <= High(MediaNames)) do
   begin
     if (Media and Medium <> 0) then
     begin
@@ -271,6 +291,8 @@ begin
       (GetNum = GotNum) do
     begin
       Item := ListViewDataFormats.Items.Add;
+      Item.ImageIndex := -1;
+      Item.ImageIndex := -1;
 
       // Format ID
       Item.Caption := IntToStr(SourceFormatEtc.cfFormat);
@@ -298,7 +320,20 @@ begin
       // Save a copy of the format descriptor in the listview
       New(DropData);
       Item.Data := DropData;
+
+      DropData.Data := '';
+      DropData.HasFetched := False;
+      DropData.HasData := False;
       DropData.FormatEtc := SourceFormatEtc;
+      DropData.ActualTymed := 0;
+
+      // Verify media
+      DropData.ActualTymed := VerifyMedia(DropData.FormatEtc);
+      if (DropData.ActualTymed <> DropData.FormatEtc.tymed) then
+        Item.ImageIndex := 0;
+
+      if (ActionPrefetch.Checked) then
+        GetDropData(DropData^);
     end;
   finally
     ListViewDataFormats.Items.EndUpdate;
@@ -319,6 +354,36 @@ begin
   else
     Effect := DROPEFFECT_COPY;
   *)
+end;
+
+function TFormMain.VerifyMedia(var FormatEtc: TFormatEtc): longInt;
+var
+  Mask: longInt;
+  AFormatEtc: TFormatEtc;
+  Medium: TStgMedium;
+begin
+  // Some drop sources lie about which media they support (e.g. Mozilla Thunderbird).
+  // Here we try them all through IDataObject.GetData.
+  Mask := $0000001;
+  AFormatEtc := FormatEtc;
+  Result := 0;
+  while (Mask <> 0) and (Mask <= TYMED_ENHMF) do
+  begin
+    AFormatEtc.tymed := Mask;
+    FillChar(Medium, SizeOf(Medium), 0);
+    //if (Succeeded(FDataObject.QueryGetData(AFormatEtc))) then
+    if (Succeeded(FDataObject.GetData(AFormatEtc, Medium))) then
+    begin
+      // Mozilla Thunderbird speciality:
+      // If we ask Thunderbird for FileContents on a TYMED_HGLOBAL then it
+      // returns it on a TYMED_ISTREAM. If we ask for FileContents on a
+      // TYMED_ISTREAM then it fails.
+      // Wow!
+      Result := Result or Medium.tymed;
+      ReleaseStgMedium(Medium);
+    end;
+    Mask := Mask shl 1;
+  end;
 end;
 
 procedure TFormMain.ActionClearExecute(Sender: TObject);
@@ -352,12 +417,18 @@ begin
   TAction(Sender).Enabled := (FDropTarget.CanPasteFromClipboard);
 end;
 
+procedure TFormMain.ActionPrefetchExecute(Sender: TObject);
+begin
+//
+end;
+
 procedure TFormMain.ActionSaveExecute(Sender: TObject);
 var
   Strings: TStrings;
   i: integer;
   ClipFormat: TRawClipboardFormat;
   DropData: PDropData;
+  Media: string;
 const
   sFormat =     'Name  : %s'+#13#10+
                 'ID    : %d'+#13#10+
@@ -369,6 +440,7 @@ const
   sDataHeader = 'Offset    Bytes                                             ASCII'+#13#10+
                 '--------  ------------------------------------------------  ----------------';
   sSeparator =  '============================================================================';
+  sActualMedia = ' (actual: %s)';
 begin
   if (SaveDialog1.Execute) then
   begin
@@ -381,14 +453,17 @@ begin
           ClipFormat := TRawClipboardFormat.CreateFormatEtc(DropData.FormatEtc);
           try
             ClipFormat.GetData(DataObject);
+            Media := MediaToString(DropData.FormatEtc.tymed);
+            if (DropData.FormatEtc.tymed <> DropData.ActualTymed) then
+              Media := Media + Format(sActualMedia, [MediaToString(DropData.ActualTymed)]);
             Strings.Add(Format(sFormat,
               [ClipFormat.ClipboardFormatName, ClipFormat.ClipboardFormat,
-              MediaToString(DropData.FormatEtc.tymed),
+              Media,
               AspectsToString(DropData.FormatEtc.dwAspect),
               DropData.FormatEtc.lindex,
               ListViewDataFormats.Items[i].SubItems[3]]));
             Strings.Add(sDataHeader);
-            Strings.Add(DataToHexDump(GetDropData(DropData)));
+            Strings.Add(DataToHexDump(GetDropData(DropData^)));
             Strings.Add(sSeparator);
           finally
             ClipFormat.Free;
@@ -451,6 +526,112 @@ begin
   end;
 end;
 
+procedure TFormMain.Error(const Msg: string);
+begin
+  IntroView.Hide;
+  EditHexView.Hide;
+  LabelError.Caption := Msg;
+  PanelError.Show;
+end;
+
+procedure TFormMain.ListViewDataFormatsAdvancedCustomDrawSubItem(
+  Sender: TCustomListView; Item: TListItem; SubItem: Integer;
+  State: TCustomDrawState; Stage: TCustomDrawStage; var DefaultDraw: Boolean);
+var
+  Mask: longInt;
+  Tymed: longInt;
+  r, TextRect: TRect;
+  s: string;
+  Canvas: TControlCanvas;
+begin
+  if (SubItem = 3) and (Stage = cdPrePaint) and
+    (PDropData(Item.Data).FormatEtc.tymed <> PDropData(Item.Data).ActualTymed) then
+  begin
+    // Draw media names:
+    // - Black: Reported by EnumFormatEtc and supported by GetData.
+    // - Red: Reported by EnumFormatEtc but not supported by GetData.
+    // - Green: Not reported by EnumFormatEtc but supported by GetData.
+    ListView_GetSubItemRect(Sender.Handle, Item.Index, SubItem, LVIR_BOUNDS, @TextRect);
+
+    // Work around for long standing bug in TListView ownerdraw:
+    // Because ListView.Canvas.Font.OnChange is rerouted by the listview,
+    // changes to the font does not update the GDI object. Same goes for the
+    // brush.
+    Canvas := TControlCanvas.Create;
+    try
+      Canvas.Control := Sender;
+
+      Canvas.Font.Assign(Sender.Canvas.Font);
+      Canvas.Brush.Assign(Sender.Canvas.Brush);
+
+      if Item.Selected then
+      begin
+        if Sender.Focused then
+          Canvas.Brush.Color := clHighlight
+        else
+          Canvas.Brush.Color := clBtnFace;
+      end else
+        Canvas.Brush.Color := clWindow;
+      Canvas.Brush.Style := bsSolid;
+
+      Canvas.FillRect(TextRect);
+
+      InflateRect(TextRect, -1, -1);
+      inc(TextRect.Left, 5);
+
+      Mask := $0001;
+      Tymed := PDropData(Item.Data).FormatEtc.tymed or PDropData(Item.Data).ActualTymed;
+      while (Mask <= Tymed) do
+      begin
+        if ((Tymed and Mask) <> 0) then
+        begin
+          if ((PDropData(Item.Data).ActualTymed and Mask) = 0) then
+          begin
+            Canvas.Font.Color := clRed;
+            Canvas.Font.Style := [fsStrikeOut];
+          end else
+          if ((PDropData(Item.Data).FormatEtc.tymed and Mask) = 0) then
+          begin
+            Canvas.Font.Color := clGreen;
+            Canvas.Font.Style := [];
+          end else
+          begin
+            if Item.Selected and Sender.Focused then
+              Canvas.Brush.Color := clHighlightText
+            else
+              Canvas.Font.Color := clWindowText;
+            Canvas.Font.Style := [];
+          end;
+
+          s := MediaToString(Mask) + ' ';
+
+          r := TextRect;
+
+          DrawText(Canvas.Handle, PChar(s), Length(s), r, DT_CALCRECT or DT_LEFT or DT_NOPREFIX or DT_SINGLELINE or DT_VCENTER);
+          IntersectRect(r, r, TextRect);
+          TextRect.Left := r.Right;
+          DrawText(Canvas.Handle, PChar(s), Length(s)-1, r, DT_LEFT or DT_NOPREFIX or DT_SINGLELINE or DT_VCENTER);
+        end;
+
+        Mask := Mask shl 1;
+      end;
+    finally
+      Canvas.Free;
+    end;
+
+    DefaultDraw := False;
+(*
+  end else
+  begin
+    // Work around for "bold font" after custom draw
+    SaveColor := TListView(Sender).Canvas.Brush.Color;
+    TListView(Sender).Canvas.Brush.Color := clNone;
+    TListView(Sender).Canvas.Brush.Color := SaveColor;
+    DefaultDraw := True;
+*)
+  end;
+end;
+
 procedure TFormMain.ListViewDataFormatsDeletion(Sender: TObject;
   Item: TListItem);
 begin
@@ -468,8 +649,8 @@ var
   DropData: PDropData;
 begin
   // Work around for RichEdit failing to change font
+  PanelError.Hide;
   IntroView.Hide;
-  EditHexView.Show;
   (* This works on newer version of Delphi:
   EditHexView.PlainText := True;
   // Force RichEdit to recreate window handle in PlainText mode.
@@ -478,27 +659,45 @@ begin
   if (Selected) and (Item.Data <> nil) then
   begin
     DropData := PDropData(Item.Data);
-    EditHexView.Text := DataToHexDump(GetDropData(DropData));
+    try
+      EditHexView.Text := DataToHexDump(GetDropData(DropData^));
+      if (DropData.HasData) then
+        EditHexView.Show
+      else
+        Error('Failed to retrieve data from Drop Source');
+    except
+      on E: Exception do
+        Error(E.Message);
+    end;
   end else
-    EditHexView.Text := '';
+    EditHexView.Hide;
 end;
 
-function TFormMain.GetDropData(DropData: PDropData): AnsiString;
+function TFormMain.GetDropData(var DropData: TDropData): AnsiString;
 var
   ClipFormat: TRawClipboardFormat;
+  FormatEtc: TFormatEtc;
 begin
-  if (Length(DropData.Data) = 0) then
+  if (not DropData.HasFetched) then
   begin
+    DropData.HasFetched := True;
+    // We have to ask for both the reported media and the actual media in
+    // order to work with Mozilla Thunderbird 3rc2.
+    FormatEtc := DropData.FormatEtc;
+    FormatEtc.tymed := FormatEtc.tymed or DropData.ActualTymed;
     // Create a temporary clipboard format object to retrieve the raw data
     // from the drop source.
-    ClipFormat := TRawClipboardFormat.CreateFormatEtc(DropData.FormatEtc);
+    ClipFormat := TRawClipboardFormat.CreateFormatEtc(FormatEtc);
     try
       // Note: It would probably be better (more efficient & safer) if we used a
       // custom clipboard format class which only copied a limited amount of data
       // from the source data object. However, I'm lazy and this solution works
       // fine most of the time.
-      ClipFormat.GetData(DataObject);
-      DropData.Data := Copy(ClipFormat.AsString, 1, MAX_DATA);
+      if (ClipFormat.GetData(DataObject)) then
+      begin
+        DropData.HasData := True;
+        DropData.Data := Copy(ClipFormat.AsString, 1, MAX_DATA);
+      end;
     finally
       ClipFormat.Free;
     end;
@@ -520,6 +719,7 @@ end;
 
 procedure TFormMain.Init;
 begin
+  PanelError.Hide;
   EditHexView.Hide;
   IntroView.Show;
 end;

@@ -90,8 +90,8 @@ MaxStackSize=1048576
 ImageBase=4194304
 ExeDescription=
 [Directories]
-OutputDir=
-UnitOutputDir=
+OutputDir=.
+UnitOutputDir=.
 PackageDLLOutputDir=
 PackageDCPOutputDir=
 SearchPath=..\..\Source
@@ -136,3 +136,16 @@ ProductVersion=1.0.0.0
 Comments=
 [Excluded Packages]
 c:\development\delphi7\Bin\DCLIB70.bpl=Borland InterBase Express Components
+[HistoryLists\hlUnitAliases]
+Count=1
+Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[HistoryLists\hlSearchPath]
+Count=2
+Item0=..\..\Source
+Item1=$(DELPHI)\Lib\Debug;..\..\Source
+[HistoryLists\hlUnitOutputDirectory]
+Count=1
+Item0=.
+[HistoryLists\hlOutputDirectorry]
+Count=1
+Item0=.

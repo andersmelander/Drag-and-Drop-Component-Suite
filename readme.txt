@@ -1,7 +1,7 @@
 
-Drag and Drop Component Suite Version 5.0
-Released 6-dec-2009
-© 1997-2009 Anders Melander
+Drag and Drop Component Suite Version 5.1
+Released 29-jan-2010
+© 1997-2010 Anders Melander
 http://melander.dk/delphi/dragdrop/
 
 -------------------------------------------

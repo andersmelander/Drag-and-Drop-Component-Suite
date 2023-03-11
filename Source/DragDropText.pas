@@ -319,13 +319,11 @@ begin
           Result := Result + '\tab ';
         Chr(13):
           Result := Result + '\par ';
-        Chr(0)..Chr(8),
-        Chr(10)..Chr(12),
-        Chr(14)..Chr(31),
-        Chr(127)..Chr(255):
-          Result := Result + AnsiString(Format('\''%.2x', [ord(c)]));
         else
-          Result := Result + cAnsi;
+          if (Ord(cAnsi) > 31) and (Ord(cAnsi) < 127) then
+            Result := Result + cAnsi
+          else
+            Result := Result + AnsiString(Format('\''%.2x', [ord(c)]));
         end;
       end else // Char is Unicode
       begin

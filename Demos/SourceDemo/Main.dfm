@@ -1,9 +1,9 @@
 object Form1: TForm1
   Left = 236
   Top = 162
-  Width = 395
-  Height = 292
   Caption = 'Simple Source Demo'
+  ClientHeight = 258
+  ClientWidth = 387
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -23,14 +23,9 @@ object Form1: TForm1
     Height = 38
     Align = alTop
     BevelOuter = bvNone
+    Caption = 'Drag files from the ListView onto Windows Explorer ...'
     TabOrder = 0
-    object Label1: TLabel
-      Left = 3
-      Top = 13
-      Width = 256
-      Height = 13
-      Caption = 'Drag files from this Listbox onto Windows Explorer ...'
-    end
+    OnMouseDown = ListView1MouseDown
   end
   object Panel2: TPanel
     Left = 0
@@ -41,6 +36,9 @@ object Form1: TForm1
     BevelOuter = bvNone
     Caption = ' '
     TabOrder = 1
+    DesignSize = (
+      387
+      41)
     object ButtonClose: TButton
       Left = 157
       Top = 8
@@ -67,10 +65,8 @@ object Form1: TForm1
     ColumnClick = False
     MultiSelect = True
     ReadOnly = True
-    PopupMenu = PopupMenu1
     TabOrder = 2
     ViewStyle = vsReport
-    OnDragOver = ListView1DragOver
     OnMouseDown = ListView1MouseDown
   end
   object DropFileSource1: TDropFileSource
@@ -85,28 +81,5 @@ object Form1: TForm1
     Target = Owner
     Left = 276
     Top = 224
-  end
-  object PopupMenu1: TPopupMenu
-    AutoPopup = False
-    Left = 192
-    Top = 136
-    object Just1: TMenuItem
-      Caption = 'Just'
-    end
-    object a1: TMenuItem
-      Caption = 'a'
-    end
-    object test1: TMenuItem
-      Caption = 'test'
-    end
-    object of1: TMenuItem
-      Caption = 'of'
-    end
-    object popup1: TMenuItem
-      Caption = 'popup'
-    end
-    object menu1: TMenuItem
-      Caption = 'menu'
-    end
   end
 end

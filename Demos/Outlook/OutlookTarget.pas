@@ -5,6 +5,8 @@ interface
 {$include dragdrop.inc} // Disables .NET warnings
 
 uses
+  ActiveX,//!!!
+
   MapiDefs,
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   ExtCtrls, ComCtrls, StdCtrls, DragDrop, DropTarget, DragDropText, ImgList,
@@ -14,11 +16,12 @@ type
   TMessage = class(TObject)
   private
     FMessage: IMessage;
+    FStorage: IStorage;
     FAttachments: TInterfaceList;
     FAttachmentsLoaded: boolean;
     function GetAttachments: TInterfaceList;
   public
-    constructor Create(const AMessage: IMessage);
+    constructor Create(const AMessage: IMessage; const AStorage: IStorage);
     destructor Destroy; override;
     procedure SaveToStream(Stream: TStream);
     property Msg: IMessage read FMessage;
@@ -100,7 +103,9 @@ type
     FOwnedMessage: TMessage;
     FCurrentMessage: TMessage;
     FHasMessageSession: boolean;
-
+    FChildForms: TList;
+    FParentForm: TFormOutlookTarget;
+  protected
     procedure Reset;
     procedure ResetView;
     procedure CleanUp;
@@ -110,6 +115,8 @@ type
     function GetSender(const AMessage: IMessage): string;
     function GetSubject(const AMessage: IMessage): string;
     procedure FormatAttachmentList;
+    procedure SetParentForm(const Value: TFormOutlookTarget);
+    property ParentForm: TFormOutlookTarget read FParentForm write SetParentForm;
   public
     property OwnedMessage: TMessage read FOwnedMessage write FOwnedMessage;
   end;
@@ -125,8 +132,9 @@ uses
   MapiUtil,
   MapiTags,
   ComObj,
-  ActiveX,
+//!!!  ActiveX,
   ShellAPI,
+  Contnrs,
   // Note: In order to get the Outlook data format support linked into the
   // application, we have to include the appropriate units in the uses clause.
   // If you forget to do this, you will get a run time error.
@@ -136,9 +144,11 @@ uses
   DragDropInternet;
 
 
-constructor TMessage.Create(const AMessage: IMessage);
+
+constructor TMessage.Create(const AMessage: IMessage; const AStorage: IStorage);
 begin
   FMessage := AMessage;
+  FStorage := AStorage;
   FAttachments := TInterfaceList.Create;
 end;
 
@@ -174,6 +184,7 @@ begin
     ** IMessage.OpenAttach more than once for a given attachment. However, it
     ** might also be a bug in my code, but, whatever the reason, the solution is
     ** beyond the scope of this demo.
+    **
     ** Let me know if you find a solution.
     *)
     if (Succeeded(FMessage.GetAttachmentTable(0, Table))) then
@@ -203,14 +214,23 @@ const
 var
   LockBytes: ILockBytes;
   Storage: IStorage;
+(*
   Malloc: IMalloc;
   MsgSession: pointer;
   NewMsg: IUnknown;
   ExcludeTags: PSPropTagArray;
+*)
+//  ProblemArray: PSPropProblemArray;
   Memory: HGLOBAL;
   Buffer: pointer;
   Size: integer;
 begin
+  (*
+  ** This implementation is based, in part, on the Microsoft knowledgebase
+  ** article:
+  ** Save Message to MSG Compound File
+  ** http://support.microsoft.com/kb/171907
+  *)
   Memory := GlobalAlloc(GMEM_MOVEABLE, 0);
   try
 
@@ -223,7 +243,9 @@ begin
       try
 
         Storage.Commit(STGC_DEFAULT);
-
+        FStorage.CopyTo(0, nil, nil, Storage);
+        Storage.Commit(STGC_DEFAULT);
+(*
         Malloc := IMalloc(MAPIGetDefaultMalloc);
         try
 
@@ -248,8 +270,6 @@ begin
               try
 
                 // Exclude a few properties - just like the MSDN sample
-                // MSDN: Save Message to MSG Compound File
-                // http://support.microsoft.com/kb/171907
                 ExcludeTags.cValues := 7;
                 ExcludeTags.aulPropTag[0] := PR_ACCESS;
                 ExcludeTags.aulPropTag[ExcludeTags.cValues-6] := PR_BODY;
@@ -260,6 +280,7 @@ begin
                 ExcludeTags.aulPropTag[ExcludeTags.cValues-1] := PR_RTF_SYNC_TRAILING_COUNT;
 
                 // Copy message properties
+//                Msg.CopyTo(0, TGUID(nil^), ExcludeTags, 0, nil, IMessage, pointer(NewMsg), 0, ProblemArray);
                 OleCheck(Msg.CopyTo(0, TGUID(nil^), ExcludeTags, 0, nil, IMessage, pointer(NewMsg), 0, PSPropProblemArray(nil^)));
 
               finally
@@ -280,7 +301,7 @@ begin
         finally
           Malloc := nil;
         end;
-
+  *)
       finally
         Storage := nil;
       end;
@@ -346,6 +367,15 @@ begin
   // before the application exits.
   FCleanUpList := TStringList.Create;
 
+  // FChildForms contains a list of forms that has been created to view a
+  // message attachment.
+  // It is important that child forms, and the messages they wrap, are destroyed
+  // before we destroy this form and its messages.
+  // If we performed the clean up in a proper destructor
+  // (i.e. "destructor Destroy; override") instead of the OnDestroy event
+  // handler then the FChildForms list wouldn't be neccesary.
+  FChildForms := TObjectList.Create(True);
+
   // Get the system image list to use for the attachment listview.
   ImageListSmall.Handle := SHGetFileInfo('', 0, SHFileInfo, sizeOf(SHFileInfo),
     SHGFI_SYSICONINDEX or SHGFI_SMALLICON);
@@ -358,9 +388,14 @@ end;
 
 procedure TFormOutlookTarget.FormDestroy(Sender: TObject);
 begin
+  ParentForm := nil;
+
+  Reset;
   CleanUp;
   FreeAndNil(FCleanUpList);
   FreeAndNil(FOwnedMessage);
+  FreeAndNil(FChildForms);
+
   MAPIUninitialize;
 end;
 
@@ -390,6 +425,7 @@ end;
 
 procedure TFormOutlookTarget.Reset;
 begin
+  FChildForms.Clear;
   ListViewBrowser.Items.Clear;
   ListViewBrowser.Visible := False;
   SplitterBrowser.Visible := False;
@@ -408,6 +444,18 @@ begin
   ListViewAttachments.Items.Clear;
   SplitterAttachments.Hide;
   ListViewAttachments.Hide;
+end;
+
+procedure TFormOutlookTarget.SetParentForm(const Value: TFormOutlookTarget);
+begin
+  if (FParentForm <> Value) then
+  begin
+    if (FParentForm <> nil) then
+      FParentForm.FChildForms.Extract(Self);
+    FParentForm := Value;
+    if (FParentForm <> nil) then
+      FParentForm.FChildForms.Add(Self);
+  end;
 end;
 
 procedure TFormOutlookTarget.DropTextTarget1Drop(Sender: TObject;
@@ -444,7 +492,7 @@ begin
           Item := ListViewBrowser.Items.Add;
           Item.Caption := GetSender(AMessage);
           Item.SubItems.Add(GetSubject(AMessage));
-          Item.Data := TMessage.Create(AMessage);
+          Item.Data := TMessage.Create(AMessage, OutlookDataFormat.Storages[i]);
         finally
           AMessage := nil;
         end;
@@ -726,6 +774,7 @@ procedure TFormOutlookTarget.ActionAttachmentOpenExecute(Sender: TObject);
 
 var
   Attachment: IAttach;
+  ChildForm: TFormOutlookTarget;
 
   Method: integer;
   Prop: PSPropValue;
@@ -796,13 +845,12 @@ begin
           // Get size of message
           if (Succeeded(Attachment.OpenProperty(PR_ATTACH_DATA_OBJ, IMessage, 0, 0, IUnknown(Msg)))) then
           begin
-            with TFormOutlookTarget.Create(Self) do
-            begin
-              OwnedMessage := TMessage.Create(Msg);
-              ViewMessage(OwnedMessage);
-              Show;
-              Msg := nil;
-            end;
+            ChildForm := TFormOutlookTarget.Create(Self);
+            ChildForm.ParentForm := Self;
+            ChildForm.OwnedMessage := TMessage.Create(Msg, nil);
+            ChildForm.ViewMessage(ChildForm.OwnedMessage);
+            ChildForm.Show;
+            Msg := nil;
           end;
         end;
 
@@ -860,16 +908,23 @@ procedure TFormOutlookTarget.ActionMessageSaveExecute(Sender: TObject);
 var
   Dest: TFileStream;
   Prop: PSPropValue;
-  Filename: string;
+  Filename: AnsiString;
+  p: PAnsiChar;
 begin
   // Use message subject as default file name
   if (Succeeded(HrGetOneProp(FCurrentMessage.Msg, PR_SUBJECT, Prop))) then
   begin
-    Filename := String(Prop.Value.lpszA);
-    Filename := StringReplace(Filename, ':', ' ', [rfReplaceAll]);
-    Filename := StringReplace(Filename, '\', ' ', [rfReplaceAll]);
-    Filename := StringReplace(Filename, '/', ' ', [rfReplaceAll]);
-    SaveDialog1.Filename := Filename;
+    Filename := Prop.Value.lpszA;
+
+    p := PAnsiChar(Filename);
+    while (p^ <> #0) do
+    begin
+      if (p^ in ['*', '?', ':', '/', '\']) then
+        p^:= ' ';
+      inc(p);
+    end;
+
+    SaveDialog1.Filename := String(Filename);
   end else
     SaveDialog1.Filename := 'Message';
 

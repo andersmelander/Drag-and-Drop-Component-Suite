@@ -903,6 +903,15 @@ end;
 
 procedure TPIDLsToFilenamesStrings.Assign(Source: TPersistent);
 begin
+  if Source is TUnicodeStrings then
+  begin
+    BeginUpdate;
+    try
+      GetPIDLsFromFilenames(TUnicodeStrings(Source), FPIDLs);
+    finally
+      EndUpdate;
+    end;
+  end else
   if Source is TStrings then
   begin
     BeginUpdate;

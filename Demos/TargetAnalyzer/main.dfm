@@ -1,9 +1,9 @@
 object FormTarget: TFormTarget
   Left = 441
   Top = 226
-  Width = 690
-  Height = 356
   Caption = 'Drop Target analyzer'
+  ClientHeight = 322
+  ClientWidth = 682
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
