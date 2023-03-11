@@ -364,12 +364,10 @@ type
   TFifoStreamAdapter = class(TFixedStreamAdapter, IStream)
   private
   public
-    function Read(pv: Pointer; cb: Longint;
-      pcbRead: PLongint): HResult; override; stdcall;
+    function Read(pv: Pointer; cb: FixedUInt; pcbRead: PFixedUInt): HResult; override; stdcall;
   end;
 
-function TFifoStreamAdapter.Read(pv: Pointer; cb: Integer;
-  pcbRead: PLongint): HResult;
+function TFifoStreamAdapter.Read(pv: Pointer; cb: FixedUInt; pcbRead: PFixedUInt): HResult;
 begin
   Result := inherited Read(pv, cb, pcbRead);
   if (TFifoStream(Stream).Aborted) then

@@ -125,7 +125,9 @@ var
   i: integer;
   Stream: IStream;
   StatStg: TStatStg;
-  Total, BufferSize, Chunk, Size: longInt;
+  Total: LargeInt;
+  BufferSize, Chunk: LargeInt;
+  Size: FixedUInt;
   FirstChunk: boolean;
 const
   MaxBufferSize = 32*1024; // 32Kb
@@ -159,7 +161,7 @@ begin
           // Assume that stream is at EOF, so set it to BOF.
           // See comment in TCustomSimpleClipboardFormat.DoSetData (in
           // DragDropFormats.pas) for an explanation of this.
-          Stream.Seek(0, STREAM_SEEK_SET, PLargeint(nil)^);
+          Stream.Seek(0, STREAM_SEEK_SET, PLargeUInt(nil)^);
 
           // If a really big hunk of data has been dropped on us we display a
           // small part of it since there isn't much point in trying to display
