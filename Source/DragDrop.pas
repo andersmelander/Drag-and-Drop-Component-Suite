@@ -2101,7 +2101,7 @@ begin
   // This doesn't seem to be necessary on any version of Win2K, but if they
   // say it must be done then I'll better do it...
   if (Result) and (FMedium.tymed = TYMED_ISTREAM) then
-    IStream(FMedium.stm).Seek(0, STREAM_SEEK_SET, PLargeint(nil)^);
+    IStream(FMedium.stm).Seek(0, STREAM_SEEK_SET, PLargeUInt(nil)^);
 end;
 
 function TRawClipboardFormat.DoSetData(const FormatEtcIn: TFormatEtc;
