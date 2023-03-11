@@ -1,0 +1,63 @@
+#------------------------------------------------------------------------------
+VERSION = BWS.01
+#------------------------------------------------------------------------------
+!ifndef ROOT
+ROOT = $(MAKEDIR)\..
+!endif
+#------------------------------------------------------------------------------
+MAKE = $(ROOT)\bin\make.exe -$(MAKEFLAGS) -f$**
+DCC = $(ROOT)\bin\dcc32.exe $**
+BRCC = $(ROOT)\bin\brcc32.exe $**
+#------------------------------------------------------------------------------
+PROJECTS = FileDemo.exe DragDropDemo.exe MultipleTargets.exe \
+  ComboTargetDemo.exe Adapter.exe CustomFormat1.exe AutoScroll.exe ExtractDemo.exe \
+  NetscapeDemo.exe AsyncTransferSource.exe DragDropC6.bpl
+#------------------------------------------------------------------------------
+default: $(PROJECTS)
+#------------------------------------------------------------------------------
+
+FileDemo.exe: SimpleFileDemo.BCB\FileDemo.bpr
+  $(ROOT)\bin\bpr2mak $**
+  $(ROOT)\bin\make -$(MAKEFLAGS) -f$*.mak
+
+Adapter.exe: Adapters.BCB\Adapter.bpr
+  $(ROOT)\bin\bpr2mak $**
+  $(ROOT)\bin\make -$(MAKEFLAGS) -f$*.mak
+
+AsyncTransferSource.exe: AsyncSource.BCB\AsyncTransferSource.bpr
+  $(ROOT)\bin\bpr2mak $**
+  $(ROOT)\bin\make -$(MAKEFLAGS) -f$*.mak
+
+AutoScroll.exe: AutoScroll.BCB\AutoScroll.bpr
+  $(ROOT)\bin\bpr2mak $**
+  $(ROOT)\bin\make -$(MAKEFLAGS) -f$*.mak
+
+ComboTargetDemo.exe: ComboTargetDemo.BCB\ComboTargetDemo.bpr
+  $(ROOT)\bin\bpr2mak $**
+  $(ROOT)\bin\make -$(MAKEFLAGS) -f$*.mak
+
+CustomFormat1.exe: CustomFormat1.BCB\CustomFormat1.bpr
+  $(ROOT)\bin\bpr2mak $**
+  $(ROOT)\bin\make -$(MAKEFLAGS) -f$*.mak
+
+DragDropDemo.exe: DetailedDemo.BCB\DragDropDemo.bpr
+  $(ROOT)\bin\bpr2mak $**
+  $(ROOT)\bin\make -$(MAKEFLAGS) -f$*.mak
+
+ExtractDemo.exe: ExtractDemo.BCB\ExtractDemo.bpr
+  $(ROOT)\bin\bpr2mak $**
+  $(ROOT)\bin\make -$(MAKEFLAGS) -f$*.mak
+
+MultipleTargets.exe: MultipleTargets.BCB\MultipleTargets.bpr
+  $(ROOT)\bin\bpr2mak $**
+  $(ROOT)\bin\make -$(MAKEFLAGS) -f$*.mak
+
+NetscapeDemo.exe: NetscapeDemo.BCB\NetscapeDemo.bpr
+  $(ROOT)\bin\bpr2mak $**
+  $(ROOT)\bin\make -$(MAKEFLAGS) -f$*.mak
+
+DragDropC6.bpl: ..\Components\DragDropC6.bpk
+  $(ROOT)\bin\bpr2mak $**
+  $(ROOT)\bin\make -$(MAKEFLAGS) -f$*.mak
+
+

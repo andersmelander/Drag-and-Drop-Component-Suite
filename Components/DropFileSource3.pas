@@ -12,7 +12,7 @@ unit DropFileSource3;
 // Description:     Test case for deprecated TDropSource class.
 // Version:         4.0
 // Date:            25-JUN-2000
-// Target:          Win32, Delphi 3-6 and C++ Builder 3-5
+// Target:          Win32, Delphi 3-6 and C++Builder 3-5
 // Authors:         Angus Johnson, ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk, http://www.melander.dk
 // Copyright        © 1997-2000 Angus Johnson & Anders Melander

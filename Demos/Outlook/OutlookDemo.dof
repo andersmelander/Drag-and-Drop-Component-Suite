@@ -1,0 +1,80 @@
+[Compiler]
+A=1
+B=0
+C=1
+D=1
+E=0
+F=0
+G=1
+H=1
+I=1
+J=1
+K=0
+L=1
+M=0
+N=1
+O=0
+P=1
+Q=1
+R=1
+S=0
+T=0
+U=0
+V=1
+W=0
+X=1
+Y=1
+Z=1
+ShowHints=1
+ShowWarnings=1
+UnitAliases=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[Linker]
+MapFile=0
+OutputObjs=0
+ConsoleApp=1
+DebugInfo=0
+RemoteSymbols=0
+MinStackSize=16384
+MaxStackSize=1048576
+ImageBase=4194304
+ExeDescription=
+[Directories]
+OutputDir=
+UnitOutputDir=
+PackageDLLOutputDir=
+PackageDCPOutputDir=
+SearchPath=$(DELPHI)\Lib\Debug;.\MAPI
+Packages=VCL50;VCLX50;VCLSMP50;VCLDB50;VCLADO50;ibevnt50;VCLBDE50;VCLDBX50;QRPT50;TEEUI50;TEEDB50;TEE50;DSS50;TEEQR50;VCLIB50;VCLMID50;VCLIE50;INETDB50;INET50;NMFAST50;WEBMID50;dclocx50;dclaxserver50;RXBDE5;RXDB5;RXCTL5;sbsuite;sbClientPackage;ISGMapi25;RPRV30D5;RPRT30D5
+Conditionals=
+DebugSourceDirs=
+UsePackages=0
+[Parameters]
+RunParams=
+HostApplication=
+[Version Info]
+IncludeVerInfo=0
+AutoIncBuild=0
+MajorVer=1
+MinorVer=0
+Release=0
+Build=0
+Debug=0
+PreRelease=0
+Special=0
+Private=0
+DLL=0
+Locale=1029
+CodePage=1250
+[Version Info Keys]
+FileVersion=1.0.0.0
+[Excluded Packages]
+$(DELPHI)\Projects\Bpl\MMCExpert.bpl=MMC Snapin Expert
+$(DELPHI)\Projects\Bpl\sb3scheduler.bpl=S-BOSS 3 scheduler components
+C:\Development\CodeSite2\Bin\CSP20IDsgn50.bpl=CodeSite 2 Professional Components
+C:\Projects\Library\UIL Plugin\Delphi 5\Lib\Delphi 5\uPluginFramework5.bpl=UIL Plugin Framework 6.0
+[HistoryLists\hlUnitAliases]
+Count=1
+Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[HistoryLists\hlSearchPath]
+Count=1
+Item0=$(DELPHI)\Lib\Debug

@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<!-- C++Builder XML Project -->
+<PROJECT>
+  <MACROS>
+    <VERSION value="BCB.05.03"/>
+    <PROJECT value="ExtractDemo.exe"/>
+    <OBJFILES value="ExtractDemo.obj unit1.obj"/>
+    <RESFILES value="ExtractDemo.res"/>
+    <IDLFILES value=""/>
+    <IDLGENFILES value=""/>
+    <DEFFILE value=""/>
+    <RESDEPEN value="$(RESFILES) unit1.dfm"/>
+    <LIBFILES value=""/>
+    <LIBRARIES value=""/>
+    <SPARELIBS value="Vcl50.lib"/>
+    <PACKAGES value="Vcl50.bpi Vclx50.bpi"/>
+    <PATHCPP value=".;"/>
+    <PATHPAS value=".;"/>
+    <PATHRC value=".;"/>
+    <PATHASM value=".;"/>
+    <DEBUGLIBPATH value="$(BCB)\lib\debug"/>
+    <RELEASELIBPATH value="$(BCB)\lib\release"/>
+    <LINKER value="tlink32"/>
+    <USERDEFINES value="NO_WIN32_LEAN_AND_MEAN"/>
+    <SYSDEFINES value="NO_STRICT;_RTLDLL;USEPACKAGES"/>
+    <MAINSOURCE value="ExtractDemo.cpp"/>
+    <INCLUDEPATH value="$(BCB)\include;$(BCB)\include\vcl;..\..\Components"/>
+    <LIBPATH value="$(BCB)\Projects\Lib;$(BCB)\lib\obj;$(BCB)\lib;..\..\Components"/>
+    <WARNINGS value="-w-par"/>
+  </MACROS>
+  <OPTIONS>
+    <IDLCFLAGS value="-I$(BCB)\include -I$(BCB)\include\vcl -I..\..\Components -src_suffixcpp 
+      -DNO_WIN32_LEAN_AND_MEAN -boa"/>
+    <CFLAG1 value="-Od -H=$(BCB)\lib\vcl50.csm -Hc -Vx -Ve -X- -r- -a8 -5 -b- -k -y -v -vi- 
+      -c -tW -tWM"/>
+    <PFLAGS value="-$YD -$W -$O- -v -JPHNE -M"/>
+    <RFLAGS value=""/>
+    <AFLAGS value="/mx /w2 /zd"/>
+    <LFLAGS value="-aa -Tpe -x"/>
+  </OPTIONS>
+  <LINKER>
+    <ALLOBJ value="c0w32.obj $(PACKAGES) Memmgr.Lib sysinit.obj $(OBJFILES)"/>
+    <ALLRES value="$(RESFILES)"/>
+    <ALLLIB value="$(LIBFILES) $(LIBRARIES) import32.lib cp32mti.lib"/>
+  </LINKER>
+  <IDEOPTIONS>
+[Debugging]
+DebugSourceDirs=$(BCB)\source\vcl
+
+[Parameters]
+RunParams=
+HostApplication=
+RemoteHost=
+RemotePath=
+RemoteDebug=0
+
+[Compiler]
+ShowInfoMsgs=0
+LinkDebugVcl=0
+LinkCGLIB=0
+
+[CORBA]
+AddServerUnit=1
+AddClientUnit=1
+PrecompiledHeaders=1
+
+[Language]
+ActiveLang=
+ProjectLang=
+RootDir=
+  </IDEOPTIONS>
+</PROJECT>

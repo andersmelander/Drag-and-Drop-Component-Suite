@@ -9,7 +9,7 @@ E=0
 F=0
 G=0
 H=1
-I=1
+I=0
 J=0
 K=0
 L=1
@@ -64,8 +64,8 @@ RootDir=
 IncludeVerInfo=1
 AutoIncBuild=1
 MajorVer=4
-MinorVer=0
-Release=3
+MinorVer=1
+Release=4
 Build=27
 Debug=0
 PreRelease=0
@@ -77,7 +77,7 @@ CodePage=1252
 [Version Info Keys]
 CompanyName=Anders Melander
 FileDescription=Drag and Drop Component Suite
-FileVersion=4.0.3.27
+FileVersion=4.1.4.27
 InternalName=DragDrop
 LegalCopyright=Copyright © 1997-2001 Anders Melander
 LegalTrademarks=
@@ -87,6 +87,11 @@ ProductVersion=4.0.0.0
 Comments=This is freeware. Use as you please, but please give me credit.
 mailto=anders@melander.dk
 URL=http://www.melander.dk
+[Excluded Packages]
+d:\development\delphi6\Projects\Bpl\DropTargetExpert.bpl=IDE Drop Target Expert
+[HistoryLists\hlDebugSourcePath]
+Count=1
+Item0=D:\Development\Delphi6\Source\Indy;C:\Development\Delphi6\Source\Rtl\Common\
 [HistoryLists\hlConditionals]
 Count=1
 Item0=DEBUG
@@ -94,5 +99,13 @@ Item0=DEBUG
 Count=1
 Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
 [HistoryLists\hlSearchPath]
-Count=1
+Count=2
 Item0=$(DELPHI)\Lib\Debug
+Item1=$(DELPHI)\Lib\Debug;D:\Development\Delphi6\Source\Indy
+[HistoryLists\hlUnitOutputDirectory]
+Count=1
+Item0=..\lib
+[HistoryLists\hlOutputDirectorry]
+Count=2
+Item0=..\..\Bin
+Item1=..\Bin

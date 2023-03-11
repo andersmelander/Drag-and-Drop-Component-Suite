@@ -59,8 +59,8 @@ RootDir=
 IncludeVerInfo=1
 AutoIncBuild=1
 MajorVer=4
-MinorVer=0
-Release=3
+MinorVer=1
+Release=4
 Build=19
 Debug=0
 PreRelease=0
@@ -72,9 +72,9 @@ CodePage=1252
 [Version Info Keys]
 CompanyName=Anders Melander
 FileDescription=Drag and Drop Component Suite
-FileVersion=4.0.3.19
+FileVersion=4.1.4.19
 InternalName=DragDrop
-LegalCopyright=Copyright © 1997-2000 Angus Johnson & Anders Melander
+LegalCopyright=Copyright © 1997-2001 Angus Johnson & Anders Melander
 LegalTrademarks=
 OriginalFilename=DragDrop
 ProductName=DragDrop
@@ -83,7 +83,6 @@ Comments=Freeware.
 mailto=anders@melander.dk
 URL=http://www.melander.dk
 [Excluded Packages]
-$(DELPHI)\Projects\Bpl\sbServerPackage.bpl=S-BOSS Server side components
 D:\Projects\SkilteDesigner\Bin\DCDComponents.bpl=S-BOSS Designer Components
 D:\Library\Delphi3\DragDrop\Competition\UnitOOPS\OLEDD\D5\uoolep5.bpl=UnitOOPS OLE Drag and Drop Components for Delphi 5
 [HistoryLists\hlUnitAliases]

@@ -1,14 +1,13 @@
 unit DropComboTarget;
-
 // -----------------------------------------------------------------------------
 // Project:         Drag and Drop Component Suite
 // Module:          DropComboTarget
 // Description:     Implements a swiss-army-knife drop target component.
-// Version:         4.0
-// Date:            18-MAY-2001
-// Target:          Win32, Delphi 5-6
+// Version:         4.1
+// Date:            22-JAN-2002
+// Target:          Win32, Delphi 4-6, C++Builder 4-6
 // Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2001 Angus Johnson & Anders Melander
+// Copyright        © 1997-2002 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -33,6 +32,11 @@ type
 const
   AllComboFormats = [mfText, mfFile, mfURL, mfBitmap, mfMetaFile, mfData];
 
+{$HPPEMIT '// Work around for stupid #define in wingdi.h of "GetMetaFile" as "GetMetaFileA".'}
+{$HPPEMIT '#pragma option push'}
+{$HPPEMIT '#pragma warn -8017'}
+{$HPPEMIT '#define GetMetaFile  GetMetaFile'}
+{$HPPEMIT '#pragma option pop'}
 type
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -41,14 +45,14 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TDropComboTarget = class(TCustomDropMultiTarget)
   private
-    FFileFormat         : TFileDataFormat;
-    FFileMapFormat      : TFileMapDataFormat;
-    FURLFormat          : TURLDataFormat;
-    FBitmapFormat       : TBitmapDataFormat;
-    FMetaFileFormat     : TMetaFileDataFormat;
-    FTextFormat         : TTextDataFormat;
-    FDataFormat         : TDataStreamDataFormat;
-    FFormats            : TComboFormatTypes;
+    FFileFormat: TFileDataFormat;
+    FFileMapFormat: TFileMapDataFormat;
+    FURLFormat: TURLDataFormat;
+    FBitmapFormat: TBitmapDataFormat;
+    FMetaFileFormat: TMetaFileDataFormat;
+    FTextFormat: TTextDataFormat;
+    FDataFormat: TDataStreamDataFormat;
+    FFormats: TComboFormatTypes;
   protected
     procedure DoAcceptFormat(const DataFormat: TCustomDataFormat;
       var Accept: boolean); override;
@@ -113,6 +117,7 @@ end;
 constructor TDropComboTarget.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  OptimizedMove := True;
   FFileFormat := TFileDataFormat.Create(Self);
   FURLFormat := TURLDataFormat.Create(Self);
   FBitmapFormat := TBitmapDataFormat.Create(Self);

@@ -1,14 +1,13 @@
 unit DragDropGraphics;
-
 // -----------------------------------------------------------------------------
 // Project:         Drag and Drop Component Suite.
 // Module:          DragDropGraphics
 // Description:     Implements Dragging and Dropping of graphic data.
-// Version:         4.0
-// Date:            18-MAY-2001
-// Target:          Win32, Delphi 5-6
+// Version:         4.1
+// Date:            22-JAN-2002
+// Target:          Win32, Delphi 4-6, C++Builder 4-6
 // Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2001 Angus Johnson & Anders Melander
+// Copyright        © 1997-2002 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -46,7 +45,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TPaletteClipboardFormat = class(TGDIClipboardFormat)
   private
-    FPalette		: hPalette;
+    FPalette: hPalette;
   public
     function GetClipboardFormat: TClipFormat; override;
     function DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean; override;
@@ -63,7 +62,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TCustomBitmapClipboardFormat = class(TGDIClipboardFormat)
   private
-    FBitmap		: TBitmap;
+    FBitmap: TBitmap;
   protected
     constructor CreateFormat(Atymed: Longint); override;
   public
@@ -109,7 +108,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TCustomMetaFileClipboardFormat = class(TClipboardFormat)
   private
-    FMetaFile		: TMetaFile;
+    FMetaFile: TMetaFile;
   protected
   public
     constructor Create; override;
@@ -151,7 +150,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TBitmapDataFormat = class(TCustomDataFormat)
   private
-    FBitmap		: TBitmap;
+    FBitmap: TBitmap;
   protected
   public
     constructor Create(AOwner: TDragDropComponent); override;
@@ -171,7 +170,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TMetaFileDataFormat = class(TCustomDataFormat)
   private
-    FMetaFile		: TMetaFile;
+    FMetaFile: TMetaFile;
   protected
   public
     constructor Create(AOwner: TDragDropComponent); override;
@@ -190,7 +189,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TDropBMPTarget = class(TCustomDropMultiTarget)
   private
-    FBitmapFormat	: TBitmapDataFormat;
+    FBitmapFormat: TBitmapDataFormat;
   protected
     function GetBitmap: TBitmap;
   public
@@ -206,7 +205,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TDropBMPSource = class(TCustomDropMultiSource)
   private
-    FBitmapFormat	: TBitmapDataFormat;
+    FBitmapFormat: TBitmapDataFormat;
   protected
     procedure SetBitmap(const Value: TBitmap);
     function GetBitmap: TBitmap;
@@ -224,7 +223,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TDropMetaFileTarget = class(TCustomDropMultiTarget)
   private
-    FMetaFileFormat	: TMetaFileDataFormat;
+    FMetaFileFormat: TMetaFileDataFormat;
   protected
     function GetMetaFile: TMetaFile;
   public
@@ -240,9 +239,9 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TDropImageTarget = class(TCustomDropMultiTarget)
   private
-    FMetaFileFormat	: TMetaFileDataFormat;
-    FBitmapFormat	: TBitmapDataFormat;
-    FPicture		: TPicture;
+    FMetaFileFormat: TMetaFileDataFormat;
+    FBitmapFormat: TBitmapDataFormat;
+    FPicture: TPicture;
   protected
     function DoGetData: boolean; override;
     procedure ClearData; override;
@@ -300,10 +299,10 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 procedure CopyDIBToBitmap(Bitmap: TBitmap; BitmapInfo: PBitmapInfo; DIBSize: integer);
 var
-  BitmapFileHeader	: TBitmapFileHeader;
-  FileSize		: integer;
-  InfoSize		: integer;
-  Stream		: TMemoryStream;
+  BitmapFileHeader: TBitmapFileHeader;
+  FileSize: integer;
+  InfoSize: integer;
+  Stream: TMemoryStream;
 begin
   // Write DIB to a stream in the BMP file format
   Stream := TMemoryStream.Create;
@@ -340,9 +339,9 @@ end;
 
 function GetHGlobalDIBFromBitmap(Bitmap: TBitmap): HGlobal;
 var
-  Stream		: TMemoryStream;
-  DIB			: pointer;
-  DIBSize		: integer;
+  Stream: TMemoryStream;
+  DIB: pointer;
+  DIBSize: integer;
 begin
   Stream := TMemoryStream.Create;
   try
@@ -478,7 +477,7 @@ end;
 
 function TBitmapClipboardFormat.DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
 var
-  Palette		: TPaletteClipboardFormat;
+  Palette: TPaletteClipboardFormat;
 begin
   Result := False;
   if (AMedium.hBitmap = 0) then
@@ -501,9 +500,9 @@ end;
 function TBitmapClipboardFormat.DoSetData(const FormatEtcIn: TFormatEtc;
   var AMedium: TStgMedium): boolean;
 var
-  Palette		: HPalette;
-  Format		: Word;
-  hBitmap		: THandle;
+  Palette: HPalette;
+  Format: Word;
+  hBitmap: THandle;
 begin
   Result := False;
 
@@ -550,12 +549,12 @@ end;
 // http://x5.dejanews.com/[ST_rn=ps]/getdoc.xp?AN=382056726.2&CONTEXT=925473183.2090336317&hitnum=0
 function TDIBClipboardFormat.DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
 var
-  BitmapInfo		: PBitmapInfo;
-  BitmapFileHeader	: TBitmapFileHeader;
-  DIBSize		: integer;
-  FileSize		: integer;
-  InfoSize		: integer;
-  Stream		: TMemoryStream;
+  BitmapInfo: PBitmapInfo;
+  BitmapFileHeader: TBitmapFileHeader;
+  DIBSize: integer;
+  FileSize: integer;
+  InfoSize: integer;
+  Stream: TMemoryStream;
 begin
   // Get data source's DIB block
   BitmapInfo := GlobalLock(AMedium.HGlobal);
@@ -651,9 +650,9 @@ end;
 
 function WMF2EMF(const MetaFile: TMetaFilePict): hEnhMetaFile;
 var
-  Bits		: Pointer;
-  Length	: UINT;
-  RefDC		: HDC;
+  Bits: Pointer;
+  Length: UINT;
+  RefDC: HDC;
 begin
   Length := GetMetaFileBitsEx(MetaFile.hMF, 0, nil);
   if (Length = 0) then
@@ -677,7 +676,7 @@ end;
 
 function TMetaFileClipboardFormat.DoGetData(ADataObject: IDataObject; const AMedium: TStgMedium): boolean;
 var
-  pMetaFile		: PMetaFilePict;
+  pMetaFile: PMetaFilePict;
 begin
   pMetaFile := GlobalLock(AMedium.hMetaFilePict);
   try

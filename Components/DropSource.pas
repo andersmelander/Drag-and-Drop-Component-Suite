@@ -1,15 +1,14 @@
 unit DropSource;
-
 // -----------------------------------------------------------------------------
 // Project:         Drag and Drop Component Suite
 // Module:          DropSource
 // Description:     Implements Dragging & Dropping of data
 //                  FROM your application to another.
-// Version:         4.0
-// Date:            18-MAY-2001
-// Target:          Win32, Delphi 5-6
+// Version:         4.1
+// Date:            22-JAN-2002
+// Target:          Win32, Delphi 4-6, C++Builder 4-6
 // Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2001 Angus Johnson & Anders Melander
+// Copyright        © 1997-2002 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 // General changes:
 // - Some component glyphs has changed.
@@ -50,8 +49,15 @@ uses
   Classes;
 
 {$include DragDrop.inc}
+{$ifdef VER135_PLUS}
+// shldisp.h only exists in C++Builder 5 and later.
+{$HPPEMIT '#include <shldisp.h>'}
+{$endif}
 
 type
+  tagSTGMEDIUM = ActiveX.TStgMedium;
+  tagFORMATETC = ActiveX.TFormatEtc;
+
   TDragResult = (drDropCopy, drDropMove, drDropLink, drCancel,
     drOutMemory, drAsync, drUnknown);
 
@@ -96,7 +102,7 @@ type
 // Implements the IDropSource and IDataObject interfaces.
 ////////////////////////////////////////////////////////////////////////////////
   TCustomDropSource = class(TDragDropComponent, IDropSource, IDataObject,
-    IAsyncOperation)
+    IAsyncOperation2)
   private
     FDragTypes: TDragTypes;
     FFeedbackEffect: LongInt;
@@ -116,7 +122,11 @@ type
     // Async transfer...
     FAllowAsync: boolean;
     FRequestAsync: boolean;
-    FIsAsync: boolean;
+    FAsyncSourceTransfer: boolean;
+    FAsyncTargetTransfer: boolean;
+    FAsyncDataObject: IDataObject;
+    FAsyncDropSource: IDropSource;
+    FDragInProgress: boolean;
 
   protected
     property FeedbackEffect: LongInt read FFeedbackEffect write FFeedbackEffect;
@@ -145,10 +155,10 @@ type
 
     // IAsyncOperation implementation
     function EndOperation(hResult: HRESULT; const pbcReserved: IBindCtx;
-      dwEffects: Cardinal): HRESULT; stdcall;
-    function GetAsyncMode(out fDoOpAsync: LongBool): HRESULT; stdcall;
-    function InOperation(out pfInAsyncOp: LongBool): HRESULT; stdcall;
-    function SetAsyncMode(fDoOpAsync: LongBool): HRESULT; stdcall;
+      dwEffects: DWORD): HResult; stdcall;
+    function GetAsyncMode(out pfIsOpAsync: Bool): HRESULT; stdcall;
+    function InOperation(out pfInAsyncOp: Bool): HRESULT; stdcall;
+    function SetAsyncMode(fDoOpAsync: Bool): HRESULT; stdcall;
     function StartOperation(const pbcReserved: IBindCtx): HRESULT; stdcall;
 
     // Abstract methods
@@ -158,6 +168,7 @@ type
       var Medium: TStgMedium): HRESULT; virtual;
     function HasFormat(const FormatEtc: TFormatEtc): boolean; virtual; abstract;
     function GetEnumFormatEtc(dwDirection: LongInt): IEnumFormatEtc; virtual; abstract;
+    function DoExecute: TDragResult; virtual;
 
     // Data format event sink
     procedure DataChanging(Sender: TObject); virtual;
@@ -190,7 +201,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function Execute: TDragResult; virtual;
+    function Execute(Asynchronous: boolean = False): TDragResult; virtual;
     function CutToClipboard: boolean; virtual;
     function CopyToClipboard: boolean; virtual;
     procedure FlushClipboard; virtual;
@@ -205,7 +216,8 @@ type
       write SetInShellDragLoop;
     property TargetCLSID: TCLSID read GetTargetCLSID;
     property LiveDataOnClipboard: boolean read GetLiveDataOnClipboard;
-    property AsyncTransfer: boolean read FIsAsync;
+    property AsyncTransfer: boolean read FAsyncTargetTransfer;
+    property DragInProgress: boolean read FDragInProgress;
 
   published
     property DragTypes: TDragTypes read FDragTypes write FDragTypes;
@@ -219,12 +231,12 @@ type
 
     // Drag Images...
     property Images: TImageList read FImages write SetImages;
-    property ImageIndex: integer read FImageIndex write SetImageIndex;
-    property ShowImage: boolean read FShowImage write SetShowImage;
-    property ImageHotSpotX: integer index 1 read GetPoint write SetPoint;
-    property ImageHotSpotY: integer index 2 read GetPoint write SetPoint;
+    property ImageIndex: integer read FImageIndex write SetImageIndex default 0;
+    property ShowImage: boolean read FShowImage write SetShowImage default False;
+    property ImageHotSpotX: integer index 1 read GetPoint write SetPoint default 16;
+    property ImageHotSpotY: integer index 2 read GetPoint write SetPoint default 16;
     // Async transfer...
-    property AllowAsyncTransfer: boolean read FAllowAsync write SetAllowAsync;
+    property AllowAsyncTransfer: boolean read FAllowAsync write SetAllowAsync default False;
   end;
 
 
@@ -263,7 +275,11 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+{$ifdef TIME2HELP}
+    property DataFormats: TDataFormats;
+{$else}
     property DataFormats;
+{$endif}
     // TODO : Add support for delayed rendering with OnRenderData event.
   published
   end;
@@ -277,28 +293,6 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TDropEmptySource = class(TCustomDropMultiSource);
 
-
-////////////////////////////////////////////////////////////////////////////////
-//
-//		TDropSourceThread
-//
-////////////////////////////////////////////////////////////////////////////////
-// Executes a drop source operation from a thread.
-// TDropSourceThread is an alternative to the Windows 2000 Asynchronous Data
-// Transfer support.
-////////////////////////////////////////////////////////////////////////////////
-type
-  TDropSourceThread = class(TThread)
-  private
-    FDropSource: TCustomDropSource;
-    FDragResult: TDragResult;
-  protected
-    procedure Execute; override;
-  public
-    constructor Create(ADropSource: TCustomDropSource; AFreeOnTerminate: Boolean);
-    property DragResult: TDragResult read FDragResult;
-    property Terminated;
-  end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -324,10 +318,16 @@ procedure Register;
 implementation
 
 uses
+  Messages,
   CommCtrl,
   ComObj,
-  Graphics;
+  Graphics,
+  SysUtils;
 
+resourcestring
+  sDropSourceBusy = 'A drag and drop operation is already in progress';
+  sDropSourceAsyncFailed = 'Failed to initiate asynchronouse drag and drop operation';
+  sDropSourceAsyncBusy = 'An asynchronous drag and drop operation is in progress';
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -361,6 +361,227 @@ begin
   end;
 end;
 
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Experimental undocumented Windows Shell Drag Image support
+//
+////////////////////////////////////////////////////////////////////////////////
+// This will probably only work on Windows 9x or in Shell Extensions/Shell Name
+// Space Extensions.
+////////////////////////////////////////////////////////////////////////////////
+{$ifdef SHELL_DRAGIMAGE}
+const
+  // DAD_AutoScroll return values
+  DAD_SCROLL_UP    = 1;
+  DAD_SCROLL_DOWN  = 2;
+  DAD_SCROLL_LEFT  = 4;
+  DAD_SCROLL_RIGHT = 8;
+
+type
+  SCROLLSAMPLES = packed record
+    dwCount: DWORD;
+    dwLastTime: DWORD;
+    bWrapped: BOOL;
+    aptPositions: array[0..2] of TPoint;
+    adwTimes: array[0..2] of DWORD;
+  end;
+  LPSCROLLSAMPLES = ^SCROLLSAMPLES;
+  TScrollSamples = ScrollSamples;
+  PScrollSamples = LPSCROLLSAMPLES;
+
+var
+  Shell32Handle: THandle = THandle(-1);
+  DAD_DragEnter: function(hWindow: hWnd): BOOL; stdcall;
+  DAD_DragEnterEx: function(hWindow: hWnd; x, y: integer): BOOL; stdcall;
+  DAD_DragMove: function(x, y: integer): BOOL; stdcall;
+  DAD_AutoScroll: function(hWindow: hWnd; var lpSamples: TScrollSamples;
+    var lppt: TPoint): DWORD; stdcall;
+  DAD_DragLeave: function: BOOL; stdcall;
+  DAD_SetDragImageFromListView: function(hWindow: hWnd; x, y: integer): BOOL; stdcall;
+  DAD_SetDragImage: function(hImageList: THandle; var lppt: TPoint): BOOL; stdcall;
+  DAD_ShowDragImage: function(Show: BOOL): BOOL; stdcall;
+
+function InitShellDragImage: boolean;
+const
+  Shell32 = 'Shell32.dll';
+begin
+  if (Shell32Handle = THandle(-1)) then
+  begin
+    Shell32Handle := SafeLoadLibrary(Shell32);
+    if (Shell32Handle > HINSTANCE_ERROR) then
+    begin
+      DAD_AutoScroll := GetProcAddress(Shell32Handle, PChar(129));
+      if (not Assigned(DAD_AutoScroll)) then
+      begin
+        Result := False;
+        FreeLibrary(Shell32Handle);
+        Shell32Handle := 0;
+        exit;
+      end;
+      DAD_DragEnter := GetProcAddress(Shell32Handle, PChar(130));
+      DAD_DragLeave := GetProcAddress(Shell32Handle, PChar(132));
+      DAD_DragEnterEx := GetProcAddress(Shell32Handle, PChar(131));
+      DAD_DragMove := GetProcAddress(Shell32Handle, PChar(134));
+      DAD_SetDragImage := GetProcAddress(Shell32Handle, PChar(136));
+      DAD_ShowDragImage := GetProcAddress(Shell32Handle, PChar(137));
+      DAD_SetDragImageFromListView := GetProcAddress(Shell32Handle, PChar(177));
+      Result := True;
+    end else
+      Result := False;
+  end else
+    Result := (Shell32Handle > HINSTANCE_ERROR);
+end;
+{$endif}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//		TDropSourceThread
+//
+////////////////////////////////////////////////////////////////////////////////
+// Executes a drop source operation from a thread.
+// TDropSourceThread is an alternative to the Windows 2000 Asynchronous Data
+// Transfer support.
+////////////////////////////////////////////////////////////////////////////////
+type
+  TDropSourceThread = class(TThread)
+  private
+    FDropSource: TCustomDropSource;
+    FDragResult: TDragResult;
+    FDataObjectStream: pointer;
+    FDropSourceStream: pointer;
+    FStarted: THandle;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(ADropSource: TCustomDropSource);
+    destructor Destroy; override;
+    property DragResult: TDragResult read FDragResult;
+    property Started: THandle read FStarted;
+  end;
+
+constructor TDropSourceThread.Create(ADropSource: TCustomDropSource);
+begin
+  inherited Create(True);
+  FreeOnTerminate := True;
+  FDropSource := ADropSource;
+  FDragResult := drAsync;
+  FStarted := Windows.CreateEvent(nil, False, False, nil);
+
+  // Marshall interfaces to thread for use by DoDragDrop API function.
+  OleCheck(CoMarshalInterThreadInterfaceInStream(IDataObject, FDropSource,
+    IStream(FDataObjectStream)));
+  // Note: For some reason I get an "Interface not supported" if I attempt to
+  // marshall the IDropSource interface. It seems to work fine if I marshall the
+  // IUnknown interface instead.
+  OleCheck(CoMarshalInterThreadInterfaceInStream(IUnknown, FDropSource,
+    IStream(FDropSourceStream)));
+end;
+
+destructor TDropSourceThread.Destroy;
+begin
+  if (FDataObjectStream <> nil) then
+    IUnknown(FDataObjectStream)._Release;
+  if (FDropSourceStream <> nil) then
+    IUnknown(FDropSourceStream)._Release;
+  CloseHandle(FStarted);
+  inherited Destroy;
+end;
+
+procedure TDropSourceThread.Execute;
+var
+  pt: TPoint;
+  hwndAttach: HWND;
+  dwAttachThreadID, dwCurrentThreadID: DWORD;
+  Msg: TMsg;
+begin
+  (*
+  ** See Microsoft Knowledgebase Article Q139408 for an explanation of the
+  ** AttachThreadInput stuff.
+  **   http://support.microsoft.com/support/kb/articles/Q139/4/08.asp
+  *)
+
+  try
+    // Notify world that we are running
+    SetEvent(FStarted);
+
+    // Get handle of window under mouse-cursor.
+    GetCursorPos(pt);
+    hwndAttach := WindowFromPoint(pt);
+    ASSERT((hwndAttach <> 0), 'Can''t find window with drag-object');
+
+    // Get thread IDs.
+    dwAttachThreadID := GetWindowThreadProcessId(hwndAttach, nil);
+    dwCurrentThreadID := GetCurrentThreadId();
+
+    // Attach input queues if necessary.
+    if (dwAttachThreadID <> dwCurrentThreadID) then
+      AttachThreadInput(dwAttachThreadID, dwCurrentThreadID, True);
+    try
+
+      // Initialize OLE for this thread.
+      OleInitialize(nil);
+      try
+        // Unmarshall interfaces passed to us from main thread and give them to
+        // the drop source component for use in the DoDragDrop API call.
+        try
+          OleCheck(CoGetInterfaceAndReleaseStream(IStream(FDataObjectStream),
+            IDataObject, FDropSource.FAsyncDataObject));
+          FDataObjectStream := nil;
+          OleCheck(CoGetInterfaceAndReleaseStream(IStream(FDropSourceStream),
+            IAsyncOperation, FDropSource.FAsyncDropSource));
+          FDropSourceStream := nil;
+
+          // Start drag & drop.
+          FDragResult := FDropSource.DoExecute;
+
+        finally
+          FDropSource.FAsyncDropSource := nil;
+          FDropSource.FAsyncDataObject := nil;
+        end;
+
+        // In case the drop target is also performing an asynchronous transfer
+        // (via IAsyncOperation), we must wait for the transfer to complete.
+        // Warning: We have to do this because the drop target will be
+        // disconnected from the drop source if the thread that started the
+        // drag/drop terminates before the transfer has completed.
+        while (FDropSource.FAsyncTargetTransfer) and (not Terminated) do
+        begin
+          // Must pump message queue or drag/drop will freeze and we will never
+          // get out of this loop.
+          if (GetMessage(Msg, 0, 0, 0)) then
+          begin
+            if (Msg.Message <> WM_QUIT) then
+            begin
+              TranslateMessage(Msg);
+              DispatchMessage(Msg);
+            end else
+              Terminate;
+          end;
+        end;
+      finally
+        OleUninitialize;
+      end;
+
+    finally
+      // Restore input queue settings.
+      if (dwAttachThreadID <> dwCurrentThreadID) then
+        AttachThreadInput(dwAttachThreadID, dwCurrentThreadID, False);
+      // Set Terminated flag so owner knows that drag has finished.
+      Terminate;
+
+      FDropSource.FDragInProgress := False;
+      FDropSource.FAsyncSourceTransfer := False;
+    end;
+  except
+    FDragResult := drUnknown;
+    // Make sure OnAfterDrop gets called to notify user that things went wrong
+    // and reset the async flag.
+    FDropSource.EndOperation(E_UNEXPECTED, nil, DROPEFFECT_NONE);
+    Terminate;
+  end;
+end;
+
 // -----------------------------------------------------------------------------
 //			TCustomDropSource
 // -----------------------------------------------------------------------------
@@ -381,8 +602,8 @@ end;
 
 destructor TCustomDropSource.Destroy;
 begin
-  // TODO -oanme -cImprovement : Maybe FlushClipboard would be more appropiate?
-  EmptyClipboard;
+  // DONE -oanme -cImprovement : Maybe FlushClipboard would be more appropiate?
+  FlushClipboard;
   inherited Destroy;
 end;
 
@@ -423,19 +644,16 @@ function TCustomDropSource.DAdvise(const FormatEtc: TFormatEtc; advf: LongInt;
 begin
   Result := OLE_E_ADVISENOTSUPPORTED;
 end;
-// -----------------------------------------------------------------------------
 
 function TCustomDropSource.DUnadvise(dwConnection: LongInt): HRESULT;
 begin
   Result := OLE_E_ADVISENOTSUPPORTED;
 end;
-// -----------------------------------------------------------------------------
 
 function TCustomDropSource.EnumDAdvise(out EnumAdvise: IEnumStatData): HRESULT;
 begin
   Result := OLE_E_ADVISENOTSUPPORTED;
 end;
-// -----------------------------------------------------------------------------
 
 function TCustomDropSource.GetData(const FormatEtcIn: TFormatEtc;
   out Medium: TStgMedium):HRESULT; stdcall;
@@ -456,14 +674,12 @@ begin
   else
     Result:= DV_E_FORMATETC;
 end;
-// -----------------------------------------------------------------------------
 
 function TCustomDropSource.GetDataHere(const FormatEtc: TFormatEtc;
   out Medium: TStgMedium):HRESULT; stdcall;
 begin
   Result := E_NOTIMPL;
 end;
-// -----------------------------------------------------------------------------
 
 function TCustomDropSource.QueryGetData(const FormatEtc: TFormatEtc): HRESULT; stdcall;
 begin
@@ -472,7 +688,6 @@ begin
   else
     Result:= DV_E_FORMATETC;
 end;
-// -----------------------------------------------------------------------------
 
 function TCustomDropSource.EnumFormatEtc(dwDirection: LongInt;
   out EnumFormatEtc:IEnumFormatEtc): HRESULT; stdcall;
@@ -483,14 +698,13 @@ begin
   else
     Result := E_NOTIMPL;
 end;
-// -----------------------------------------------------------------------------
 
 // Implements IDropSource.QueryContinueDrag
 function TCustomDropSource.QueryContinueDrag(fEscapePressed: bool;
   grfKeyState: LongInt): HRESULT; stdcall;
 var
-  ContinueDrop		: Boolean;
-  DragType		: TDragType;
+  ContinueDrop: Boolean;
+  DragType: TDragType;
 begin
   if FEscapePressed then
     Result := DRAGDROP_S_CANCEL
@@ -513,7 +727,6 @@ begin
   end else
     Result := S_OK;
 end;
-// -----------------------------------------------------------------------------
 
 // Implements IDropSource.GiveFeedback
 function TCustomDropSource.GiveFeedback(dwEffect: LongInt): HRESULT; stdcall;
@@ -529,7 +742,6 @@ begin
   else
     Result := S_OK;
 end;
-// -----------------------------------------------------------------------------
 
 function TCustomDropSource.DoSetData(const FormatEtc: TFormatEtc;
   var Medium: TStgMedium): HRESULT;
@@ -546,7 +758,6 @@ begin
       Result := S_OK;
   end;
 end;
-// -----------------------------------------------------------------------------
 
 procedure TCustomDropSource.SetAllowAsync(const Value: boolean);
 begin
@@ -556,30 +767,38 @@ begin
     if (not FAllowAsync) then
     begin
       FRequestAsync := False;
-      FIsAsync := False;
+      FAsyncTargetTransfer := False;
     end;
   end;
 end;
 
-function TCustomDropSource.GetAsyncMode(out fDoOpAsync: LongBool): HRESULT;
+function TCustomDropSource.GetAsyncMode(out pfIsOpAsync: Bool): HRESULT;
 begin
-  fDoOpAsync := FRequestAsync;
+  pfIsOpAsync := FRequestAsync;
   Result := S_OK;
 end;
 
-function TCustomDropSource.SetAsyncMode(fDoOpAsync: LongBool): HRESULT;
+function TCustomDropSource.SetAsyncMode(fDoOpAsync: Bool): HRESULT;
 begin
   if (FAllowAsync) then
   begin
-    FRequestAsync := fDoOpAsync;
     Result := S_OK;
+    if (FRequestAsync <> fDoOpAsync) then
+    begin
+      FRequestAsync := fDoOpAsync;
+
+      // The following AddRef is required according to SDK and MSDN. Don't know
+      // why...
+      // _AddRef;
+      // The corresponding Release is in IAsynOperation.EndOperation.
+    end;
   end else
     Result := E_NOTIMPL;
 end;
 
-function TCustomDropSource.InOperation(out pfInAsyncOp: LongBool): HRESULT;
+function TCustomDropSource.InOperation(out pfInAsyncOp: Bool): HRESULT;
 begin
-  pfInAsyncOp := FIsAsync;
+  pfInAsyncOp := FAsyncTargetTransfer;
   Result := S_OK;
 end;
 
@@ -587,26 +806,33 @@ function TCustomDropSource.StartOperation(const pbcReserved: IBindCtx): HRESULT;
 begin
   if (FRequestAsync) then
   begin
-    FIsAsync := True;
+    FAsyncTargetTransfer := True;
     Result := S_OK;
   end else
     Result := E_NOTIMPL;
 end;
 
 function TCustomDropSource.EndOperation(hResult: HRESULT;
-  const pbcReserved: IBindCtx; dwEffects: Cardinal): HRESULT;
+  const pbcReserved: IBindCtx; dwEffects: DWORD): HRESULT;
 var
   DropResult: TDragResult;
 begin
-  if (FIsAsync) then
+  if (FAsyncTargetTransfer) then
   begin
-    FIsAsync := False;
+    // The following Release is required according to SDK and MSDN. Don't know
+    // why...
+    // _Release;
+    // The corresponding AddRef is in IAsynOperation.SetAsyncMode.
+
+    FAsyncTargetTransfer := False;
     if (Assigned(FOnAfterDrop)) then
     begin
       if (Succeeded(hResult)) then
         DropResult := DropEffectToDragResult(dwEffects and DragTypesToDropEffect(FDragTypes))
       else
         DropResult := drUnknown;
+      // Note: The following logic is slightly different from the corresponding
+      // code in TCustomDropSource.DoExecute. This might be a bug.
       FOnAfterDrop(Self, DropResult,
         (DropResult <> drDropMove) or (PerformedDropEffect <> DROPEFFECT_MOVE));
     end;
@@ -615,7 +841,7 @@ begin
     Result := E_FAIL;
 end;
 
-function TCustomDropSource.Execute: TDragResult;
+function TCustomDropSource.DoExecute: TDragResult;
 
   function GetRGBColor(Value: TColor): DWORD;
   begin
@@ -634,41 +860,47 @@ var
   shDragImage: TSHDRAGIMAGE;
   shDragBitmap: TBitmap;
 begin
-  shDragBitmap := nil;
-
   AllowedEffects := DragTypesToDropEffect(FDragTypes);
-
-  // Reset the "Performed Drop Effect" value. If it is supported by the target,
-  // the target will set it to the desired value when the drop occurs.
-  PerformedDropEffect := -1;
 
   if (FShowImage) then
   begin
     // Attempt to create Drag Drop helper object.
-    // At present this is only supported on Windows 2000. If the object can't be
-    // created, we fall back to the old image list based method (which only
-    // works within the application).
-    CoCreateInstance(CLSID_DragDropHelper, nil, CLSCTX_INPROC_SERVER,
-      IDragSourceHelper, FDragSourceHelper);
-
-    // Display drag image.
-    if (FDragSourceHelper <> nil) then
+    // At present this is only supported on Windows 2000 and later (and reported
+    // broken in Windows ME).
+    // If the object can't be created, we fall back to the old image list based
+    // method (which only works on Win9x or within the application).
+    if (Succeeded(CoCreateInstance(CLSID_DragDropHelper, nil, CLSCTX_INPROC_SERVER,
+      IDragSourceHelper, FDragSourceHelper))) and (FDragSourceHelper <> nil) then
     begin
+      // Display drag image.
       IsDraggingImage := True;
+
+      // TODO : Should also support DragSourceHelper.InitializeFromWindow
       shDragBitmap := TBitmap.Create;
-      shDragBitmap.PixelFormat := pfDevice;
-      FImages.GetBitmap(ImageIndex, shDragBitmap);
-      shDragImage.hbmpDragImage := shDragBitmap.Handle;
-      shDragImage.sizeDragImage.cx := shDragBitmap.Width;
-      shDragImage.sizeDragImage.cy := shDragBitmap.Height;
-      shDragImage.crColorKey := GetRGBColor(FImages.BkColor);
-      shDragImage.ptOffset.x := ImageHotSpotX;
-      shDragImage.ptOffset.y := ImageHotSpotY;
-      if Failed(FDragSourceHelper.InitializeFromBitmap(shDragImage, Self)) then
-      begin
-        FDragSourceHelper := nil;
+      try
+        shDragBitmap.PixelFormat := pfDevice;
+        // TImageList.GetBitmap uses TImageList.Draw to extract the bitmap so we
+        // must clear the destination bitmap before extraction.
+        if (FImages.BkColor <> clNone) then
+          shDragBitmap.Canvas.Brush.Color := FImages.BkColor;
+        shDragBitmap.Canvas.FillRect(shDragBitmap.Canvas.ClipRect);
+        FImages.GetBitmap(ImageIndex, shDragBitmap);
+        shDragImage.hbmpDragImage := shDragBitmap.Handle;
+        shDragImage.sizeDragImage.cx := shDragBitmap.Width;
+        shDragImage.sizeDragImage.cy := shDragBitmap.Height;
+        shDragImage.crColorKey := GetRGBColor(FImages.BkColor);
+        shDragImage.ptOffset.x := ImageHotSpotX;
+        shDragImage.ptOffset.y := ImageHotSpotY;
+        if (Succeeded(FDragSourceHelper.InitializeFromBitmap(shDragImage, Self))) then
+          // Apparently the bitmap is now owned by the drag/drop image handler...
+          // The documentation doesn't mention this explicitly, but the
+          // implemtation of Microsoft's SDK samples suggests that this is the
+          // case.
+          shDragBitmap.ReleaseHandle
+        else
+          FDragSourceHelper := nil;
+      finally
         shDragBitmap.Free;
-        shDragBitmap := nil;
       end;
     end else
       IsDraggingImage := False;
@@ -679,17 +911,43 @@ begin
     begin
       IsDraggingImage := ImageList_BeginDrag(FImages.Handle, FImageIndex,
         FImageHotSpot.X, FImageHotSpot.Y);
+
+{$ifdef SHELL_DRAGIMAGE}
+      // Experimental Shell Drag Image support.
+      if (InitShellDragImage) then
+      begin
+        if DAD_SetDragImage(FImages.Handle, FImageHotSpot) then
+          DAD_ShowDragImage(True);
+      end;
+{$endif}
     end;
   end else
     IsDraggingImage := False;
 
-  if (AllowAsyncTransfer) then
-    SetAsyncMode(True);
-
   try
     InShellDragLoop := True;
     try
+
+      (*************************************************************************
+      **
+      **               DoDragDrop - this is were it all starts
+      **
+      *************************************************************************)
+(*
+      if (FAsyncSourceTransfer) then
+      begin
+        DropResult := DoDragDrop(FAsyncDataObject, FAsyncDropSource, AllowedEffects, DropEffect);
+        FAsyncDataObject := nil;
+        FAsyncDropSource := nil;
+      end else
+*)
       DropResult := DoDragDrop(Self, Self, AllowedEffects, DropEffect);
+      if (FAsyncSourceTransfer) then
+      begin
+        FAsyncDataObject := nil;
+        FAsyncDropSource := nil;
+      end;
+
     finally
       // InShellDragLoop is also reset in TCustomDropSource.QueryContinueDrag.
       // This is just to make absolutely sure that it is reset (actually no big
@@ -703,7 +961,6 @@ begin
       if (FDragSourceHelper <> nil) then
       begin
         FDragSourceHelper := nil;
-        shDragBitmap.Free;
       end else
         ImageList_EndDrag;
     end;
@@ -745,6 +1002,8 @@ begin
       Result := drOutMemory;
     else
       // This should never happen!
+      // ...but can happen if we pass something invalid to the drop target.
+      // e.g. if we drop empty text on WordPad it will return DV_E_FORMATETC.
       Result := drUnknown;
   end;
 
@@ -760,7 +1019,72 @@ begin
       ((DropEffect <> DROPEFFECT_MOVE) or (PerformedDropEffect <> DROPEFFECT_MOVE)));
 
 end;
-// -----------------------------------------------------------------------------
+
+function TCustomDropSource.Execute(Asynchronous: boolean): TDragResult;
+var
+  AsyncThread: TDropSourceThread;
+begin
+  if (AsyncTransfer) then
+    raise Exception.Create(sDropSourceAsyncBusy);
+  if (DragInProgress) then
+    raise Exception.Create(sDropSourceBusy);
+
+  // Reset the "Performed Drop Effect" value. If it is supported by the target,
+  // the target will set it to the desired value when the drop occurs.
+  PerformedDropEffect := -1;
+
+  FAsyncDataObject := nil;
+  FAsyncDropSource := nil;
+  FAsyncTargetTransfer := False;
+  FAsyncSourceTransfer := False;
+  FRequestAsync := False;
+  if (AllowAsyncTransfer) then
+    SetAsyncMode(True);
+
+  if (Asynchronous) then
+  begin
+    // Perform an asynchronous drag and drop operation.
+    FAsyncSourceTransfer := True;
+
+    // Create a thread to perform the drag...
+    AsyncThread := TDropSourceThread.Create(Self);
+    try
+      FDragInProgress := True;
+      // ...and launch it.
+      AsyncThread.Resume;
+
+      // Wait for thread to start.
+      // If the thread takes longer than 10 seconds to start we assume that
+      // something went wrong.
+      if (WaitForSingleObject(AsyncThread.Started, 10000) <> WAIT_OBJECT_0) then
+        raise Exception.Create(sDropSourceAsyncFailed);
+
+(*
+      // Wait for the transfer to complete.
+      while DropEmptySource1.DragInProgress do
+        Application.ProcessMessages;
+      // Wait for the thread to terminate (it should do so itself when the
+      // transfer completes)
+      WaitFor;
+*)
+      Result := drAsync;
+    except
+      FAsyncSourceTransfer := False;
+      FDragInProgress := False;
+      AsyncThread.Free;
+      raise;
+    end;
+  end else
+  begin
+    // Perform a normal synchronous drag and drop operation.
+    FDragInProgress := True;
+    try
+      Result := DoExecute;
+    finally
+      FDragInProgress := False;
+    end;
+  end;
+end;
 
 function TCustomDropSource.GetPerformedDropEffect: longInt;
 begin
@@ -804,7 +1128,7 @@ end;
 
 procedure TCustomDropSource.DataChanging(Sender: TObject);
 begin
-  // Data is changing - Flush clipboard to freeze the contents 
+  // Data is changing - Flush clipboard to freeze the contents. 
   FlushClipboard;
 end;
 
@@ -843,7 +1167,7 @@ end;
 
 function TCustomDropSource.CutOrCopyToClipboard: boolean;
 begin
-  Result := (OleSetClipboard(Self as IDataObject) = S_OK);
+  Result := (Succeeded(OleSetClipboard(Self as IDataObject)));
 end;
 
 procedure TCustomDropSource.DoOnPaste(Action: TDragResult; DeleteOnPaste: boolean);
@@ -860,17 +1184,29 @@ end;
 // -----------------------------------------------------------------------------
 
 procedure TCustomDropSource.SetImages(const Value: TImageList);
+var
+  OldValue: TImageList;
 begin
   if (FImages = Value) then
     exit;
+
+  OldValue := FImages;
   FImages := Value;
+
   if (csLoading in ComponentState) then
     exit;
 
-  { DONE -oanme : Shouldn't FShowImage and FImageIndex only be reset if FImages = nil? }
   if (FImages = nil) or (FImageIndex >= FImages.Count) then
     FImageIndex := 0;
-  FShowImage := FShowImage and (FImages <> nil) and (FImages.Count > 0);
+
+  if (FImages = nil) or (FImages.Count = 0) then
+    FShowImage := False
+  else
+    // At design time, set ShowImage True when assigning an image list for the
+    // first time.
+    if (csDesigning in ComponentState) and (FImages <> nil) and
+      (OldValue = nil) then
+      FShowImage := True;
 end;
 // -----------------------------------------------------------------------------
 
@@ -882,7 +1218,7 @@ begin
     exit;
   end;
 
-  if (Value < 0) or (FImages.Count = 0) or (FImages = nil) then
+  if (Value < 0) or (FImages = nil) or (FImages.Count = 0) then
   begin
     FImageIndex := 0;
     FShowImage := False;
@@ -939,12 +1275,13 @@ end;
 type
   TEnumFormatEtc = class(TInterfacedObject, IEnumFormatEtc)
   private
-    FFormats		: TClipboardFormats;
-    FIndex		: integer;
+    FFormats: TClipboardFormats;
+    FIndex: integer;
   protected
     constructor CreateClone(AFormats: TClipboardFormats; AIndex: Integer);
   public
     constructor Create(AFormats: TDataFormats; Direction: TDataDirection);
+    destructor Destroy; override;
     { IEnumFormatEtc implentation }
     function Next(Celt: LongInt; out Elt; pCeltFetched: pLongInt): HRESULT; stdcall;
     function Skip(Celt: LongInt): HRESULT; stdcall;
@@ -954,21 +1291,26 @@ type
 
 constructor TEnumFormatEtc.Create(AFormats: TDataFormats; Direction: TDataDirection);
 var
-  i, j			: integer;
+  i, j: integer;
 begin
   inherited Create;
   FFormats := TClipboardFormats.Create(nil, False);
   FIndex := 0;
   for i := 0 to AFormats.Count-1 do
-    for j := 0 to AFormats[i].CompatibleFormats.Count-1 do
-      if (Direction in AFormats[i].CompatibleFormats[j].DataDirections) and
-        (not FFormats.Contain(TClipboardFormatClass(AFormats[i].CompatibleFormats[j].ClassType))) then
-        FFormats.Add(AFormats[i].CompatibleFormats[j]);
+    (*
+    ** Only offer formats which contain data at this time.
+    ** This might cause problems with formats which provides data on-demand.
+    *)
+    if AFormats[i].HasData then
+      for j := 0 to AFormats[i].CompatibleFormats.Count-1 do
+        if (Direction in AFormats[i].CompatibleFormats[j].DataDirections) and
+          (not FFormats.Contain(TClipboardFormatClass(AFormats[i].CompatibleFormats[j].ClassType))) then
+          FFormats.Add(AFormats[i].CompatibleFormats[j]);
 end;
 
 constructor TEnumFormatEtc.CreateClone(AFormats: TClipboardFormats; AIndex: Integer);
 var
-  i			: integer;
+  i: integer;
 begin
   inherited Create;
   FFormats := TClipboardFormats.Create(nil, False);
@@ -977,11 +1319,18 @@ begin
     FFormats.Add(AFormats[i]);
 end;
 
+destructor TEnumFormatEtc.Destroy;
+begin
+  FFormats.Free;
+  FFormats := nil;
+  inherited Destroy;
+end;
+
 function TEnumFormatEtc.Next(Celt: LongInt; out Elt;
   pCeltFetched: pLongInt): HRESULT;
 var
-  i			: integer;
-  FormatEtc		: PFormatEtc;
+  i: integer;
+  FormatEtc: PFormatEtc;
 begin
   i := 0;
   FormatEtc := PFormatEtc(@Elt);
@@ -1056,9 +1405,12 @@ end;
 
 destructor TCustomDropMultiSource.Destroy;
 var
-  i			: integer;
+  i: integer;
 begin
-  EmptyClipboard;
+  // Must flush clipboard before data formats are destroyed. Otherwise clipboard
+  // can be left with references to data which can no longer be supplied.
+  FlushClipboard;
+  
   // Delete all target formats owned by the object
   for i := FDataFormats.Count-1 downto 0 do
     FDataFormats[i].Free;
@@ -1127,7 +1479,7 @@ end;
 function TCustomDropMultiSource.DoSetData(const FormatEtc: TFormatEtc;
   var Medium: TStgMedium): HRESULT;
 var
-  i, j			: integer;
+  i, j: integer;
   GenericClipboardFormat: TRawClipboardFormat;
 begin
   Result := E_NOTIMPL;
@@ -1172,8 +1524,7 @@ end;
 
 function TCustomDropMultiSource.HasFormat(const FormatEtc: TFormatEtc): boolean;
 var
-  i			,
-  j			: integer;
+  i, j: integer;
 begin
   Result := False;
 
@@ -1229,73 +1580,21 @@ end;
 procedure TCustomDropMultiSource.DoOnSetData(DataFormat: TCustomDataFormat;
   ClipboardFormat: TClipboardFormat);
 var
-  DropEffect		: longInt;
+  DropEffect: longInt;
 begin
-  if (ClipboardFormat is TPasteSuccededClipboardFormat) then
+  if (ClipboardFormat is TPasteSucceededClipboardFormat) then
   begin
-    DropEffect := TPasteSuccededClipboardFormat(ClipboardFormat).Value;
+    DropEffect := TPasteSucceededClipboardFormat(ClipboardFormat).Value;
     DoOnPaste(DropEffectToDragResult(DropEffect),
       (DropEffect = DROPEFFECT_MOVE) and (PerformedDropEffect = DROPEFFECT_MOVE));
   end;
 end;
 
-////////////////////////////////////////////////////////////////////////////////
-//
-//		TDropSourceThread
-//
-////////////////////////////////////////////////////////////////////////////////
-constructor TDropSourceThread.Create(ADropSource: TCustomDropSource;
-  AFreeOnTerminate: Boolean);
-begin
-  inherited Create(True);
-  FreeOnTerminate := AFreeOnTerminate;
-  FDropSource := ADropSource;
-  FDragResult := drAsync;
-end;
-
-procedure TDropSourceThread.Execute;
-var
-  pt: TPoint;
-  hwndAttach: HWND;
-  dwAttachThreadID, dwCurrentThreadID : DWORD;
-begin
-  (*
-  ** See Microsoft Knowledgebase Article Q139408 for an explanation of the
-  ** AttachThreadInput stuff.
-  **   http://support.microsoft.com/support/kb/articles/Q139/4/08.asp
-  *)
-
-  // Get handle of window under mouse-cursor.
-  GetCursorPos(pt);
-  hwndAttach := WindowFromPoint(pt);
-  ASSERT(hwndAttach<>0, 'Can''t find window with drag-object');
-
-  // Get thread IDs.
-  dwAttachThreadID := GetWindowThreadProcessId(hwndAttach, nil);
-  dwCurrentThreadID := GetCurrentThreadId();
-
-  // Attach input queues if necessary.
-  if (dwAttachThreadID <> dwCurrentThreadID) then
-    AttachThreadInput(dwAttachThreadID, dwCurrentThreadID, True);
-  try
-
-    // Initialize OLE for this thread.
-    OleInitialize(nil);
-    try
-      // Start drag & drop.
-      FDragResult := FDropSource.Execute;
-    finally
-      OleUninitialize;
-    end;
-
-  finally
-    // Restore input queue settings.
-    if (dwAttachThreadID <> dwCurrentThreadID) then
-      AttachThreadInput(dwAttachThreadID, dwCurrentThreadID, False);
-    // Set Terminated flag so owner knows that drag has finished.
-    Terminate;
-  end;
-end;
-
+initialization
+finalization
+{$ifdef SHELL_DRAGIMAGE}
+  if (Shell32Handle > HINSTANCE_ERROR) then
+    FreeLibrary(Shell32Handle);
+{$endif}
 end.
 

@@ -12,14 +12,15 @@ package DragDropD4;
 {$R 'DropComboTarget.dcr'}
 {$R 'DragDropHandler.dcr'}
 {$R 'DragDropContext.dcr'}
+{$R 'DropHandler.dcr'}
 {$ALIGN ON}
 {$ASSERTIONS ON}
 {$BOOLEVAL OFF}
 {$DEBUGINFO ON}
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
-{$IOCHECKS ON}
-{$LOCALSYMBOLS OFF}
+{$IOCHECKS OFF}
+{$LOCALSYMBOLS ON}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
 {$OPTIMIZATION OFF}
@@ -30,7 +31,7 @@ package DragDropD4;
 {$STACKFRAMES OFF}
 {$TYPEDADDRESS OFF}
 {$VARSTRINGCHECKS ON}
-{$WRITEABLECONST ON}
+{$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $00410000}
 {$DESCRIPTION 'Drag and Drop Component Suite'}
@@ -49,13 +50,12 @@ contains
   DragDropText in 'DragDropText.pas',
   DragDrop in 'DragDrop.pas',
   DragDropGraphics in 'DragDropGraphics.pas',
-  DropSource3 in 'DropSource3.pas',
-  DropFileSource3 in 'DropFileSource3.pas',
   DragDropInternet in 'DragDropInternet.pas',
   DragDropDesign in 'DragDropDesign.pas',
   DropComboTarget in 'DropComboTarget.pas',
   DragDropHandler in 'DragDropHandler.pas',
   DragDropContext in 'DragDropContext.pas',
-  DragDropComObj in 'DragDropComObj.pas';
+  DragDropComObj in 'DragDropComObj.pas',
+  DropHandler in 'DropHandler.pas';
 
 end.

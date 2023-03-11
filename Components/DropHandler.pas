@@ -1,15 +1,15 @@
 unit DropHandler;
-
 // -----------------------------------------------------------------------------
 // Project:         Drag and Drop Component Suite.
 // Module:          DropHandler
 // Description:     Implements Drop Handler Shell Extensions.
-// Version:         4.0
-// Date:            18-MAY-2001
-// Target:          Win32, Delphi 5-6
+// Version:         4.1
+// Date:            22-JAN-2002
+// Target:          Win32, Delphi 4-6, C++Builder 4-6
 // Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2001 Angus Johnson & Anders Melander
+// Copyright        © 1997-2002 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
+
 interface
 
 uses
@@ -174,7 +174,8 @@ begin
     CreateRegKey(FileClass+'\shellex\DropHandler', '', GUIDToString(ClassID));
   end else
   begin
-    RegDeleteKey(HKEY_CLASSES_ROOT, PChar(FileClass));
+    DeleteDefaultRegValue(FileClass+'\shellex\DropHandler');
+    DeleteEmptyRegKey(FileClass+'\shellex\DropHandler', True);
     inherited UpdateRegistry(Register);
   end;
 end;

@@ -3,14 +3,13 @@ unit DragDrop;
 // Project:         Drag and Drop Component Suite
 // Module:          DragDrop
 // Description:     Implements base classes and utility functions.
-// Version:         4.0
-// Date:            18-MAY-2001
-// Target:          Win32, Delphi 5-6
+// Version:         4.1
+// Date:            22-JAN-2002
+// Target:          Win32, Delphi 4-6, C++Builder 4-6
 // Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2001 Angus Johnson & Anders Melander
+// Copyright        © 1997-2002 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 // TODO -oanme -cPortability : Replace all public use of HWND with THandle. BCB's HWND <> Delphi's HWND.
-{$include DragDrop.inc}
 
 interface
 
@@ -19,14 +18,43 @@ uses
   Windows,
   ActiveX;
 
-{$IFDEF BCB}
+{$include DragDrop.inc}
+
+{$ifdef VER135_PLUS}
+// shldisp.h only exists in C++Builder 5 and later.
+{$HPPEMIT '#include <shldisp.h>'}
+{$endif}
+
 {$HPPEMIT '#ifndef NO_WIN32_LEAN_AND_MEAN'}
-{$HPPEMIT '"Error: The NO_WIN32_LEAN_AND_MEAN symbol must be defined in your projects conditional defines"'}
+{$HPPEMIT '#error The NO_WIN32_LEAN_AND_MEAN symbol must be defined in your projects conditional defines'}
 {$HPPEMIT '#endif'}
-{$ENDIF}
+
+{$ifndef VER12_PLUS}
+// Fix for C++Builder 3.
+{$HPPEMIT '#define TPoint tagPOINT'}
+{$endif}
+
+{$ifndef VER135_PLUS}
+{_$HPPEMIT 'typedef System::DelphiInterface<IAsyncOperation> _di_IAsyncOperation;'}
+{$endif}
+{_$HPPEMIT 'typedef System::DelphiInterface<IDropTargetHelper> _di_IDropTargetHelper;'}
+{_$HPPEMIT 'typedef System::DelphiInterface<IDragSourceHelper> _di_IDragSourceHelper;'}
+
+// C++Builder's declaration of IEnumFORMATETC is incorrect, so we must generate
+// the typedef for C++Builder.
+{$HPPEMIT 'typedef System::DelphiInterface<IEnumFORMATETC> _di_IEnumFORMATETC;' }
+
+// Workaround for apparent declaration bug in C++Builder; Without this
+// "_di_IBindCtx" won't be declared and TCustomDropSource can't compile.
+{$HPPEMIT 'DECLARE_DINTERFACE_TYPE(IBindCtx)'}
 
 
 const
+  {$EXTERNALSYM DROPEFFECT_NONE}
+  {$EXTERNALSYM DROPEFFECT_COPY}
+  {$EXTERNALSYM DROPEFFECT_MOVE}
+  {$EXTERNALSYM DROPEFFECT_LINK}
+  {$EXTERNALSYM DROPEFFECT_SCROLL}
   DROPEFFECT_NONE   = ActiveX.DROPEFFECT_NONE;
   DROPEFFECT_COPY   = ActiveX.DROPEFFECT_COPY;
   DROPEFFECT_MOVE   = ActiveX.DROPEFFECT_MOVE;
@@ -62,12 +90,6 @@ type
 const
   csSourceTarget = [csSource, csTarget];
 
-// C++ Builder's declaration of IEnumFORMATETC is incorrect, so we must generate
-// the typedef for C++ Builder.
-{$IFDEF BCB}
-{$HPPEMIT 'typedef System::DelphiInterface<IEnumFORMATETC> _di_IEnumFORMATETC;' }
-{$ENDIF}
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 //		TInterfacedComponent
@@ -75,7 +97,7 @@ const
 ////////////////////////////////////////////////////////////////////////////////
 // Top level base class for the drag/drop component hierachy.
 // Implements the IUnknown interface.
-// Corresponds to TInterfacedObject (see VCL on-line help), but descends from
+// Corresponds to TInterfacedObject (see VCL online help), but descends from
 // TComponent instead of TObject.
 // Reference counting is disabled (_AddRef and _Release methods does nothing)
 // since the component life span is controlled by the component owner.
@@ -84,8 +106,7 @@ type
   TInterfacedComponent = class(TComponent, IUnknown)
   protected
     function QueryInterface(const IID: TGuid; out Obj): HRESULT;
-      {$IFDEF VER13_PLUS} override; {$ELSE}
-      {$IFDEF VER12_PLUS} reintroduce; {$ENDIF}{$ENDIF} stdcall;
+      {$IFDEF VER13_PLUS} override; {$ELSE} reintroduce; {$ENDIF} stdcall;
     function _AddRef: Integer; stdcall;
     function _Release: Integer; stdcall;
   end;
@@ -175,7 +196,7 @@ type
     function GetFormat(Index: integer): TClipboardFormat;
     function GetCount: integer;
   public
-    constructor Create(ADataFormat: TCustomDataFormat; AOwnsObjects: boolean);
+    constructor Create(ADataFormat: TCustomDataFormat; AOwnsObjects: boolean = True);
     destructor Destroy; override;
     procedure Clear;
     function Add(ClipboardFormat: TClipboardFormat): integer;
@@ -184,6 +205,7 @@ type
     property Formats[Index: integer]: TClipboardFormat read GetFormat; default;
     property Count: integer read GetCount;
     property DataFormat: TCustomDataFormat read FDataFormat;
+    property OwnsObjects: boolean read FOwnsObjects write FOwnsObjects;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -216,10 +238,10 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TCustomDataFormat = class(TObject)
   private
-    FCompatibleFormats	: TClipboardFormats;
-    FFormatList		: TDataFormats;
-    FOwner		: TDragDropComponent;
-    FOnChanging		: TNotifyEvent;
+    FCompatibleFormats: TClipboardFormats;
+    FFormatList: TDataFormats;
+    FOwner: TDragDropComponent;
+    FOnChanging: TNotifyEvent;
   protected
     { Determines if the object can accept data from the specified source format }
     function SupportsFormat(ClipboardFormat: TClipboardFormat): boolean;
@@ -247,9 +269,9 @@ type
     class procedure RegisterDataFormat;
     { Registers the specified clipboard format as being compatible with the data format }
     class procedure RegisterCompatibleFormat(ClipboardFormatClass: TClipboardFormatClass;
-      Priority: integer {$ifdef VER12_PLUS} = 0 {$endif};
-      ConversionScopes: TConversionScopes {$ifdef VER12_PLUS} = csSourceTarget {$endif};
-      DataDirections: TDataDirections {$ifdef VER12_PLUS} = [ddRead] {$endif});
+      Priority: integer = 0;
+      ConversionScopes: TConversionScopes = csSourceTarget;
+      DataDirections: TDataDirections = [ddRead]);
     { Unregisters the specified clipboard format from the compatibility list }
     class procedure UnregisterCompatibleFormat(ClipboardFormatClass: TClipboardFormatClass);
     { Unregisters data format and all mappings involving it from the global database }
@@ -316,9 +338,9 @@ type
     destructor Destroy; override;
     procedure Add(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass;
-      Priority: integer {$ifdef VER12_PLUS} = 0 {$endif};
-      ConversionScopes: TConversionScopes {$ifdef VER12_PLUS} = csSourceTarget {$endif};
-      DataDirections: TDataDirections {$ifdef VER12_PLUS} = [ddRead] {$endif});
+      Priority: integer = 0;
+      ConversionScopes: TConversionScopes = csSourceTarget;
+      DataDirections: TDataDirections = [ddRead]);
     procedure Delete(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass);
     procedure DeleteByClipboardFormat(ClipboardFormatClass: TClipboardFormatClass);
@@ -331,9 +353,9 @@ type
     { Registers the specified format mapping }
     procedure RegisterFormatMap(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass;
-      Priority: integer {$ifdef VER12_PLUS} = 0 {$endif};
-      ConversionScopes: TConversionScopes {$ifdef VER12_PLUS} = csSourceTarget {$endif};
-      DataDirections: TDataDirections {$ifdef VER12_PLUS} = [ddRead] {$endif});
+      Priority: integer = 0;
+      ConversionScopes: TConversionScopes = csSourceTarget;
+      DataDirections: TDataDirections = [ddRead]);
     { Unregisters the specified format mapping }
     procedure UnregisterFormatMap(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass);
@@ -366,6 +388,7 @@ type
       Operation: TOperation); override;
     procedure Loaded; override;
   public
+    constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     property DataFormatClass: TDataFormatClass read FDataFormatClass
       write SetDataFormatClass;
@@ -375,7 +398,7 @@ type
       write SetDragDropComponent;
     property DataFormatName: string read GetDataFormatName
       write SetDataFormatName;
-    property Enabled: boolean read GetEnabled write SetEnabled;
+    property Enabled: boolean read GetEnabled write SetEnabled default True;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -409,7 +432,6 @@ const
   SID_IDropTargetHelper = '{4657278B-411B-11d2-839A-00C04FD918D0}';
 
 type
-  {_$HPPEMIT 'typedef DragDrop::DelphiInterface<IDropTargetHelper> _di_IDropTargetHelper;'}
   {_$EXTERNALSYM IDropTargetHelper}
   IDropTargetHelper = interface(IUnknown)
     [SID_IDropTargetHelper]
@@ -428,7 +450,6 @@ const
   SID_IDragSourceHelper = '{DE5BF786-477A-11d2-839D-00C04FD918D0}';
 
 type
-  {_$HPPEMIT 'typedef DragDrop::DelphiInterface<IDragSourceHelper> _di_IDragSourceHelper;'}
   {_$EXTERNALSYM IDragSourceHelper}
   IDragSourceHelper = interface(IUnknown)
     [SID_IDragSourceHelper]
@@ -446,20 +467,37 @@ type
 // Requires Windows 2000 or later.
 ////////////////////////////////////////////////////////////////////////////////
 const
+{$ifdef VER135_PLUS}
+  {_$EXTERNALSYM IID_IAsyncOperation}
+{$endif}
   IID_IAsyncOperation: TGUID = (
     D1:$3D8B0590; D2:$F691; D3:$11D2; D4:($8E,$A9,$00,$60,$97,$DF,$5B,$D4));
+{$ifdef VER135_PLUS}
+  {_$EXTERNALSYM SID_IAsyncOperation}
+{$endif}
   SID_IAsyncOperation = '{3D8B0590-F691-11D2-8EA9-006097DF5BD4}';
 
 type
-  {$EXTERNALSYM IAsyncOperation}
+{$ifdef VER135_PLUS}
+  {_$EXTERNALSYM IAsyncOperation}
+{$endif}
+  // Note:
+  // IAsyncOperation is declared in C++Builder 5 and later (in shldisp.h), but
+  // for some reason C++Builder can't handle that we also define it here. Not
+  // even if we use the $EXTERNALSYM compiler switch.
+  // To work around this problem we have renamed IAsyncOperation to
+  // IAsyncOperation2.
   IAsyncOperation = interface(IUnknown)
     [SID_IAsyncOperation]
     function SetAsyncMode(fDoOpAsync: BOOL): HResult; stdcall;
-    function GetAsyncMode(out fDoOpAsync: BOOL): HResult; stdcall;
+    function GetAsyncMode(out pfIsOpAsync: BOOL): HResult; stdcall;
     function StartOperation(const pbcReserved: IBindCtx): HResult; stdcall;
     function InOperation(out pfInAsyncOp: BOOL): HResult; stdcall;
     function EndOperation(hResult: HRESULT; const pbcReserved: IBindCtx;
       dwEffects: DWORD): HResult; stdcall;
+  end;
+  IAsyncOperation2 = interface(IAsyncOperation)
+    [SID_IAsyncOperation]
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -513,8 +551,9 @@ type
     // All of these should be moved/mirrored in TRawDataFormat:
     procedure CopyFromStgMedium(const AMedium: TStgMedium);
     procedure CopyToStgMedium(var AMedium: TStgMedium);
-    property AsString: string read GetString write SetString;
     property Medium: TStgMedium read FMedium write FMedium;
+    // Debug info:
+    property AsString: string read GetString write SetString;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -535,6 +574,7 @@ function ShiftStateToDropEffect(Shift: TShiftState; AllowedEffects: longint;
 
 // Replacement for the buggy DragDetect API function.
 function DragDetectPlus(Handle: THandle; p: TPoint): boolean; // V4: New
+
 
 // Wrapper for urlmon.CopyStgMedium.
 // Note: Only works with IE4 or later installed.
@@ -564,20 +604,29 @@ var
 //		Misc drop target related constants
 //
 ////////////////////////////////////////////////////////////////////////////////
-// Drag Drop constants from ActiveX unit
 var
-  // Default inset-width of the auto scroll hot zone.
+  // Default inset-width of the auto-scroll hot zone.
   // Specified in pixels.
-  // Not used! Instead the height of the target control's font is used.
+  // Not used! Instead the height/width of the target scroll bar is used.
   DragDropScrollInset: integer = DD_DEFSCROLLINSET; // 11
 
-  // Default delay after entering the scroll zone, before scrolling starts.
+  // Default delay after entering the scroll zone, before auto-scrolling starts.
   // Specified in milliseconds.
   DragDropScrollDelay: integer = DD_DEFSCROLLDELAY; //  50
 
-  // Default scroll interval during auto scroll.
+  // Default scroll interval during auto-scroll.
   // Specified in milliseconds.
   DragDropScrollInterval: integer = DD_DEFSCROLLINTERVAL; // 50
+
+  // Maximum mouse velocity of auto-scroll.
+  // Specified in pixels/seconds.
+  DragDropScrollMaxVelocity: integer = 20;
+
+  // Sample rate for cursor velocity calculation used in auto-scroll.
+  // Should be <= DragDropScrollInterval. Larger values can have side effects.
+  // Set to 0 to sample as fast as possible.
+  // Specified in milliseconds.
+  DragDropScrollVelocitySample: integer = 10;
 
   // Default delay before dragging should start.
   // Specified in milliseconds.
@@ -596,7 +645,7 @@ var
 ////////////////////////////////////////////////////////////////////////////////
 
 // The following DVASPECT constants are missing from some versions of Delphi and
-// C++ Builder.
+// C++Builder.
 {$ifndef VER135_PLUS}
 const
 {$ifndef VER10_PLUS}
@@ -624,10 +673,10 @@ implementation
 uses
 {$ifdef DEBUG}
   ComObj,
-{$endif}
+{$endif}  
+  DragDropFormats, // Used by TRawClipboardFormat
   DropSource,
   DropTarget,
-  DragDropFormats, // Used by TRawClipboardFormat
   Messages,
   ShlObj,
   MMSystem,
@@ -673,16 +722,12 @@ function TInterfacedComponent.QueryInterface(const IID: TGuid; out Obj): HRESULT
 {$endif}
 
 begin
-{$ifdef VER12_PLUS}
   if GetInterface(IID, Obj) then
     Result := 0
   else if (VCLComObject <> nil) then
     Result := IVCLComObject(VCLComObject).QueryInterface(IID, Obj)
   else
     Result := E_NOINTERFACE;
-{$else}
-  Result := inherited QueryInterface(IID, Obj);
-{$endif}
 {$ifdef DEBUG}
   OutputDebugString(PChar(format('%s.QueryInterface(%s): %d (%d)',
     [ClassName, GuidToString(IID), Result, ord(pointer(Obj) <> nil)])));
@@ -700,12 +745,7 @@ begin
     Result := Outer._AddRef
   else
   begin
-{$ifdef VER12_PLUS}
     inherited _AddRef;
-{$else}
-    if (VCLComObject <> nil) then
-      inherited _AddRef;
-{$endif}
     Result := -1;
   end;
 end;
@@ -719,12 +759,7 @@ begin
     Result := Outer._Release
   else
   begin
-{$ifdef VER12_PLUS}
     inherited _Release;
-{$else}
-    if (VCLComObject <> nil) then
-      inherited _Release;
-{$endif}
     Result := -1;
   end;
 end;
@@ -761,8 +796,23 @@ begin
 end;
 
 function TClipboardFormat.HasValidFormats(ADataObject: IDataObject): boolean;
+var
+  Mask: longInt;
+  AFormatEtc: TFormatEtc;
 begin
-  Result := (ADataObject.QueryGetData(FormatEtc) = S_OK);
+  // Because some IDataObject.QueryGetData implementations (e.g. Outlook
+  // Express) can't handle multiple TYMED values specified in the same
+  // FormatEtc, we have to try each in turn.
+  Mask := $0000001;
+  AFormatEtc := FormatEtc;
+  Result := False;
+  while (Result = False) and (Mask <> 0) do
+  begin
+    AFormatEtc.tymed := FormatEtc.tymed and Mask;
+    if (AFormatEtc.tymed <> 0) then
+      Result := (Succeeded(ADataObject.QueryGetData(AFormatEtc)));
+    Mask := Mask shl 1;
+  end;
 end;
 
 function TClipboardFormat.AcceptFormat(const AFormatEtc: TFormatEtc): boolean;
@@ -796,12 +846,13 @@ end;
 
 function TClipboardFormat.GetData(ADataObject: IDataObject): boolean;
 var
-  Medium		: TStgMedium;
+  Medium: TStgMedium;
 begin
   Result := False;
 
   Clear;
-  if (ADataObject.GetData(FFormatEtc, Medium) <> S_OK) then
+  FillChar(Medium, SizeOf(Medium), 0);
+  if (Failed(ADataObject.GetData(FFormatEtc, Medium))) then
     exit;
   Result := GetDataFromMedium(ADataObject, Medium);
 end;
@@ -843,7 +894,7 @@ begin
 
   // Call IDataObject to set data
   if (Result) then
-    Result := (ADataObject.SetData(FormatEtc, AMedium, True) = S_OK);
+    Result := (Succeeded(ADataObject.SetData(FormatEtc, AMedium, True)));
 
   // If we didn't succeed in transfering ownership of the data medium to the
   // IDataObject, we must deallocate the medium ourselves.
@@ -858,7 +909,7 @@ end;
 
 function TClipboardFormat.GetClipboardFormat: TClipFormat;
 begin
-  // This should have been a virtual abstract class method, but this isn't supported by C++ Builder.
+  // This should have been a virtual abstract class method, but this isn't supported by C++Builder.
   raise Exception.CreateFmt(sImplementationRequired, [ClassName, 'GetClipboardFormat']);
 end;
 
@@ -869,7 +920,7 @@ end;
 
 function TClipboardFormat.GetClipboardFormatName: string;
 var
-  Len			: integer;
+  Len: integer;
 begin
   SetLength(Result, 255); // 255 is just an artificial limit.
   Len := Windows.GetClipboardFormatName(GetClipboardFormat, PChar(Result), 255);
@@ -924,7 +975,7 @@ end;
 
 function TClipboardFormats.FindFormat(ClipboardFormatClass: TClipboardFormatClass): TClipboardFormat;
 var
-  i			: integer;
+  i: integer;
 begin
   // Search list for an object of the specified type
   for i := 0 to Count-1 do
@@ -953,8 +1004,8 @@ end;
 
 procedure TClipboardFormats.Clear;
 var
-  i			: integer;
-  Format		: TObject;
+  i: integer;
+  Format: TObject;
 begin
   if (FOwnsObjects) then
     // Empty list and delete all objects in it
@@ -987,11 +1038,11 @@ begin
     else
       raise Exception.CreateFmt(sInvalidOwnerType, [AOwner.ClassName, ClassName,
         'TCustomDropMultiSource or TCustomDropMultiTarget']);
-    // Add object to owners list of data formats.
-    FOwner := AOwner;
   end else
     // TODO : This sucks! All this ConversionScope stuff should be redesigned.
     ConversionScope := csTarget;
+    
+  FOwner := AOwner;
 
   FCompatibleFormats := TClipboardFormats.Create(Self, True);
   // Populate list with all the clipboard formats that have been registered as
@@ -999,6 +1050,7 @@ begin
   TDataFormatMap.Instance.GetSourceByDataFormat(TDataFormatClass(ClassType),
     FCompatibleFormats, ConversionScope);
 
+  // Add object to owners list of data formats.
   if (FOwner <> nil) then
     FOwner.DataFormats.Add(Self);
 end;
@@ -1038,18 +1090,18 @@ begin
   begin
     CompatibleFormats[i].Clear;
 
-    if (CompatibleFormats[i].GetData(DataObject)) and
-      (CompatibleFormats[i].HasData) then
-    begin
-      if (Assign(CompatibleFormats[i])) then
+    if (CompatibleFormats[i].GetData(DataObject)) then
+      if (CompatibleFormats[i].HasData) then
       begin
-        // Once data has been sucessfully transfered to the TDataFormat object,
-        // we clear the data in the TClipboardFormat object in order to conserve
-        // resources.
-        CompatibleFormats[i].Clear;
-        Result := True;
+        if (Assign(CompatibleFormats[i])) then
+        begin
+          // Once data has been sucessfully transfered to the TDataFormat object,
+          // we clear the data in the TClipboardFormat object in order to conserve
+          // resources.
+          CompatibleFormats[i].Clear;
+          Result := True;
+        end;
       end;
-    end;
 
     inc(i);
   end;
@@ -1260,7 +1312,7 @@ end;
 
 destructor TDataFormatMap.Destroy;
 var
-  i			: integer;
+  i: integer;
 begin
   // Zap any mapings which hasn't been unregistered
   // yet (actually an error condition)
@@ -1272,8 +1324,8 @@ end;
 
 procedure TDataFormatMap.Sort;
 var
-  i			: integer;
-  NewMap		: PFormatMap;
+  i: integer;
+  NewMap: PFormatMap;
 begin
   // Note: We do not use the built-in Sort method of TList because
   // we need to preserve the order in which the mappings were added.
@@ -1314,8 +1366,8 @@ procedure TDataFormatMap.Add(DataFormatClass: TDataFormatClass;
   ClipboardFormatClass: TClipboardFormatClass; Priority: integer;
   ConversionScopes: TConversionScopes; DataDirections: TDataDirections);
 var
-  FormatMap		: PFormatMap;
-  OldMap		: integer;
+  FormatMap: PFormatMap;
+  OldMap: integer;
 begin
   // Avoid duplicate mappings
   OldMap := FindMap(DataFormatClass, ClipboardFormatClass);
@@ -1351,7 +1403,7 @@ end;
 procedure TDataFormatMap.Delete(DataFormatClass: TDataFormatClass;
   ClipboardFormatClass: TClipboardFormatClass);
 var
-  Index			: integer;
+  Index: integer;
 begin
   Index := FindMap(DataFormatClass, ClipboardFormatClass);
   if (Index <> -1) then
@@ -1363,7 +1415,7 @@ end;
 
 procedure TDataFormatMap.DeleteByClipboardFormat(ClipboardFormatClass: TClipboardFormatClass);
 var
-  i			: integer;
+  i: integer;
 begin
   // Delete all mappings associated with the specified clipboard format
   for i := FList.Count-1 downto 0 do
@@ -1376,7 +1428,7 @@ end;
 
 procedure TDataFormatMap.DeleteByDataFormat(DataFormatClass: TDataFormatClass);
 var
-  i			: integer;
+  i: integer;
 begin
   // Delete all mappings associated with the specified target format
   for i := FList.Count-1 downto 0 do
@@ -1390,7 +1442,7 @@ end;
 function TDataFormatMap.FindMap(DataFormatClass: TDataFormatClass;
   ClipboardFormatClass: TClipboardFormatClass): integer;
 var
-  i			: integer;
+  i: integer;
 begin
   for i := 0 to FList.Count-1 do
     if (PFormatMap(FList[i])^.DataFormat.InheritsFrom(DataFormatClass)) and
@@ -1452,8 +1504,16 @@ end;
 //		TDataFormatAdapter
 //
 ////////////////////////////////////////////////////////////////////////////////
+constructor TDataFormatAdapter.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  FEnabled := True;
+end;
+
 destructor TDataFormatAdapter.Destroy;
 begin
+  FDataFormat.Free;
+  FDataFormat := nil;
   inherited Destroy;
 end;
 
@@ -1524,8 +1584,13 @@ begin
   begin
     if not(csLoading in ComponentState) then
       Enabled := False;
+{$ifdef VER13_PLUS}
     if (FDragDropComponent <> nil) then
       FDragDropComponent.RemoveFreeNotification(Self);
+{$else}
+    if (FDragDropComponent <> nil) then
+      FDragDropComponent.Notification(Self, opRemove);
+{$endif}
     FDragDropComponent := Value;
     if (Value <> nil) then
       Value.FreeNotification(Self);
@@ -1642,6 +1707,18 @@ function TRawClipboardFormat.DoGetData(ADataObject: IDataObject;
   const AMedium: TStgMedium): boolean;
 begin
   Result := CopyStgMedium(AMedium, FMedium);
+  // Quote from .\Samples\winui\Shell\DragImg\DragImg.doc from the
+  // Platform SDK:
+  // Currently, there is a bug in that the Drag Source Helper assumes the
+  // position of the current pointer in an IStream retrieved from
+  // IDataObject::GetData is at the beginning of the stream. Until NTBUG #242463
+  // is resolved, it is necessary for the data object to set the IStream's seek
+  // pointer to the beginning of the stream.
+
+  // This doesn't seem to be nescessary on any version of Win2K, but if they
+  // say it must be done then I'll better do it...
+  if (FMedium.tymed = TYMED_ISTREAM) then
+    IStream(FMedium.stm).Seek(0, STREAM_SEEK_SET, PLargeuint(nil)^);
 end;
 
 function TRawClipboardFormat.DoSetData(const FormatEtcIn: TFormatEtc;
@@ -1654,6 +1731,8 @@ function TRawClipboardFormat.GetString: string;
 begin
   with TTextClipboardFormat.Create do
     try
+      TrimZeroes := False;
+      FFormatEtc := Self.FFormatEtc;
       if GetDataFromMedium(nil, FMedium) then
         Result := Text
       else
@@ -1667,12 +1746,15 @@ procedure TRawClipboardFormat.SetString(const Value: string);
 begin
   with TTextClipboardFormat.Create do
     try
+      TrimZeroes := False;
+      FFormatEtc := Self.FFormatEtc;
       Text := Value;
       SetDataToMedium(FormatEtc, FMedium);
     finally
       Free;
     end;
 end;
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -1764,7 +1846,6 @@ var
   DragRect: TRect;
   Msg: TMsg;
   StartTime: DWORD;
-  OldCapture: HWND;
 begin
   Result := False;
   if (not ClientToScreen(Handle, p)) then
@@ -1777,7 +1858,7 @@ begin
   StartTime := TimeGetTime;
   // Capture the mouse so that we will receive mouse messages even after the
   // mouse leaves the control rect.
-  OldCapture := SetCapture(Handle);
+  SetCapture(Handle);
   try
     // Abort if we failed to capture the mouse.
     if (GetCapture <> Handle) then
@@ -1794,7 +1875,7 @@ begin
       begin
         case (Msg.message) of
           WM_MOUSEMOVE:
-            // Mouse were moved. Check if we are still within the drag rect...
+            // Mouse was moved. Check if we are still within the drag rect...
             Result := (not PtInRect(DragRect, Msg.pt)) and
               // ... and that the minimum time has elapsed.
               // Note that we ignore time warp (wrap around) and that Msg.Time
@@ -1803,7 +1884,7 @@ begin
           WM_RBUTTONUP,
           WM_LBUTTONUP,
           WM_CANCELMODE:
-            // Mouse button were released, escape were pressed or some other
+            // Mouse button was released, escape was pressed or some other
             // operation cancelled our mouse capture.
             break;
           WM_QUIT:
@@ -1818,9 +1899,6 @@ begin
     end;
   finally
     ReleaseCapture;
-    // Restore previous capture.
-    if (OldCapture <> 0) then
-      SetCapture(OldCapture);
   end;
 end;
 
@@ -1835,8 +1913,8 @@ begin
 end;
 
 const
-  // Note: The definition of MK_ALT is missing from the current Delphi (D5)
-  // declarations. Hopefully Delphi 6 will fix this.
+  // Note: The definition of MK_ALT is missing from the current Delphi (D6)
+  // declarations. Hopefully Delphi 7 will fix this.
   MK_ALT = $20;
 
 function KeysToShiftStatePlus(Keys: Word): TShiftState;
@@ -1853,7 +1931,7 @@ begin
   if (Keys and MK_MBUTTON <> 0) then
     Include(Result, ssMiddle);
   if (Keys and MK_ALT <> 0) then
-    Include(Result, ssMiddle);
+    Include(Result, ssAlt);
 end;
 
 function ShiftStateToDropEffect(Shift: TShiftState; AllowedEffects: longint;
@@ -1916,14 +1994,14 @@ begin
   if (@_CopyStgMedium = nil) then
     raise Exception.Create(sNoCopyStgMedium);
 
-  Result := (_CopyStgMedium(SrcMedium, DstMedium) = S_OK);
+  Result := (Succeeded(_CopyStgMedium(SrcMedium, DstMedium)));
 end;
 
 function GetClipboardFormatNameStr(Value: TClipFormat): string;
 var
   len: integer;
 begin
-  Setlength(Result, 255);
+  SetLength(Result, 255);
   len := GetClipboardFormatName(Value, PChar(Result), 255);
   SetLength(Result, len);
 end;
@@ -1936,9 +2014,12 @@ end;
 initialization
   OleInitialize(nil);
   ShGetMalloc(ShellMalloc);
-  GetClipboardFormatNameStr(0);
+  GetClipboardFormatNameStr(0); // Avoid GetClipboardFormatNameStr getting eliminated by linker. This is so we can use it in debugger 
 
 finalization
+  // Note: Due to unit finalization order, the following two objects will be
+  // recreated after this units finalization has executed.
+  // This results in a one-time memory leak and should not be harmfull.
   if (FDataFormatMap <> nil) then
   begin
     FDataFormatMap.Free;
@@ -1952,9 +2033,9 @@ finalization
 
   ShellMalloc := nil;
 
+  if (URLMONDLL <> 0) then
+    FreeLibrary(URLMONDLL);
+
   OleUninitialize;
 end.
-
-
-
 

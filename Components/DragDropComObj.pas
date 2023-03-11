@@ -1,15 +1,15 @@
 unit DragDropComObj;
-
 // -----------------------------------------------------------------------------
 // Project:         Drag and Drop Component Suite.
 // Module:          DragDropComObj
 // Description:     Implements misc COM support classes.
-// Version:         4.0
-// Date:            18-MAY-2001
-// Target:          Win32, Delphi 5-6
+// Version:         4.1
+// Date:            22-JAN-2002
+// Target:          Win32, Delphi 4-6, C++Builder 4-6
 // Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2001 Angus Johnson & Anders Melander
+// Copyright        © 1997-2002 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
+
 interface
 
 uses
@@ -85,6 +85,7 @@ type
     FFileExtension: string;
     FFileClass: string;
   protected
+    function GetProgID: string; override;
   public
     constructor Create(ComServer: TComServerObject; ComponentClass: TComponentClass;
       const ClassID: TGUID; const ClassName, Description, AFileClass,
@@ -97,6 +98,14 @@ type
 
 
 ////////////////////////////////////////////////////////////////////////////////
+//
+//		Utility functions
+//
+////////////////////////////////////////////////////////////////////////////////
+procedure DeleteDefaultRegValue(const Key: string);
+function DeleteEmptyRegKey(Key: string; DeleteTree: boolean = True): Boolean;
+
+////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 //
 //			IMPLEMENTATION
@@ -106,7 +115,64 @@ type
 implementation
 
 uses
+  SysUtils,
   Windows;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//		Utility functions
+//
+////////////////////////////////////////////////////////////////////////////////
+procedure DeleteDefaultRegValue(const Key: string);
+var
+  SubKey: HKey;
+begin
+  if (RegOpenKey(HKEY_CLASSES_ROOT, PChar(Key), SubKey) = ERROR_SUCCESS) then
+    try
+      RegDeleteValue(SubKey, nil);
+    finally
+      RegCloseKey(SubKey);
+    end;
+end;
+
+function DeleteEmptyRegKey(Key: string; DeleteTree: boolean = True): Boolean;
+var
+  SubKey: HKey;
+  NumSubKeys, NumValues: DWORD;
+  p: PChar;
+begin
+  p := nil;
+  repeat
+    Result := False;
+    if (RegOpenKey(HKEY_CLASSES_ROOT, PChar(Key), SubKey) = ERROR_SUCCESS) then
+      try
+        Result := (RegQueryInfoKey(SubKey, nil, nil, nil, @NumSubKeys, nil, nil,
+          @NumValues, nil, nil, nil, nil) = ERROR_SUCCESS);
+        // Only delete key if it doesn't contain values or sub keys.
+        Result := Result and (NumSubKeys = 0) and (NumValues = 0);
+      finally
+        RegCloseKey(SubKey);
+      end;
+
+    if (Result) then
+    begin
+      Result := (RegDeleteKey(HKEY_CLASSES_ROOT, PChar(Key)) = ERROR_SUCCESS);
+
+      if (Result and DeleteTree) then
+      begin
+        // Move to parent key.
+        p := AnsiStrRScan(PChar(Key), '\');
+        if (p <> nil) then
+        begin
+          p^ := #0;
+          Key := PChar(Key);
+        end;
+      end;
+    end;
+
+  until (not Result) or (not DeleteTree) or (p = nil);
+end;
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -326,6 +392,11 @@ begin
   FFileExtension := AFileExtension;
 end;
 
+function TShellExtFactory.GetProgID: string;
+begin
+  Result := '';
+end;
+
 procedure TShellExtFactory.UpdateRegistry(Register: Boolean);
 begin
   if Register then
@@ -336,7 +407,7 @@ begin
   end else
   begin
     if (FileExtension <> '') then
-      RegDeleteKey(HKEY_CLASSES_ROOT, PChar(FileExtension));
+      DeleteDefaultRegValue(FileExtension);
     inherited UpdateRegistry(Register);
   end;
 end;

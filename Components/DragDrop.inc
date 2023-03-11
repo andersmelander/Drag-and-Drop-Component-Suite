@@ -4,7 +4,7 @@
 // Description:     This include file contains common defines used by the
 //                  library.
 // Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2000 Angus Johnson & Anders Melander
+// Copyright        © 1997-2002 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 
@@ -25,7 +25,7 @@
   {$DEFINE VER_OK}
 {$ENDIF}
 
-// C++ Builder 1.x
+// C++Builder 1.x
 {$IFDEF VER93}
   {$DEFINE VER9x}
   {$DEFINE VER93_PLUS}
@@ -38,7 +38,7 @@
   {$DEFINE VER_OK}
 {$ENDIF}
 
-// C++ Builder 3.x
+// C++Builder 3.x
 {$IFDEF VER110}
   {$DEFINE VER11_PLUS}
   {$DEFINE VER_OK}
@@ -50,7 +50,7 @@
   {$DEFINE VER_OK}
 {$ENDIF}
 
-// C++ Builder 4.x
+// C++Builder 4.x
 {$IFDEF VER125}
   {$DEFINE VER125_PLUS}
   {$DEFINE VER_OK}
@@ -62,7 +62,7 @@
   {$DEFINE VER_OK}
 {$ENDIF}
 
-// C++ Builder 5.x - Not verified!
+// C++Builder 5.x
 {$IFDEF VER130}
 {$IFDEF BCB}
   {$DEFINE VER135_PLUS}
@@ -76,13 +76,33 @@
   {$DEFINE VER_OK}
 {$ENDIF}
 
-// Unknown compiler version - assume D6 compatible
+// C++Builder 6.x
+{$IFDEF VER140}
+{$IFDEF BCB}
+  {$DEFINE VER145_PLUS}
+  {$DEFINE VER_OK}
+{$ENDIF}
+{$ENDIF}
+
+// Delphi 7.x
+{$IFDEF VER150}
+  {$DEFINE VER15_PLUS}
+  {$DEFINE VER_OK}
+{$ENDIF}
+
+// Unknown compiler version - assume D7 compatible
 {$IFNDEF VER_OK}
-  {$DEFINE VER14_PLUS}
+  {$DEFINE VER15_PLUS}
 {$ELSE}
   {$UNDEF VER_OK}
 {$ENDIF}
 
+{$IFDEF VER15_PLUS}
+  {$DEFINE VER145_PLUS}
+{$ENDIF}
+{$IFDEF VER145_PLUS}
+  {$DEFINE VER14_PLUS}
+{$ENDIF}
 {$IFDEF VER14_PLUS}
   {$DEFINE VER135_PLUS}
 {$ENDIF}
@@ -131,5 +151,11 @@
 // Disable platform warnings. This library is only supported on Windows.
 {$ifdef VER14_PLUS}
 {$WARN SYMBOL_PLATFORM OFF}
+{$endif}
+// Disable "unsafe" warnings. I do wish Borland would stay out of my way and let me think for myself.
+{$ifdef VER15_PLUS}
+{$WARN UNSAFE_TYPE OFF}
+{$WARN UNSAFE_CODE OFF}
+{$WARN UNSAFE_CAST OFF}
 {$endif}
 

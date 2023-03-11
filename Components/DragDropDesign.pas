@@ -1,28 +1,25 @@
 unit DragDropDesign;
-// -----------------------------------------------------------------------------
-//
-//			NOT FOR RELEASE
-//
+// TODO : Default event for target components should be OnDrop.
+// TODO : Add parent form to Target property editor list.
 // -----------------------------------------------------------------------------
 // Project:         Drag and Drop Component Suite
 // Module:          DragDropDesign
 // Description:     Contains design-time support for the drag and drop
 //                  components.
-// Version:         4.0
-// Date:            25-JUN-2000
-// Target:          Win32, Delphi 3-6 and C++ Builder 3-5
-// Authors:         Angus Johnson, ajohnson@rpi.net.au
-//                  Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2000 Angus Johnson & Anders Melander
+// Version:         4.1
+// Date:            22-JAN-2002
+// Target:          Win32, Delphi 4-6, C++Builder 4-6
+// Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
+// Copyright        © 1997-2002 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
 
+{$include DragDrop.inc}
+
 procedure Register;
 
 implementation
-
-{$include DragDrop.inc}
 
 uses
   DragDrop,
@@ -59,7 +56,7 @@ type
 
 procedure TDataFormatNameEditor.GetValues(Proc: TGetStrProc);
 var
-  i		: Integer;
+  i: Integer;
 begin
   for i := 0 to TDataFormatClassesCracker.Instance.Count-1 do
     Proc(TDataFormatClassesCracker.Instance[i].ClassName);

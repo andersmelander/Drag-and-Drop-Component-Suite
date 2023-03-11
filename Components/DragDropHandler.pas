@@ -1,16 +1,16 @@
 unit DragDropHandler;
-
 // -----------------------------------------------------------------------------
 // Project:         Drag and Drop Component Suite.
 // Module:          DragDropHandler
 // Description:     Implements Drop and Drop Context Menu Shell Extenxions
 //                  (a.k.a. drag-and-drop handlers).
-// Version:         4.0
-// Date:            18-MAY-2001
-// Target:          Win32, Delphi 5-6
+// Version:         4.1
+// Date:            22-JAN-2002
+// Target:          Win32, Delphi 4-6, C++Builder 4-6
 // Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2001 Angus Johnson & Anders Melander
+// Copyright        © 1997-2002 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
+
 interface
 
 uses
@@ -52,7 +52,8 @@ type
 // 7. The shell unloads the drag-and-drop handler module (usually after a few
 //    seconds).
 ////////////////////////////////////////////////////////////////////////////////
-  TDragDropHandler = class(TDropContextMenu, IShellExtInit, IContextMenu)
+  TDragDropHandler = class(TDropContextMenu, IShellExtInit, IContextMenu,
+    IContextMenu2, IContextMenu3)
   private
     FFolderPIDL: pItemIDList;
   protected
@@ -67,6 +68,7 @@ type
     function GetCommandString(idCmd, uType: UINT; pwReserved: PUINT;
       pszName: LPSTR; cchMax: UINT): HResult; stdcall;
   public
+    constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetFolderPIDL: pItemIDList; // Caller must free PIDL!
     property Folder: string read GetFolder;
@@ -139,6 +141,17 @@ end;
 //		TDragDropHandler
 //
 ////////////////////////////////////////////////////////////////////////////////
+constructor TDragDropHandler.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  (*
+  ** Contrary to Microsoft's documentation, Drag Drop Handler shell extensions
+  ** does not seem to support owner draw and cascaded menus (IContextMenu2 and
+  ** IContextMenu2 interfaces). At least not on NT4/IE5.
+  *)
+  OwnerDraw := False;
+end;
+
 destructor TDragDropHandler.Destroy;
 begin
   if (FFolderPIDL <> nil) then

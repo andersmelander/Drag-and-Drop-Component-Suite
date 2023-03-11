@@ -2,25 +2,25 @@
 #include <vcl.h>
 #pragma hdrstop
 USERES("dragdropC4.res");
-USEUNIT("DragDrop.pas");
-USEUNIT("DragDropFile.pas");
-USERES("DragDropFile.dcr");
-USEUNIT("DragDropFormats.pas");
-USEUNIT("DragDropGraphics.pas");
-USERES("DragDropGraphics.dcr");
-USEUNIT("DragDropPIDL.pas");
-USERES("DragDropPIDL.dcr");
-USEUNIT("DragDropText.pas");
-USERES("DragDropText.dcr");
-USEUNIT("DragDropURL.pas");
-USERES("DragDropURL.dcr");
-USEUNIT("DropMultiTarget.pas");
-USERES("DropMultiTarget.dcr");
 USEUNIT("DropSource.pas");
 USERES("DropSource.dcr");
 USEUNIT("DropTarget.pas");
 USERES("DropTarget.dcr");
-USEPACKAGE("vcl50.bpi");
+USEUNIT("DragDropDesign.pas");
+USEUNIT("DragDropFormats.pas");
+USEUNIT("DragDropGraphics.pas");
+USERES("DragDropGraphics.dcr");
+USEUNIT("DragDropInternet.pas");
+USERES("DragDropInternet.dcr");
+USEUNIT("DragDropText.pas");
+USERES("DragDropText.dcr");
+USEUNIT("DropComboTarget.pas");
+USERES("DropComboTarget.dcr");
+USEUNIT("DragDrop.pas");
+USERES("DragDrop.dcr");
+USEUNIT("DragDropPIDL.pas");
+USERES("DragDropPIDL.dcr");
+USEPACKAGE("vcl40.bpi");
 //---------------------------------------------------------------------------
 #pragma package(smart_init)
 //---------------------------------------------------------------------------

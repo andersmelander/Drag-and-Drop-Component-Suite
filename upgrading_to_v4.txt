@@ -1,0 +1,130 @@
+Notes on upgrading from version 3.x of the Drag and Drop Component Suite.
+
+--------------------------------------------------------------------------------
+Replace the following old units or just delete them from the uses clause:
+--------------------------------------------------------------------------------
+
+Old:				New:
+DragFileSource			DragDropFile
+DragFileTarget			DragDropFile
+DropTextSource			DragDropText
+DropTextTarget			DragDropText
+DropPIDLSource			DragDropPIDL
+DropPIDLTarget			DragDropPIDL
+DropBMPSource			DragDropGraphics
+DropBMPTarget			DragDropGraphics
+DropURLSource			DragDropInternet
+DropURLTarget			DragDropInternet
+
+
+--------------------------------------------------------------------------------
+Demo applications moved:
+--------------------------------------------------------------------------------
+
+From				To:
+.\DetailedDemo			.\Demo\DetailedDemo
+.\PIDLDemo			.\Demo\PIDLDemo
+.\SourceDemo			.\Demo\SourceDemo
+.\TargetDemo			.\Demo\TargetDemo
+
+
+--------------------------------------------------------------------------------
+Deprecated classes:
+--------------------------------------------------------------------------------
+
+Old class:			Replaced with:
+TDropSource			TCustomDropMultiSource
+TCustomDropSource		TCustomDropMultiSource
+TDropTarget			TCustomDropMultiTarget
+TCustomDropTarget		TCustomDropMultiTarget
+
+
+--------------------------------------------------------------------------------
+Deprecated types:
+--------------------------------------------------------------------------------
+
+Old class:			Replaced with:
+TScrolDirection			TScrollDirection
+TScrolDirections		TScrollDirections
+
+--------------------------------------------------------------------------------
+Feedback:
+--------------------------------------------------------------------------------
+I have attempted to maintain the greatest possible backward compatibility with
+earlier versions of the Drag and Drop Component Suite. If you encounter any
+compatibility problems not addressed in this document, plase let me know about
+them so they can be fixed.
+
+Also, if you have created and are using custom drag and drop components based on
+a previous version of the Drag and Drop Component Suite, I urge you to contact
+me.
+
+
+--------------------------------------------------------------------------------
+Architectural changes:
+--------------------------------------------------------------------------------
+
+- The TInterfacedComponent class has moved from the DropSource unit to the
+  DragDrop unit.
+
+- All source and target components now uses TClipboardFormat and TDataFormat
+  objects for data conversion and transfer.
+
+- The TDropSource class has been deprecated and has been moved to the
+  DropSource3 unit. It is provided for backwards compatibility only and will be
+  removed in a future version. Instead use either the TCustomDropSource or the
+  TCustomDropMultiSource classes which replaces the TDropSource class as the
+  drop source base classes. The TCustomDropMultiSource base class should be used
+  for all new development.
+
+- The TDropTarget class has been deprecated, but is still located in the
+  DropTarget unit. It is provided for backwards compatibility only and will be
+  removed in a future version. Instead use the TCustomDropTarget or the
+  TCustomDropMultiTarget classes which replaces the TDropTarget class as the
+  drop target base class. The TCustomDropMultiTarget base class should be used
+  for all new development.
+
+- All drop source components now descend from the new TCustomDropMultiSource
+  class which descends from TCustomDropSource.
+
+- All drop target components now descend from the new TCustomDropMultiTarget
+  class which descends from TCustomDropTarget.
+
+- The component glyphs of TDropBMPSource and TDropBMPTarget has changed. The new
+  TDropImageTarget component uses the old TDropBMPTarget glyph.
+
+- CutToClipboard and CopyToClipboard now places live data on the clipboard
+  instead of a static snapshot of the data. This is nescessary to support
+  "delete on paste". The implications of this is that there is a direct link
+  between the clipboard and the drop source component. If you modify the data
+  of the source component (e.g. clear TDropTextSource.Text), you will also
+  modify the data on the clipboard. The drop source component's FlushClipboard
+  method can be used to "freeze" the data on the clipboard and the
+  EmptyClipboard method can be used to empty the clipboard.
+
+- The TDropSource.InternalCutCopyToClipboard method has been deleted.
+
+- The TDropSource.CutOrCopyToClipboard does not need to be implemented in
+  descendant classes anymore and it is advisable not to do so.
+
+- All clipboard format registrations are now done by the TClipboardFormat
+  descendant classes. In previous versions, the registration values were
+  available via global variables (CF_TEXT, CF_IDLIST etc.), but these variables
+  are no longer available. If you need access to the registration values, you
+  should instead use the TClipboardFormat.GetClipboardFormat class methods.
+  E.g. to retrieve the registration value for the "FileGroupDescriptor" format,
+  use the TFileGroupDescritorClipboardFormat.GetClipboardFormat class method.
+  Alternatively, you can also use the RegisterClipboardFormat API function to
+  retrieve the regitration value directly. Either methods are equally valid.
+
+- The ShellMalloc global variable has moved from the DropSource unit to the
+  DragDrop unit.
+
+- Target components now supports multiple drop targets.
+  Previous versions only allowed one control to be registered as a drop target
+  per target component and registering subsequent targets would automatically
+  unregister the previous drop target. This behavious can be emulated by setting
+  the target component's MultiTarget property to False. When MultiTarget is
+  False, registering a target will automatically unregister the previous target.
+  If MultiTarget is True, registering a target will not unregister any previous
+  targets.

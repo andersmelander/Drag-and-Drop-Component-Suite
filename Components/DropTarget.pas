@@ -1,16 +1,15 @@
 unit DropTarget;
-
 // -----------------------------------------------------------------------------
 // Project:         Drag and Drop Component Suite
 // Module:          DropTarget
 // Description:     Implements the drop target base classes which allows your
 //                  application to accept data dropped on it from other
 //                  applications.
-// Version:         4.0
-// Date:            18-MAY-2001
-// Target:          Win32, Delphi 5-6
+// Version:         4.1
+// Date:            22-JAN-2002
+// Target:          Win32, Delphi 4-6, C++Builder 4-6
 // Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2001 Angus Johnson & Anders Melander
+// Copyright        © 1997-2002 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 // General changes:
 // - Some component glyphs has changed.
@@ -68,6 +67,10 @@ uses
   Windows, ActiveX, Classes, Controls, CommCtrl, ExtCtrls, Forms;
 
 {$include DragDrop.inc}
+{$ifdef VER135_PLUS}
+// shldisp.h only exists in C++Builder 5 and later.
+{$HPPEMIT '#include <shldisp.h>'}
+{$endif}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -104,55 +107,67 @@ type
 ////////////////////////////////////////////////////////////////////////////////
 // Top level abstract base class for all drop target classes.
 // Implements the IDropTarget and IDataObject interfaces.
-// Do not derive from TCustomDropTarget! Instead derive from TCustomDropTarget.
-// TCustomDropTarget will be replaced by/renamed to TCustomDropTarget in a future
-// version.
 ////////////////////////////////////////////////////////////////////////////////
 type
-  TScrolDirection = (sdUp, sdDown, sdLeft, sdRight);
-  TScrolDirections = set of TScrolDirection;
+  TScrollDirection = (sdUp, sdDown, sdLeft, sdRight);
+  TScrollDirections = set of TScrollDirection;
+  TScrolDirections = TScrollDirections; // Deprecated!
 
   TDropTargetScrollEvent = procedure(Sender: TObject; Point: TPoint;
-    var Scroll: TScrolDirections; var Interval: integer) of object;
+    var Scroll: TScrollDirections; var Interval: integer) of object;
 
   TScrollBars = set of TScrollBarKind;
 
   TDropTargetEvent = procedure(Sender: TObject; ShiftState: TShiftState;
     APoint: TPoint; var Effect: Longint) of object;
 
+  TMouseSample = record
+    Time: DWORD;
+    Pos: TPoint;
+  end;
+
+{$ifdef BCB}
+{$ifndef VER145_PLUS}
+{$hppemit '// Hack to trick C++Builder 4/5 into using a default value for the Unregister methods parameter' }
+{$hppemit '#define ATarget_with_default ATarget = NULL' }
+{$endif}
+{$endif}
   TCustomDropTarget = class(TDragDropComponent, IDropTarget)
   private
-    FDataObject		: IDataObject;
-    FDragTypes		: TDragTypes;
-    FGetDataOnEnter	: boolean;
-    FOnEnter		: TDropTargetEvent;
-    FOnDragOver		: TDropTargetEvent;
-    FOnLeave		: TNotifyEvent;
-    FOnDrop		: TDropTargetEvent;
-    FOnGetDropEffect	: TDropTargetEvent;
-    FOnScroll           : TDropTargetScrollEvent;
-    FTargets		: TControlList;
-    FMultiTarget	: boolean;
-    FOptimizedMove	: boolean;
-    FTarget		: TWinControl;
+    FDataObject: IDataObject;
+    FDragTypes: TDragTypes;
+    FGetDataOnEnter: boolean;
+    FOnEnter: TDropTargetEvent;
+    FOnDragOver: TDropTargetEvent;
+    FOnLeave: TNotifyEvent;
+    FOnDrop: TDropTargetEvent;
+    FOnGetDropEffect: TDropTargetEvent;
+    FOnScroll: TDropTargetScrollEvent;
+    FTargets: TControlList;
+    FMultiTarget: boolean;
+    FOptimizedMove: boolean;
+    FTarget: TWinControl;
 
-    FImages		: TImageList;
-    FDragImageHandle	: HImageList;
-    FShowImage		: boolean;
-    FImageHotSpot	: TPoint;
-    FDropTargetHelper   : IDropTargetHelper;
+    FImages: TImageList;
+    FDragImageHandle: HImageList;
+    FShowImage: boolean;
+    FImageHotSpot: TPoint;
+    FDropTargetHelper: IDropTargetHelper;
     // FLastPoint points to where DragImage was last painted (used internally)
-    FLastPoint		: TPoint;
-    // Auto scrolling enables scrolling of target window during drags and
+    FLastPoint: TPoint;
+    // Auto-scrolling enables scrolling of target window during drags and
     // paints any drag image 'cleanly'.
-    FScrollBars		: TScrollBars;
-    FScrollTimer	: TTimer;
-    FAutoScroll         : boolean;
-    FNoScrollZone       : TRect;
-    FIsAsync            : boolean;
-    FOnEndAsyncTransfer : TNotifyEvent;
+    FScrollBars: TScrollBars;
+    FScrollTimer: TTimer;
+    FAutoScroll: boolean;
+    FNoScrollZone: TRect;
+    FMouseSample: TMouseSample;
+    FMouseNextSample: TMouseSample;
+    FIsAsync: boolean;
+    FOnEndAsyncTransfer: TNotifyEvent;
     FOnStartAsyncTransfer: TNotifyEvent;
-    FAllowAsync          : boolean;
+    FAllowAsync: boolean;
+    FAutoRegister: boolean;
   protected
     // IDropTarget  implementation
     function DragEnter(const DataObj: IDataObject; grfKeyState: Longint;
@@ -168,7 +183,7 @@ type
     procedure DoDrop(ShiftState: TShiftState; Point: TPoint; var Effect: Longint); virtual;
     procedure DoLeave; virtual;
     procedure DoOnPaste(var Effect: Integer); virtual;
-    procedure DoScroll(Point: TPoint; var Scroll: TScrolDirections;
+    procedure DoScroll(Point: TPoint; var Scroll: TScrollDirections;
       var Interval: integer); virtual;
 
     function GetData(Effect: longInt): boolean; virtual;
@@ -178,12 +193,14 @@ type
       dwEffect: LongInt): LongInt; virtual; // V4: Improved
     function GetPreferredDropEffect: LongInt; virtual; // V4: New
     function SetPerformedDropEffect(Effect: LongInt): boolean; virtual; // V4: New
-    function SetPasteSucceded(Effect: LongInt): boolean; virtual; // V4: New
+    function SetPasteSucceeded(Effect: LongInt): boolean; virtual; // V4: New
+    procedure DoRegister(ATarget: TWinControl); // V4: New
     procedure DoUnregister(ATarget: TWinControl); // V4: New
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     function GetTarget: TWinControl;
     procedure SetTarget(const Value: TWinControl);
     procedure DoAutoScroll(Sender: TObject); // V4: Renamed from DoTargetScroll.
+    function SampleMouse(MousePos: TPoint; First: boolean = False): boolean;
     procedure SetShowImage(Show: boolean);
     procedure SetDataObject(Value: IDataObject); // V4: New
     procedure DoEndAsyncTransfer(Sender: TObject);
@@ -192,23 +209,24 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure Register(ATarget: TWinControl);
-{$ifdef VER12_PLUS}
-    procedure Unregister(ATarget: TWinControl = nil); // V4: New
+{$ifdef TIME2HELP}
+    procedure Unregister(ATarget: TWinControl = nil);
 {$else}
-    procedure Unregister;
+    procedure Unregister(ATarget_with_default: TWinControl = nil); // V4: New
 {$endif}
     function FindTarget(p: TPoint): TWinControl; virtual; // V4: New
     function FindNearestTarget(p: TPoint): TWinControl; // V4: New
     procedure Assign(Source: TPersistent); override; // V4: New
     function HasValidFormats(ADataObject: IDataObject): boolean; virtual; abstract; // V4: Improved
     function PasteFromClipboard: longint; virtual; // V4: Improved
+    function CanPasteFromClipboard: boolean; virtual; // V4: New
     property DataObject: IDataObject read FDataObject;
     property Targets: TControlList read FTargets; // V4: New
     property NoScrollZone: TRect read FNoScrollZone write FNoScrollZone; // V4: New
     property AsyncTransfer: boolean read FIsAsync;
   published
-    property Dragtypes: TDragTypes read FDragTypes write FDragTypes;
-    property GetDataOnEnter: Boolean read FGetDataOnEnter write FGetDataOnEnter;
+    property DragTypes: TDragTypes read FDragTypes write FDragTypes;
+    property GetDataOnEnter: Boolean read FGetDataOnEnter write FGetDataOnEnter default False;
     // Events...
     property OnEnter: TDropTargetEvent read FOnEnter write FOnEnter;
     property OnDragOver: TDropTargetEvent read FOnDragOver write FOnDragOver;
@@ -222,16 +240,17 @@ type
     property OnEndAsyncTransfer: TNotifyEvent read FOnEndAsyncTransfer
       write FOnEndAsyncTransfer;
     // Drag Images...
-    property ShowImage: boolean read FShowImage write SetShowImage;
+    property ShowImage: boolean read FShowImage write SetShowImage default True;
     // Target
     property Target: TWinControl read GetTarget write SetTarget; // V4: Improved
     property MultiTarget: boolean read FMultiTarget write FMultiTarget default False; // V4: New
-    // Auto scroll
+    property AutoRegister: boolean read FAutoRegister write FAutoRegister default True;
+    // Auto-scroll
     property AutoScroll: boolean read FAutoScroll write FAutoScroll default True; // V4: New
     // Misc
     property OptimizedMove: boolean read FOptimizedMove write FOptimizedMove default False; // V4: New
     // Async transfer...
-    property AllowAsyncTransfer: boolean read FAllowAsync write FAllowAsync;
+    property AllowAsyncTransfer: boolean read FAllowAsync write FAllowAsync default False;
   end;
 
 
@@ -287,7 +306,11 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function HasValidFormats(ADataObject: IDataObject): boolean; override;
+{$ifdef TIME2HELP}
+    property DataFormats: TDataFormats;
+{$else}
     property DataFormats;
+{$endif}
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -330,10 +353,11 @@ uses
   Messages,
   ShlObj,
   ClipBrd,
+  Dialogs,
   ComCtrls;
 
 resourcestring
-  sAsyncBusy = 'Can''t clear data while async data transfer is in progress';
+  sTargetAsyncBusy = 'Can''t clear data while async data transfer is in progress';
   // sRegisterFailed	= 'Failed to register %s as a drop target';
   // sUnregisterActiveTarget = 'Can''t unregister target while drag operation is in progress';
 
@@ -415,7 +439,7 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 constructor TCustomDropTarget.Create(AOwner: TComponent);
 var
-  bm			: TBitmap;
+  bm: TBitmap;
 begin
   inherited Create(AOwner);
   FScrollTimer := TTimer.Create(Self);
@@ -449,6 +473,8 @@ begin
   FMultiTarget := False;
   FOptimizedMove := False;
   FAutoScroll := True;
+  FAllowAsync := False;
+  FAutoRegister := True;
 end;
 
 destructor TCustomDropTarget.Destroy;
@@ -470,148 +496,164 @@ type
 function TCustomDropTarget.DragEnter(const dataObj: IDataObject; grfKeyState: Longint;
   pt: TPoint; var dwEffect: Longint): HRESULT;
 var
-  ShiftState		: TShiftState;
-  TargetStyles		: longint;
+  ShiftState: TShiftState;
+  TargetStyles: longint;
+  ClientPt: TPoint;
 begin
-  ClearData;
-  FDataObject := dataObj;
-  Result := S_OK;
+  try
+    ClearData;
+    FDataObject := dataObj;
+    Result := S_OK;
 
-  // Find the target control.
-  FTarget := FindTarget(pt);
 
-  (*
-  ** If no target control has been registered we disable all features which
-  ** depends on the existence of a drop target (e.g. drag images and auto
-  ** scroll). Presently, this situation can only arise if the drop target is
-  ** being used as a drop handler (TDrophandler component).
-  ** Note also that if no target control exists, the mouse coordinates are
-  ** relative to the screen, not the control as is normally the case.
-  *)
-  if (FTarget = nil) then
-  begin
-    ShowImage := False;
-    AutoScroll := False;
-  end else
-  begin
-    pt := FTarget.ScreenToClient(pt);
-    FLastPoint := pt;
-  end;
+    // Find the target control.
+    FTarget := FindTarget(pt);
 
-  (*
-  ** Refuse the drag if we can't handle any of the data formats offered by
-  ** the drop source. We must return S_OK here in order for the drop to continue
-  ** to generate DragOver events for this drop target (needed for drag images).
-  *)
-  if HasValidFormats(FDataObject) then
-  begin
-
-    FScrollBars := [];
-
-    if (AutoScroll) then
+    (*
+    ** If no target control has been registered we disable all features which
+    ** depends on the existence of a drop target (e.g. drag images and auto
+    ** scroll). Presently, this situation can only arise if the drop target is
+    ** being used as a drop handler (TDrophandler component).
+    ** Note also that if no target control exists, the mouse coordinates are
+    ** relative to the screen, not the control as is normally the case.
+    *)
+    if (FTarget = nil) then
     begin
-      // Determine if the target control has scroll bars (and which).
-      TargetStyles := GetWindowLong(FTarget.Handle, GWL_STYLE);
-      if (TargetStyles and WS_HSCROLL <> 0) then
-        include(FScrollBars, sbHorizontal);
-      if (TargetStyles and WS_VSCROLL <> 0) then
-        include(FScrollBars, sbVertical);
-
-      // The Windows UI guidelines recommends that the scroll margin be based on
-      // the width/height of the scroll bars:
-      // From "The Windows Interface Guidelines for Software Design", page 82:
-      //   "Use twice the width of a vertical scroll bar or height of a
-      //   horizontal scroll bar to determine the width of the hot zone."
-      // Previous versions of these components used the height of the current
-      // target control font as the scroll margin. Yet another approach would be
-      // to use the DragDropScrollInset constant.
-      if (FScrollBars <> []) then
-      begin
-        FNoScrollZone := FTarget.ClientRect;
-        if (sbVertical in FScrollBars) then
-          InflateRect(FNoScrollZone, 0, -GetSystemMetrics(SM_CYHSCROLL));
-          // InflateRect(FNoScrollZone, 0, -abs(TDummyWinControl(FTarget).Font.Height));
-        if (sbHorizontal in FScrollBars) then
-          InflateRect(FNoScrollZone, -GetSystemMetrics(SM_CXHSCROLL), 0);
-          // InflateRect(FNoScrollZone, -abs(TDummyWinControl(FTarget).Font.Height), 0);
-      end;
+      ShowImage := False;
+      AutoScroll := False;
+    end else
+    begin
+      ClientPt := FTarget.ScreenToClient(pt);
+      FLastPoint := ClientPt;
     end;
 
-    // It's generally more efficient to get data only if and when a drop occurs
-    // rather than on entering a potential target window.
-    // However - sometimes there is a good reason to get it here.
-    if FGetDataOnEnter then
-      if (not GetData(dwEffect)) then
+    // Sample mouse for auto-scroll.
+    SampleMouse(Pt, True);
+
+    (*
+    ** Refuse the drag if we can't handle any of the data formats offered by
+    ** the drop source. We must return S_OK here in order for the drop to continue
+    ** to generate DragOver events for this drop target (needed for drag images).
+    *)
+    if HasValidFormats(FDataObject) then
+    begin
+
+      FScrollBars := [];
+
+      if (AutoScroll) then
       begin
-        FDataObject := nil;
-        dwEffect := DROPEFFECT_NONE;
-        Result := DV_E_CLIPFORMAT;
-        exit;
+        // Determine if the target control has scroll bars (and which).
+        TargetStyles := GetWindowLong(FTarget.Handle, GWL_STYLE);
+        if (TargetStyles and WS_HSCROLL <> 0) then
+          include(FScrollBars, sbHorizontal);
+        if (TargetStyles and WS_VSCROLL <> 0) then
+          include(FScrollBars, sbVertical);
+
+        // The Windows UI guidelines recommends that the scroll margin be based on
+        // the width/height of the scroll bars:
+        // From "The Windows Interface Guidelines for Software Design", page 82:
+        //   "Use twice the width of a vertical scroll bar or height of a
+        //   horizontal scroll bar to determine the width of the hot zone."
+        // Previous versions of these components used the height of the current
+        // target control font as the scroll margin. Yet another approach would be
+        // to use the DragDropScrollInset constant.
+        if (FScrollBars <> []) then
+        begin
+          FNoScrollZone := FTarget.ClientRect;
+          if (sbVertical in FScrollBars) then
+            InflateRect(FNoScrollZone, 0, -2*GetSystemMetrics(SM_CYHSCROLL));
+            // InflateRect(FNoScrollZone, 0, -abs(TDummyWinControl(FTarget).Font.Height));
+          if (sbHorizontal in FScrollBars) then
+            InflateRect(FNoScrollZone, -2*GetSystemMetrics(SM_CXHSCROLL), 0);
+            // InflateRect(FNoScrollZone, -abs(TDummyWinControl(FTarget).Font.Height), 0);
+        end;
       end;
 
-    ShiftState := KeysToShiftStatePlus(grfKeyState);
+      // It's generally more efficient to get data only if and when a drop occurs
+      // rather than on entering a potential target window.
+      // However - sometimes there is a good reason to get it here.
+      if FGetDataOnEnter then
+        if (not GetData(dwEffect)) then
+        begin
+          FDataObject := nil;
+          dwEffect := DROPEFFECT_NONE;
+          Result := DV_E_CLIPFORMAT;
+          exit;
+        end;
 
-    // Create a default drop effect based on the shift state and allowed
-    // drop effects (or an OnGetDropEffect event if implemented).
-    dwEffect := GetValidDropEffect(ShiftState, Pt, dwEffect);
+      ShiftState := KeysToShiftStatePlus(grfKeyState);
 
-    // Generate an OnEnter event
-    DoEnter(ShiftState, pt, dwEffect);
+      // Create a default drop effect based on the shift state and allowed
+      // drop effects (or an OnGetDropEffect event if implemented).
+      dwEffect := GetValidDropEffect(ShiftState, ClientPt, dwEffect);
 
-    // If IDropTarget.DragEnter returns with dwEffect set to DROPEFFECT_NONE it
-    // means that the drop has been rejected and IDropTarget.DragOver should
-    // not be called (according to MSDN). Unfortunately IDropTarget.DragOver is
-    // called regardless of the value of dwEffect. We work around this problem
-    // (bug?) by setting FDataObject to nil and thus internally rejecting the
-    // drop in TCustomDropTarget.DragOver.
-    if (dwEffect = DROPEFFECT_NONE) then
+      // Generate an OnEnter event
+      DoEnter(ShiftState, ClientPt, dwEffect);
+
+      // If IDropTarget.DragEnter returns with dwEffect set to DROPEFFECT_NONE it
+      // means that the drop has been rejected and IDropTarget.DragOver should
+      // not be called (according to MSDN). Unfortunately IDropTarget.DragOver is
+      // called regardless of the value of dwEffect. We work around this problem
+      // (bug?) by setting FDataObject to nil and thus internally rejecting the
+      // drop in TCustomDropTarget.DragOver.
+      if ((dwEffect and not(DROPEFFECT_SCROLL)) = DROPEFFECT_NONE) then
+        FDataObject := nil;
+
+    end else
+    begin
       FDataObject := nil;
+      dwEffect := DROPEFFECT_NONE;
+    end;
 
-  end else
-  begin
+    // Display drag image.
+    // Note: This was previously done prior to caling GetValidDropEffect and
+    // DoEnter. The SDK documentation states that IDropTargetHelper.DragEnter
+    // should be called last in IDropTarget.DragEnter (presumably after dwEffect
+    // has been modified), but Microsoft's own demo application calls it as the
+    // very first thing (same for all other IDropTargetHelper methods).
+    if ShowImage then
+    begin
+      // Attempt to create Drag Drop helper object.
+      // At present this is only supported on Windows 2000 and later (and
+      // reported broken in Windows ME).
+      // If the object can't be created, we fall back to the old image list
+      // based method (which only works on Win9x or within the application).
+      if (Succeeded(CoCreateInstance(CLSID_DragDropHelper, nil, CLSCTX_INPROC_SERVER,
+        IDropTargetHelper, FDropTargetHelper))) and
+        (FDropTargetHelper <> nil) then
+      begin
+        // If the call to DragEnter fails (which it will do if the drop source
+        // doesn't support IDropSourceHelper or hasn't specified a drag image),
+        // we release the drop target helper and fall back to imagelist based
+        // drag images.
+        // Note: According to .\Samples\winui\Shell\DragImg\DragImg.doc from the
+        // Platform SDK, the return value of IDropTargetHelper.DragEnter should
+        // be ignored, but my tests show that it shouldn't.
+        if (Failed(DropTargetHelper.DragEnter(FTarget.Handle, DataObj, pt, dwEffect))) then
+          FDropTargetHelper := nil;
+      end;
+
+      if (FDropTargetHelper = nil) then
+      begin
+        FDragImageHandle := ImageList_GetDragImage(nil, @FImageHotSpot);
+        if (FDragImageHandle <> 0) then
+        begin
+          // Currently we will just replace any 'embedded' cursor with our
+          // blank (transparent) image otherwise we sometimes get 2 cursors ...
+          ImageList_SetDragCursorImage(FImages.Handle, 0, FImageHotSpot.x, FImageHotSpot.y);
+          with ClientPtToWindowPt(FTarget.Handle, ClientPt) do
+            ImageList_DragEnter(FTarget.handle, x, y);
+        end;
+      end;
+    end else
+      FDragImageHandle := 0;
+  except
+    // We must not allow exceptions to escape from any of the COM methods since
+    // COM doesn't support exceptions.
     FDataObject := nil;
     dwEffect := DROPEFFECT_NONE;
+    Result := E_UNEXPECTED;
   end;
-
-  // Display drag image.
-  // Note: This was previously done prior to caling GetValidDropEffect and
-  // DoEnter. The SDK documentation states that IDropTargetHelper.DragEnter
-  // should be called last in IDropTarget.DragEnter (presumably after dwEffect
-  // has been modified), but Microsoft's own demo application calls it as the
-  // very first thing (same for all other IDropTargetHelper methods).
-  if ShowImage then
-  begin
-    // Attempt to create Drag Drop helper object.
-    // At present this is only supported on Windows 2000. If the object can't be
-    // created, we fall back to the old image list based method (which only
-    // works on Win9x).
-    CoCreateInstance(CLSID_DragDropHelper, nil, CLSCTX_INPROC_SERVER,
-      IDropTargetHelper, FDropTargetHelper);
-
-    if (FDropTargetHelper <> nil) then
-    begin
-      // If the call to DragEnter fails (which it will do if the drop source
-      // doesn't support IDropSourceHelper or hasn't specified a drag image),
-      // we release the drop target helper and fall back to imagelist based
-      // drag images.
-      if (DropTargetHelper.DragEnter(FTarget.Handle, DataObj, pt, dwEffect) <> S_OK) then
-        FDropTargetHelper := nil;
-    end;
-
-    if (FDropTargetHelper = nil) then
-    begin
-      FDragImageHandle := ImageList_GetDragImage(nil, @FImageHotSpot);
-      if (FDragImageHandle <> 0) then
-      begin
-        // Currently we will just replace any 'embedded' cursor with our
-        // blank (transparent) image otherwise we sometimes get 2 cursors ...
-        ImageList_SetDragCursorImage(FImages.Handle, 0, FImageHotSpot.x, FImageHotSpot.y);
-        with ClientPtToWindowPt(FTarget.Handle, pt) do
-          ImageList_DragEnter(FTarget.handle, x, y);
-      end;
-    end;
-  end else
-    FDragImageHandle := 0;
 end;
 
 procedure TCustomDropTarget.DoEnter(ShiftState: TShiftState; Point: TPoint; var Effect: Longint);
@@ -624,7 +666,8 @@ function TCustomDropTarget.DragOver(grfKeyState: Longint; pt: TPoint;
   var dwEffect: Longint): HResult;
 var
   ShiftState: TShiftState;
-  IsScrolling: boolean;
+  ClientPt: TPoint;
+  CanScroll: boolean;
 begin
   // Refuse drop if we dermined in DragEnter that a drop weren't possible,
   // but still handle drag images provided we have a valid target.
@@ -635,58 +678,71 @@ begin
     exit;
   end;
 
-  pt := FTarget.ScreenToClient(pt);
+  try
 
-  if (FDataObject <> nil) then
-  begin
+    ClientPt := FTarget.ScreenToClient(pt);
+
 
     ShiftState := KeysToShiftStatePlus(grfKeyState);
 
     // Create a default drop effect based on the shift state and allowed
     // drop effects (or an OnGetDropEffect event if implemented).
-    dwEffect := GetValidDropEffect(ShiftState, pt, dwEffect);
+    dwEffect := GetValidDropEffect(ShiftState, ClientPt, dwEffect);
 
-    // Generate an OnDragOver event
-    DoDragOver(ShiftState, pt, dwEffect);
-
-    // Note: Auto scroll is detected by the GetValidDropEffect method, but can
-    // also be started by the user via the OnDragOver or OnGetDropEffect events.
-    // Auto scroll is initiated by specifying the DROPEFFECT_SCROLL value as
-    // part of the drop effect.
-
-    // Start the auto scroll timer if auto scroll were requested. Do *not* rely
-    // on any other mechanisms to detect auto scroll since the user can only
-    // specify auto scroll with the DROPEFFECT_SCROLL value.
-    IsScrolling := (dwEffect and DROPEFFECT_SCROLL <> 0);
-    if (IsScrolling) and (not FScrollTimer.Enabled) then
+    if (FDataObject <> nil) then
     begin
-      FScrollTimer.Interval := DragDropScrollDelay; // hardcoded to 100 in previous versions.
-      FScrollTimer.Enabled := True;
+      // Generate an OnDragOver event
+      DoDragOver(ShiftState, ClientPt, dwEffect);
+      Result := S_OK;
+    end else
+    begin
+      // Even though this isn't an error condition per se, we must return
+      // an error code (e.g. E_UNEXPECTED) in order for the cursor to change
+      // to DROPEFFECT_NONE.
+      Result := DV_E_CLIPFORMAT;
     end;
 
-    Result := S_OK;
-  end else
-  begin
-    // Even though this isn't an error condition per se, we must return
-    // an error code (e.g. E_UNEXPECTED) in order for the cursor to change
-    // to DROPEFFECT_NONE.
-    IsScrolling := False;
-    Result := DV_E_CLIPFORMAT;
-  end;
+    // Sample mouse pos and calculate velocity for auto-scroll.
+    CanScroll := SampleMouse(Pt);
 
-  // Move drag image
-  if (DropTargetHelper <> nil) then
-  begin
-    OleCheck(DropTargetHelper.DragOver(pt, dwEffect));
-  end else
-  if (FDragImageHandle <> 0) then
-  begin
-    if (not IsScrolling) and ((FLastPoint.x <> pt.x) or (FLastPoint.y <> pt.y)) then
-      with ClientPtToWindowPt(FTarget.Handle, pt) do
-        ImageList_DragMove(x, y);
-  end;
+    // Note: Auto-scroll is detected by the GetValidDropEffect method, but can
+    // also be started by the user via the OnDragOver or OnGetDropEffect events.
+    // Auto-scroll is initiated by specifying the DROPEFFECT_SCROLL value as
+    // part of the drop effect.
 
-  FLastPoint := pt;
+    // Start the auto-scroll timer if auto-scroll was requested. Do *not* rely
+    // on any other mechanisms to detect auto-scroll since the user can only
+    // specify auto-scroll with the DROPEFFECT_SCROLL value.
+    if (dwEffect and DROPEFFECT_SCROLL <> 0) then
+    begin
+      if (not FScrollTimer.Enabled) then
+        FScrollTimer.Interval := DragDropScrollDelay; // hardcoded to 100 in previous versions.
+
+      // Sample mouse for auto-scroll.
+      FScrollTimer.Enabled := CanScroll;
+    end else
+      FScrollTimer.Enabled := False;
+
+    // Move drag image
+    if (DropTargetHelper <> nil) then
+    begin
+      OleCheck(DropTargetHelper.DragOver(pt, dwEffect));
+    end else
+    if (FDragImageHandle <> 0) then
+    begin
+      if ((FLastPoint.x <> ClientPt.x) or (FLastPoint.y <> ClientPt.y)) then
+        with ClientPtToWindowPt(FTarget.Handle, ClientPt) do
+          ImageList_DragMove(x, y);
+    end;
+
+    FLastPoint := ClientPt;
+  except
+    // We must not allow exceptions to escape from any of the COM methods since
+    // COM doesn't support exceptions.
+    FDataObject := nil;
+    dwEffect := DROPEFFECT_NONE;
+    Result := E_UNEXPECTED;
+  end;
 end;
 
 procedure TCustomDropTarget.DoDragOver(ShiftState: TShiftState; Point: TPoint; var Effect: Longint);
@@ -697,28 +753,35 @@ end;
 
 function TCustomDropTarget.DragLeave: HResult;
 begin
-  ClearData;
-  FScrollTimer.Enabled := False;
-
-  FDataObject := nil;
-
-  if (DropTargetHelper <> nil) then
-  begin
-    DropTargetHelper.DragLeave;
-  end else
-    if (FDragImageHandle <> 0) then
-      ImageList_DragLeave(FTarget.Handle);
-
-  // Generate an OnLeave event.
-  // Protect resources against exceptions in event handler.
   try
-    DoLeave;
-  finally
-    FTarget := nil;
-    FDropTargetHelper := nil;
-  end;
+    ClearData;
+    FScrollTimer.Enabled := False;
 
-  Result := S_OK;
+    FDataObject := nil;
+
+    if (DropTargetHelper <> nil) then
+    begin
+      DropTargetHelper.DragLeave;
+    end else
+      if (FDragImageHandle <> 0) then
+        ImageList_DragLeave(FTarget.Handle);
+
+    // Generate an OnLeave event.
+    // Protect resources against exceptions in event handler.
+    try
+      DoLeave;
+    finally
+      FTarget := nil;
+      FDropTargetHelper := nil;
+    end;
+
+    Result := S_OK;
+  except
+    // We must not allow exceptions to escape from any of the COM methods since
+    // COM doesn't support exceptions.
+    FDataObject := nil;
+    Result := E_UNEXPECTED;
+  end;
 end;
 
 procedure TCustomDropTarget.DoLeave;
@@ -759,25 +822,36 @@ begin
 
       // Get data from source and generate an OnDrop event unless we failed to
       // get data.
-      if (FGetDataOnEnter) or (GetData(dwEffect)) then
-        DoDrop(ShiftState, ClientPt, dwEffect)
-      else
+      try
+        if (FGetDataOnEnter or GetData(dwEffect)) then
+        begin
+          if (not AsyncTransfer) then
+            DoDrop(ShiftState, ClientPt, dwEffect);
+        end else
+          dwEffect := DROPEFFECT_NONE;
+        Result := S_OK;
+      except
+        // We must not allow exceptions to escape from any of the COM methods since
+        // COM doesn't support exceptions.
         dwEffect := DROPEFFECT_NONE;
-      Result := S_OK;
+        Result := E_UNEXPECTED;
+      end;
     end;
 
     if (DropTargetHelper <> nil) then
-    begin
-      DropTargetHelper.Drop(DataObj, pt, dwEffect);
-    end else
+      DropTargetHelper.Drop(DataObj, pt, dwEffect)
+    else
       if (FDragImageHandle <> 0) and (FTarget <> nil) then
         ImageList_DragLeave(FTarget.Handle);
   finally
     // clean up!
-    ClearData;
-    FDataObject := nil;
+    if (not AsyncTransfer) then
+    begin
+      ClearData;
+      FDataObject := nil;
+      FTarget := nil;
+    end;
     FDropTargetHelper := nil;
-    FTarget := nil;
   end;
 end;
 
@@ -861,63 +935,102 @@ begin
   end;
 end;
 
+const
+  MSG_DROP = WM_USER;
+
 type
   TDropTargetTransferThread = class(TThread)
   private
-    FCustomDropTarget: TCustomDropTarget;
+    FDropTarget: TCustomDropTarget;
     FDataObject: IDataObject;
     FEffect: Longint;
-    FMarshalStream: pointer;
+    FDataObjectStream: pointer;
+    FAsyncOperationStream: pointer;
   protected
     procedure Execute; override;
-    property MarshalStream: pointer read FMarshalStream write FMarshalStream;
+    property DataObjectStream: pointer read FDataObjectStream;
+    property AsyncOperationStream: pointer read FAsyncOperationStream;
   public
-    constructor Create(ACustomDropTarget: TCustomDropTarget;
+    constructor Create(ADropTarget: TCustomDropTarget;
       const ADataObject: IDataObject; AEffect: Longint);
-    property CustomDropTarget: TCustomDropTarget read FCustomDropTarget;
+    destructor Destroy; override;
+    property DropTarget: TCustomDropTarget read FDropTarget;
     property DataObject: IDataObject read FDataObject;
     property Effect: Longint read FEffect;
   end;
 
-constructor TDropTargetTransferThread.Create(ACustomDropTarget: TCustomDropTarget;
+constructor TDropTargetTransferThread.Create(ADropTarget: TCustomDropTarget;
   const ADataObject: IDataObject; AEffect: longInt);
 begin
   inherited Create(True);
   FreeOnTerminate := True;
-  FCustomDropTarget := ACustomDropTarget;
-  OnTerminate := FCustomDropTarget.DoEndAsyncTransfer;
+  FDropTarget := ADropTarget;
+  OnTerminate := FDropTarget.DoEndAsyncTransfer;
   FEffect := AEffect;
-  OleCheck(CoMarshalInterThreadInterfaceInStream(IDataObject, ADataObject,
-    IStream(FMarshalStream)));
+  FDataObject := ADataObject;
+  OleCheck(CoMarshalInterThreadInterfaceInStream(IDataObject, FDataObject,
+    IStream(FDataObjectStream)));
+  OleCheck(CoMarshalInterThreadInterfaceInStream(IAsyncOperation2, FDataObject,
+    IStream(FAsyncOperationStream)));
+end;
+
+destructor TDropTargetTransferThread.Destroy;
+begin
+  FDataObjectStream := nil;
+  FAsyncOperationStream := nil;
+  FDataObject := nil;
+  inherited Destroy;
 end;
 
 procedure TDropTargetTransferThread.Execute;
 var
   Res: HResult;
+  FDataObject: IDataObject;
+  FAsyncOperation: IAsyncOperation2;
 begin
   CoInitialize(nil);
   try
     try
-      OleCheck(CoGetInterfaceAndReleaseStream(IStream(MarshalStream),
+      OleCheck(CoGetInterfaceAndReleaseStream(IStream(DataObjectStream),
         IDataObject, FDataObject));
-      MarshalStream := nil;
-      CustomDropTarget.FDataObject := DataObject;
-      CustomDropTarget.DoGetData;
+      OleCheck(CoGetInterfaceAndReleaseStream(IStream(AsyncOperationStream),
+        IAsyncOperation, FAsyncOperation));
+
+      // Switch drop target to use the marshalled data object
+      DropTarget.FDataObject := FDataObject;
+      // Get data from the drop source
+      DropTarget.DoGetData;
+
+      // Generate an OnDrop event
+      // Note that this event is executed in the context of this thread and thus
+      // must adhere to the rules of thread safe use of the VCL (e.g. don't
+      // update visual stuff directly).
+      DropTarget.DoDrop([], Point(0,0), FEffect);
+
       Res := S_OK;
     except
-      Res := E_UNEXPECTED;
+      on E: EOleSysError do
+        Res := E.ErrorCode
+      else
+        Res := E_UNEXPECTED;
     end;
-    (FDataObject as IAsyncOperation).EndOperation(Res, nil, Effect);
+    // Notify drop source that we are done
+    FAsyncOperation.EndOperation(Res, nil, Effect);
   finally
+    DropTarget.FDataObject := nil;
     FDataObject := nil;
+    FAsyncOperation := nil;
     CoUninitialize;
   end;
 end;
 
 procedure TCustomDropTarget.DoEndAsyncTransfer(Sender: TObject);
 begin
-  // Reset async transfer flag once transfer completes and...
+  // Reset async transfer flag and clean up once transfer completes and...
   FIsAsync := False;
+  ClearData;
+  FDataObject := nil;
+  FTarget := nil;
 
   // ...Fire event.
   if Assigned(FOnEndAsyncTransfer) then
@@ -926,39 +1039,48 @@ end;
 
 function TCustomDropTarget.GetData(Effect: longInt): boolean;
 var
-  DoAsync: LongBool;
-  AsyncOperation: IAsyncOperation;
+  DoAsync: Bool;
+  AsyncOperation: IAsyncOperation2;
 //  h: HResult;
 begin
   ClearData;
 
-  // Determine if drop source supports and has enabled asynchronous data
-  // transfer.
+  // Determine if drop source supports (requires shell32.dll v5.0 or later) and
+  // has enabled asynchronous data transfer.
+  // The Windows 2000 Explorer does support IAsyncOperation, but it seems that
+  // it is a bogus implementation.
 (*
-  h := DataObject.QueryInterface(IAsyncOperation, AsyncOperation);
-  h := DataObject.QueryInterface(IDropSource, AsyncOperation);
+  h := DataObject.QueryInterface(IAsyncOperation2, AsyncOperation);
+//  h := DataObject.QueryInterface(IDropSource, AsyncOperation);
   OutputDebugString(PChar(SysErrorMessage(h)));
 *)
-  if not(AllowAsyncTransfer and
-    Succeeded(DataObject.QueryInterface(IAsyncOperation, AsyncOperation)) and
-    Succeeded(AsyncOperation.GetAsyncMode(DoAsync))) then
+  if (not AllowAsyncTransfer) or
+    (Failed(DataObject.QueryInterface(IAsyncOperation2, AsyncOperation))) or
+    (Failed(AsyncOperation.GetAsyncMode(DoAsync))) then
     DoAsync := False;
 
-  // Start an async data transfer...
-  if (DoAsync) then
-  begin
-    // Fire event.
-    if Assigned(FOnStartAsyncTransfer) then
-      FOnStartAsyncTransfer(Self);
-    FIsAsync := True;
+  // Start an async data transfer.
+  if (DoAsync) and
     // Notify drop source that an async data transfer is starting.
-    AsyncOperation.StartOperation(nil);
-    // Create the data transfer thread and launch it.
-    with TDropTargetTransferThread.Create(Self, DataObject, Effect) do
-      Resume;
+    Succeeded(AsyncOperation.StartOperation(nil)) then
+  begin
+    try
+      // Fire event.
+      if Assigned(FOnStartAsyncTransfer) then
+        FOnStartAsyncTransfer(Self);
+      FIsAsync := True;
+      // Create the data transfer thread and launch it.
+      with TDropTargetTransferThread.Create(Self, DataObject, Effect) do
+        Resume;
 
-    Result := True;
+      Result := True;
+    except
+      // Notify drop source that async data transfer failed
+      AsyncOperation.EndOperation(E_UNEXPECTED, nil, DROPEFFECT_NONE);
+      Result := False;
+    end;
   end else
+    // Perform a normal data transfer
     Result := DoGetData;
 end;
 
@@ -971,7 +1093,7 @@ begin
     if (csDesigning in ComponentState) and (AComponent = FTarget) then
       FTarget := nil;
     if (FTargets.IndexOf(TWinControl(AComponent)) <> -1) then
-      DoUnregister(TWinControl(AComponent));
+      Unregister(TWinControl(AComponent));
   end;
 end;
 
@@ -980,13 +1102,23 @@ type
   protected
     procedure DestroyWnd; override;
     procedure CreateWnd; override;
+    procedure CreateParams(var Params: TCreateParams); override;
   end;
+
+procedure TWinControlProxy.CreateParams(var Params: TCreateParams);
+begin
+  inherited;
+  // Avoid that control draws itself in case it becomes visible (e.g. if a
+  // TToolBar is specified as target.
+  Params.ExStyle := Params.ExStyle or WS_EX_TRANSPARENT;
+end;
 
 procedure TWinControlProxy.CreateWnd;
 begin
   inherited CreateWnd;
   OleCheck(RegisterDragDrop(Parent.Handle, TCustomDropTarget(Owner)));
   Visible := False;
+  Width := 0;
 end;
 
 procedure TWinControlProxy.DestroyWnd;
@@ -997,6 +1129,18 @@ begin
   // parent control recreates window handle.
   Visible := True;
   inherited DestroyWnd;
+end;
+
+procedure TCustomDropTarget.DoRegister(ATarget: TWinControl);
+begin
+  if (AutoRegister) then
+  begin
+    // Create a child control to monitor the target window handle.
+    // The child control will perform the drop target registration for us.
+    with TWinControlProxy.Create(Self) do
+      Parent := ATarget;
+  end else
+    OleCheck(RegisterDragDrop(ATarget.Handle, Self));
 end;
 
 procedure TCustomDropTarget.Register(ATarget: TWinControl);
@@ -1061,65 +1205,56 @@ begin
   if (ATarget is TCustomRichEdit) then
     RevokeDragDrop(ATarget.Handle);
 
-  // Create a child control to monitor the target window handle.
-  // The child control will perform the drop target registration for us.
-  with TWinControlProxy.Create(Self) do
-    Parent := ATarget;
+  DoRegister(ATarget);
 end;
 
-{$ifdef VER12_PLUS}
-procedure TCustomDropTarget.Unregister(ATarget: TWinControl);
-begin
-  // Unregister a single targets (or all targets if ATarget is nil).
-  DoUnregister(ATarget);
-end;
-{$else}
-procedure TCustomDropTarget.Unregister;
-begin
-  // Unregister all targets (for backward compatibility).
-  DoUnregister(nil);
-end;
-{$endif}
-
-procedure TCustomDropTarget.DoUnregister(ATarget: TWinControl);
+procedure TCustomDropTarget.Unregister(ATarget_with_default: TWinControl = nil);
 var
-  i			: integer;
+  i: integer;
 begin
-  if (ATarget = nil) then
+  // Recursively unregister all targets if ATarget is nil.
+  if (ATarget_with_default = nil) then
   begin
     for i := FTargets.Count-1 downto 0 do
-      DoUnregister(FTargets[i]);
+      Unregister(FTargets[i]);
     exit;
   end;
 
-  i := FTargets.IndexOf(ATarget);
+  i := FTargets.IndexOf(ATarget_with_default);
   if (i = -1) then
     exit;
 
-  if (ATarget = FTarget) then
+  if (ATarget_with_default = FTarget) then
     FTarget := nil;
     // raise Exception.Create(sUnregisterActiveTarget);
 
-  FTargets.Delete(i);
+  DoUnregister(ATarget_with_default);
+end;
 
-(* Handled by proxy
-  if (ATarget.HandleAllocated) then
-    // Ignore failed unregistrations - nothing to do about it anyway
-    RevokeDragDrop(ATarget.Handle);
-*)
+procedure TCustomDropTarget.DoUnregister(ATarget: TWinControl);
+var
+  i: integer;
+begin
+  FTargets.Remove(ATarget);
 
-  // Delete target proxy.
-  // The target proxy willl unregister the drop target for us when it is
-  // destroyed.
-  for i := ATarget.ControlCount-1 downto 0 do
-    if (ATarget.Controls[i] is TWinControlProxy) and
-      (TWinControlProxy(ATarget.Controls[i]).Owner = Self) then
-    with TWinControlProxy(ATarget.Controls[i]) do
-    begin
-      Parent := nil;
-      Free;
-      break;
-    end;
+  if (AutoRegister) then
+  begin
+    // Delete target proxy.
+    // The target proxy willl unregister the drop target for us when it is
+    // destroyed.
+    for i := ATarget.ControlCount-1 downto 0 do
+      if (ATarget.Controls[i] is TWinControlProxy) and
+        (TWinControlProxy(ATarget.Controls[i]).Owner = Self) then
+      with TWinControlProxy(ATarget.Controls[i]) do
+      begin
+        Parent := nil;
+        Free;
+        break;
+      end;
+  end else
+    if (ATarget.HandleAllocated) then
+      // Ignore failed unregistrations - nothing to do about it anyway
+      RevokeDragDrop(ATarget.Handle);
 end;
 
 function TCustomDropTarget.FindTarget(p: TPoint): TWinControl;
@@ -1163,17 +1298,15 @@ end;
 
 function TCustomDropTarget.FindNearestTarget(p: TPoint): TWinControl;
 var
-  i			: integer;
-  r			: TRect;
-  pc			: TPoint;
-  Control		: TWinControl;
-  Dist			,
-  BestDist		: integer;
+  i: integer;
+  r: TRect;
+  pc: TPoint;
+  Control: TWinControl;
+  Dist, BestDist: integer;
 
   function Distance(r: TRect; p: TPoint): integer;
   var
-    dx			,
-    dy			: integer;
+    dx, dy: integer;
   begin
     if (p.x < r.Left) then
       dx := r.Left - p.x
@@ -1217,6 +1350,10 @@ end;
 function TCustomDropTarget.GetTarget: TWinControl;
 begin
   Result := FTarget;
+(*
+  Disabled so that Target will be nil when there are no real targets. E.g. when
+  OnDrop is being fired as a result of a PasteFromClipboard.
+
   if (Result = nil) and not(csDesigning in ComponentState) then
   begin
     if (FTargets.Count > 0) then
@@ -1224,18 +1361,39 @@ begin
     else
       Result := nil;
   end;
+*)
 end;
 
+resourcestring
+  sRichEditWarning =
+    'It is strongly recommended that you set the AutoRegister'+#13+
+    'property to False when the drop target is a rich edit control.'+#13+#13+
+    'Otherwise the text of the rich edit control might become'+#13+
+    'invisible when the control is scrolled or modifified';
+    
 procedure TCustomDropTarget.SetTarget(const Value: TWinControl);
+var
+  Res: Word;
 begin
   if (FTarget = Value) then
     exit;
 
   if (csDesigning in ComponentState) then
-    FTarget := Value
-  else
   begin
-    // If MultiTarget isn't enabled, Register will automatically unregister do
+    if (Value is TCustomRichEdit) and (AutoRegister) then
+    begin
+      Res := MessageDlg(sRichEditWarning, mtWarning, [mbOK, mbIgnore, mbCancel], 0);
+      case res of
+        mrCancel:
+          exit;
+        mrOK:
+          AutoRegister := False;
+      end;
+    end;
+    FTarget := Value;
+  end else
+  begin
+    // If MultiTarget isn't enabled, Register will automatically unregister so
     // no need to do it here.
     if (FMultiTarget) and not(csLoading in ComponentState) then
       Unregister;
@@ -1261,13 +1419,19 @@ end;
 function TCustomDropTarget.GetValidDropEffect(ShiftState: TShiftState;
   pt: TPoint; dwEffect: LongInt): LongInt;
 begin
-  // dwEffect 'in' parameter = set of drop effects allowed by drop source.
-  // Now filter out the effects disallowed by target...
+  // The dwEffect parameter is a set of drop effects allowed by drop source.
+  // We start by finding the effects that both the source and target can agree
+  // on.
   Result := dwEffect AND DragTypesToDropEffect(FDragTypes);
 
-  Result := ShiftStateToDropEffect(ShiftState, Result, True);
+  // Then we find the default drop effect based on the allowed drop effects and
+  // the key shift state unless the user has provided an OnGetDropEffect event
+  // handler. This is nescessary since we need to pass the allowed drop effects
+  // on to the event handler.
+  if (not Assigned(FOnGetDropEffect)) then
+    Result := ShiftStateToDropEffect(ShiftState, Result, True);
 
-  // Add Scroll effect if necessary...
+  // Add scroll effect if necessary.
   if (FAutoScroll) and (FScrollBars <> []) then
   begin
     // If the cursor is inside the no-scroll zone, clear the drag scroll flag,
@@ -1278,7 +1442,8 @@ begin
       Result := Result OR integer(DROPEFFECT_SCROLL);
   end;
 
-  // 'Default' behaviour can be overriden by assigning OnGetDropEffect.
+  // Finally give the user a chance to override the 'Default' behaviour with an
+  // OnGetDropEffect event handler.
   if Assigned(FOnGetDropEffect) then
     FOnGetDropEffect(Self, ShiftState, pt, Result);
 end;
@@ -1296,11 +1461,11 @@ begin
     end;
 end;
 
-function TCustomDropTarget.SetPasteSucceded(Effect: LongInt): boolean;
+function TCustomDropTarget.SetPasteSucceeded(Effect: LongInt): boolean;
 var
   Medium: TStgMedium;
 begin
-  with TPasteSuccededClipboardFormat.Create do
+  with TPasteSucceededClipboardFormat.Create do
     try
       Value := Effect;
       Result := SetData(DataObject, FormatEtc, Medium);
@@ -1351,6 +1516,7 @@ function TCustomDropTarget.PasteFromClipboard: longint;
 var
   Effect: longInt;
 begin
+  FTarget := nil;
   // Get an IDataObject interface to the clipboard.
   // Temporarily pretend that the IDataObject has been dropped on the target.
   OleCheck(OleGetClipboard(FDataObject));
@@ -1369,6 +1535,21 @@ begin
   end;
 end;
 
+function TCustomDropTarget.CanPasteFromClipboard: boolean;
+var
+  ADataObject: IDataObject;
+begin
+  // Get an IDataObject interface to the clipboard.
+  OleCheck(OleGetClipboard(ADataObject));
+  try
+    // Determine if clipboard has anything to offer.
+    Result := HasValidFormats(ADataObject);
+  finally
+    // Clean up
+    ADataObject := nil;
+  end;
+end;
+
 procedure TCustomDropTarget.DoOnPaste(var Effect: longint);
 begin
   // Generate an OnDrop event
@@ -1377,10 +1558,10 @@ begin
   // Report performed drop effect back to data originator.
   if (Effect <> DROPEFFECT_NONE) then
     // Delete on paste:
-    // We now set the CF_PASTESUCCEDED format to indicate to the source
+    // We now set the CF_PASTESUCCEEDED format to indicate to the source
     // that we are using the "delete on paste" protocol and that the
     // paste has completed.
-    SetPasteSucceded(Effect);
+    SetPasteSucceeded(Effect);
 end;
 
 procedure TCustomDropTarget.Assign(Source: TPersistent);
@@ -1401,10 +1582,61 @@ begin
     inherited Assign(Source);
 end;
 
+function TCustomDropTarget.SampleMouse(MousePos: TPoint; First: boolean): boolean;
+var
+  Tick: DWORD;
+  Distance: TPoint;
+  dTime: DWORD;
+  Velocity: integer;
+  Sample: TMouseSample;
+begin
+  Tick := GetTickCount;
+  Result := True;
+  with Sample do
+  begin
+    Time := Tick;
+    Pos := MousePos;
+  end;
+
+  if (not First) then
+  begin
+    dTime := Tick-FMouseSample.Time;
+    if (dTime >= DWORD(DragDropScrollVelocitySample)) then
+    begin
+      // Calculate velocity of mouse movement to filter out high speed mouse
+      // movements over hot zone.
+      Distance.X := FMouseSample.Pos.X-MousePos.X;
+      Distance.Y := FMouseSample.Pos.Y-MousePos.Y;
+      if (dTime <> 0) then
+        Velocity := MulDiv(Distance.X*Distance.X+Distance.Y*Distance.Y, 1000*1000,
+          dTime*dTime)
+      else
+        Velocity := 0;
+      Result := (Velocity <= DragDropScrollMaxVelocity*DragDropScrollMaxVelocity);
+      if (FMouseNextSample.Time = 0) then
+        FMouseNextSample := Sample;
+    end;
+  end;
+
+  if (First) then
+  begin
+    FMouseSample := Sample;
+    FMouseNextSample.Time := 0;
+  end else
+  if (FMouseNextSample.Time <> 0) and
+    (Tick-FMouseNextSample.Time >= DWORD(DragDropScrollVelocitySample)) then
+  begin
+    FMouseSample := FMouseNextSample;
+    FMouseNextSample := Sample;
+  end;
+end;
+
 procedure TCustomDropTarget.DoAutoScroll(Sender: TObject);
 var
-  Scroll: TScrolDirections;
+  Scroll: TScrollDirections;
   Interval: integer;
+  si: TScrollInfo;
+  Pt: TPoint;
 begin
   // Disable timer until we are ready to auto-repeat the scroll.
   // If no scroll is performed, the scroll stops here.
@@ -1413,38 +1645,77 @@ begin
   Interval := DragDropScrollInterval;
   Scroll := [];
 
-  // Only scroll if the pointer is outside the non-scroll area
+  // Only scroll if the pointer is outside the non-scroll area (i.e. inside the
+  // auto-scroll zone).
   if (not PtInRect(FNoScrollZone, FLastPoint)) then
   begin
-    with FLastPoint do
-    begin
-      // Determine which way to scroll.
-      if (Y < FNoScrollZone.Top) then
-        include(Scroll, sdUp)
-      else if (Y > FNoScrollZone.Bottom) then
-        include(Scroll, sdDown);
+    GetCursorPos(Pt);
+    // Only scroll if mouse velocity is below limit.
+    if (SampleMouse(Pt)) then
+      with FLastPoint do
+      begin
+        // Don't scroll unless scroll bars are visible.
+        if (sbVertical in FScrollBars) then
+        begin
+          // Get scroll info to check if we *need* to scroll vertically.
+          FillChar(si, SizeOf(si), 0);
+          si.cbSize := SizeOf(si);
+          si.fMask  := SIF_PAGE or SIF_POS or SIF_RANGE;
+          GetScrollInfo(FTarget.Handle, SB_VERT, si);
+          // Determine which way to scroll.
+          if (Y < FNoScrollZone.Top) then
+          begin
+            if (si.nPos > si.nMin) then
+              include(Scroll, sdUp)
+          end else
+          if (Y > FNoScrollZone.Bottom) then
+          begin
+            if (si.nPos + integer(si.nPage) <= si.nMax) then
+              include(Scroll, sdDown);
+          end;
+        end;
 
-      if (X < FNoScrollZone.Left) then
-        include(Scroll, sdLeft)
-      else if (X > FNoScrollZone.Right) then
-        include(Scroll, sdRight);
-    end;
+        if (sbHorizontal in FScrollBars) then
+        begin
+          // Get scroll info to check if we *need* to scroll horizontally.
+          FillChar(si, SizeOf(si), 0);
+          si.cbSize := SizeOf(si);
+          si.fMask  := SIF_POS or SIF_RANGE;
+          GetScrollInfo(FTarget.Handle, SB_HORZ, si);
+          if (X < FNoScrollZone.Left) then
+          begin
+            if (si.nPos > si.nMin) then
+              include(Scroll, sdLeft)
+          end else
+          if (X > FNoScrollZone.Right) then
+          begin
+            if (si.nPos + integer(si.nPage) <= si.nMax) then
+              include(Scroll, sdRight);
+          end;
+        end;
+      end;
   end;
 
-  DoScroll(FLastPoint, Scroll, Interval);
+  if (Scroll <> []) then
+    DoScroll(FLastPoint, Scroll, Interval);
 
   // Note: Once the OnScroll event has been fired and the user has had a
-  // chance of overriding the auto scroll logic, we should *only* use to Scroll
+  // chance of overriding the auto-scroll logic, we should *only* use the Scroll
   // variable to determine if and how to scroll. Do not use FScrollBars past
   // this point.
 
-  // Only scroll if the pointer is outside the non-scroll area
+  // Only scroll if the pointer is inside the auto-scroll zone.
   if (Scroll <> []) then
   begin
-    // Remove drag image before scrolling
+
+    // Remove drag image before scrolling.
+    if (DropTargetHelper <> nil) then
+      DropTargetHelper.Show(False)
+    else
     if (FDragImageHandle <> 0) then
       ImageList_DragLeave(FTarget.Handle);
     try
+
       if (sdUp in Scroll) then
         FTarget.Perform(WM_VSCROLL,SB_LINEUP, 0)
       else if (sdDown in Scroll) then
@@ -1454,8 +1725,12 @@ begin
         FTarget.Perform(WM_HSCROLL,SB_LINEUP, 0)
       else if (sdRight in Scroll) then
         FTarget.Perform(WM_HSCROLL,SB_LINEDOWN, 0);
+
     finally
       // Restore drag image
+      if (DropTargetHelper <> nil) then
+        DropTargetHelper.Show(True)
+      else
       if (FDragImageHandle <> 0) then
         with ClientPtToWindowPt(FTarget.Handle, FLastPoint) do
           ImageList_DragEnter(FTarget.Handle, x, y);
@@ -1468,7 +1743,7 @@ begin
 end;
 
 procedure TCustomDropTarget.DoScroll(Point: TPoint;
-  var Scroll: TScrolDirections; var Interval: integer);
+  var Scroll: TScrollDirections; var Interval: integer);
 begin
   if Assigned(FOnScroll) then
     FOnScroll(Self, FLastPoint, Scroll, Interval);
@@ -1511,7 +1786,7 @@ end;
 
 destructor TCustomDropMultiTarget.Destroy;
 var
-  i			: integer;
+  i: integer;
 begin
   // Delete all target formats owned by the object.
   for i := FDataFormats.Count-1 downto 0 do
@@ -1522,7 +1797,7 @@ end;
 
 function TCustomDropMultiTarget.HasValidFormats(ADataObject: IDataObject): boolean;
 var
-  GetNum, GotNum		: longInt;
+  GetNum, GotNum: longInt;
   FormatEnumerator: IEnumFormatEtc;
   i: integer;
   SourceFormatEtc: TFormatEtc;
@@ -1557,10 +1832,10 @@ end;
 
 procedure TCustomDropMultiTarget.ClearData;
 var
-  i			: integer;
+  i: integer;
 begin
   if (AsyncTransfer) then
-    raise Exception.Create(sAsyncBusy);
+    raise Exception.Create(sTargetAsyncBusy);
   for i := 0 to DataFormats.Count-1 do
     DataFormats[i].Clear;
 end;

@@ -1,14 +1,13 @@
 unit DragDropFormats;
-
 // -----------------------------------------------------------------------------
 // Project:         Drag and Drop Component Suite.
 // Module:          DragDropFormats
 // Description:     Implements commonly used clipboard formats and base classes.
-// Version:         4.0
-// Date:            18-MAY-2001
-// Target:          Win32, Delphi 5-6
+// Version:         4.1
+// Date:            24-APR-2003
+// Target:          Win32, Delphi 4-7, C++Builder 4-6
 // Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2001 Angus Johnson & Anders Melander
+// Copyright        © 1997-2003 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -33,8 +32,8 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TStreamList = class(TObject)
   private
-    FStreams		: TStrings;
-    FOnChanging		: TNotifyEvent;
+    FStreams: TStrings;
+    FOnChanging: TNotifyEvent;
   protected
     function GetStream(Index: integer): TStream;
     function GetCount: integer;
@@ -56,7 +55,7 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TInterfaceList
+//		TNamedInterfaceList
 //
 ////////////////////////////////////////////////////////////////////////////////
 // List of named interfaces.
@@ -65,10 +64,10 @@ type
 ////////////////////////////////////////////////////////////////////////////////
 // Utility class used by TFileContentsStorageClipboardFormat.
 ////////////////////////////////////////////////////////////////////////////////
-  TInterfaceList = class(TObject)
+  TNamedInterfaceList = class(TObject)
   private
-    FList		: TStrings;
-    FOnChanging		: TNotifyEvent;
+    FList: TStrings;
+    FOnChanging: TNotifyEvent;
   protected
     function GetCount: integer;
     function GetName(Index: integer): string;
@@ -81,7 +80,7 @@ type
     function AddNamed(Item: IUnknown; Name: string): integer;
     procedure Delete(Index: integer);
     procedure Clear;
-    procedure Assign(Value: TInterfaceList);
+    procedure Assign(Value: TNamedInterfaceList);
     property Items[Index: integer]: IUnknown read GetItem; default;
     property Names[Index: integer]: string read GetName;
     property Count: integer read GetCount;
@@ -94,9 +93,9 @@ type
 //
 ////////////////////////////////////////////////////////////////////////////////
 // List of IStorage interfaces.
-// Used by TFileContentsStorageClipboardFormat.
+// Used by TFileContentsStorageClipboardFormat and TStorageDataFormat.
 ////////////////////////////////////////////////////////////////////////////////
-  TStorageInterfaceList = class(TInterfaceList)
+  TStorageInterfaceList = class(TNamedInterfaceList)
   private
   protected
     function GetStorage(Index: integer): IStorage;
@@ -112,7 +111,13 @@ type
 // TFixedStreamAdapter fixes several serious bugs in TStreamAdapter.CopyTo.
 ////////////////////////////////////////////////////////////////////////////////
   TFixedStreamAdapter = class(TStreamAdapter, IStream)
+  private
+    FHasSeeked: boolean;
   public
+    function Seek(dlibMove: Largeint; dwOrigin: Longint;
+      out libNewPosition: Largeint): HResult; override; stdcall;
+    function Read(pv: Pointer; cb: Longint;
+      pcbRead: PLongint): HResult; override; stdcall;
     function CopyTo(stm: IStream; cb: Largeint; out cbRead: Largeint;
       out cbWritten: Largeint): HResult; override; stdcall;
   end;
@@ -159,7 +164,7 @@ type
 // Method #1 only requires that the descedant class implements the ReadData.
 //
 // Method #2 requires that the descedant class overrides the default
-// DoGetDataSized method. The descedant DoGetDataSized method should allocate a
+// DoGetDataSized method. The descendant DoGetDataSized method should allocate a
 // buffer of the specified size and then call the ReadDataInto method to
 // transfer data to the buffer. Even though the ReadData method will not be used
 // in this scenario, it should be implemented as an empty method (to avoid
@@ -228,7 +233,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TCustomStringListClipboardFormat = class(TCustomSimpleClipboardFormat)
   private
-    FLines		: TStrings;
+    FLines: TStrings;
   protected
     function ReadData(Value: pointer; Size: integer): boolean; override;
     function WriteData(Value: pointer; Size: integer): boolean; override;
@@ -269,7 +274,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TCustomWideTextClipboardFormat = class(TCustomSimpleClipboardFormat)
   private
-    FText		: WideString;
+    FText: WideString;
   protected
     function ReadData(Value: pointer; Size: integer): boolean; override;
     function WriteData(Value: pointer; Size: integer): boolean; override;
@@ -288,6 +293,10 @@ type
 //		TTextClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
+// Note: The system automatically synthesizes the CF_TEXT format from the
+// CF_OEMTEXT format. On Windows NT/2000 the system also synthesizes from the
+// CF_UNICODETEXT format.
+////////////////////////////////////////////////////////////////////////////////
   TTextClipboardFormat = class(TCustomTextClipboardFormat)
   public
     function GetClipboardFormat: TClipFormat; override;
@@ -301,7 +310,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TCustomDWORDClipboardFormat = class(TCustomSimpleClipboardFormat)
   private
-    FValue		: DWORD;
+    FValue: DWORD;
   protected
     function ReadData(Value: pointer; Size: integer): boolean; override;
     function WriteData(Value: pointer; Size: integer): boolean; override;
@@ -319,14 +328,34 @@ type
     procedure Clear; override;
   end;
 
+(*
+////////////////////////////////////////////////////////////////////////////////
+//
+//		TFileGroupDescritorCustomClipboardFormat
+//
+////////////////////////////////////////////////////////////////////////////////
+  TFileGroupDescritorCustomClipboardFormat = class(TCustomSimpleClipboardFormat)
+  private
+  protected
+  public
+    property Filenames[Index: integer]: string read GetFilename write SetFilename;
+    property Count: integer read GetCount write SetCount;
+  end;
+*)
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 //		TFileGroupDescritorClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
+const
+  // Missing declaration from shlobj.pas (D6 and earlier)
+  FD_PROGRESSUI = $4000; // Show Progress UI w/Drag and Drop
+
+type
   TFileGroupDescritorClipboardFormat = class(TCustomSimpleClipboardFormat)
   private
-    FFileGroupDescriptor	: PFileGroupDescriptor;
+    FFileGroupDescriptor: PFileGroupDescriptor;
   protected
     function ReadData(Value: pointer; Size: integer): boolean; override;
     function WriteData(Value: pointer; Size: integer): boolean; override;
@@ -355,7 +384,7 @@ type
 
   TFileGroupDescritorWClipboardFormat = class(TCustomSimpleClipboardFormat)
   private
-    FFileGroupDescriptor	: PFileGroupDescriptorW;
+    FFileGroupDescriptor: PFileGroupDescriptorW;
   protected
     function ReadData(Value: pointer; Size: integer): boolean; override;
     function WriteData(Value: pointer; Size: integer): boolean; override;
@@ -376,6 +405,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
 // Note: File contents must be zero terminated, so we descend from
 // TCustomTextClipboardFormat instead of TCustomStringClipboardFormat.
+// TODO : Why must it be zero terminated?
 ////////////////////////////////////////////////////////////////////////////////
   TFileContentsClipboardFormat = class(TCustomTextClipboardFormat)
   public
@@ -447,7 +477,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TFileContentsStorageClipboardFormat = class(TClipboardFormat)
   private
-    FStorages		: TStorageInterfaceList;
+    FStorages: TStorageInterfaceList;
   protected
   public
     constructor Create; override;
@@ -500,10 +530,10 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TPasteSuccededClipboardFormat
+//		TPasteSucceededClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
-  TPasteSuccededClipboardFormat = class(TCustomDWORDClipboardFormat)
+  TPasteSucceededClipboardFormat = class(TCustomDWORDClipboardFormat)
   public
     function GetClipboardFormat: TClipFormat; override;
     property Value: longInt read GetValueLongInt write SetValueLongInt;
@@ -546,31 +576,12 @@ type
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TTextDataFormat
-//
-////////////////////////////////////////////////////////////////////////////////
-  TTextDataFormat = class(TCustomDataFormat)
-  private
-    FText		: string;
-  protected
-    procedure SetText(const Value: string);
-  public
-    function Assign(Source: TClipboardFormat): boolean; override;
-    function AssignTo(Dest: TClipboardFormat): boolean; override;
-    procedure Clear; override;
-    function HasData: boolean; override;
-    function NeedsData: boolean; override;
-    property Text: string read FText write SetText;
-  end;
-
-////////////////////////////////////////////////////////////////////////////////
-//
 //		TDataStreamDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
   TDataStreamDataFormat = class(TCustomDataFormat)
   private
-    FStreams		: TStreamList;
+    FStreams: TStreamList;
   public
     constructor Create(AOwner: TDragDropComponent); override;
     destructor Destroy; override;
@@ -627,13 +638,13 @@ type
     FPreferredDropEffect: longInt;
     FPerformedDropEffect: longInt;
     FLogicalPerformedDropEffect: longInt;
-    FPasteSucceded: longInt;
+    FPasteSucceeded: longInt;
     FInShellDragLoop: boolean;
     FGotInShellDragLoop: boolean;
     FTargetCLSID: TCLSID;
   protected
     procedure SetInShellDragLoop(const Value: boolean);
-    procedure SetPasteSucceded(const Value: longInt);
+    procedure SetPasteSucceeded(const Value: longInt);
     procedure SetPerformedDropEffect(const Value: longInt);
     procedure SetPreferredDropEffect(const Value: longInt);
     procedure SetTargetCLSID(const Value: TCLSID);
@@ -650,7 +661,7 @@ type
       write SetPerformedDropEffect;
     property LogicalPerformedDropEffect: longInt read FLogicalPerformedDropEffect
       write SetLogicalPerformedDropEffect;
-    property PasteSucceded: longInt read FPasteSucceded write SetPasteSucceded;
+    property PasteSucceeded: longInt read FPasteSucceeded write SetPasteSucceeded;
     property InShellDragLoop: boolean read FInShellDragLoop
       write SetInShellDragLoop;
     property TargetCLSID: TCLSID read FTargetCLSID write SetTargetCLSID;
@@ -683,7 +694,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TGenericDataFormat = class(TCustomDataFormat)
   private
-    FData		: string;
+    FData: string;
   protected
     function GetSize: integer;
     procedure DoSetData(const Value: string);
@@ -712,6 +723,23 @@ type
   end;
 
 
+////////////////////////////////////////////////////////////////////////////////
+//
+//		Utilities
+//
+////////////////////////////////////////////////////////////////////////////////
+
+// CreateIStreamFromIStorage stores a copy of an IStorage object on an IStream
+// object and returns the IStream object.
+// It is the callers resposibility to dispose of the IStream. Any modifications
+// made to the IStream does not affect the original IStorage object.
+//
+// CreateIStreamFromIStorage and the work to integrate it into
+// TFileContentsStreamClipboardFormat was funded by ThoughtShare Communications
+// Inc.
+function CreateIStreamFromIStorage(Storage: IStorage): IStream;
+function CreateIStorageOnHGlobal(GlobalSource: HGLOBAL): IStorage;
+
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -725,7 +753,70 @@ implementation
 uses
   DropSource,
   DropTarget,
+  ComObj,
+  AxCtrls,
   SysUtils;
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//		Utilities
+//
+////////////////////////////////////////////////////////////////////////////////
+function CreateIStreamFromIStorage(Storage: IStorage): IStream;
+var
+  LockBytes: ILockBytes;
+  HGlob: HGLOBAL;
+  NewStorage: IStorage;
+begin
+  HGlob := GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, 0);
+  try
+    // TODO : Check if the above memory is leaked.
+    OleCheck(CreateILockBytesOnHGlobal(HGlob, False, LockBytes));
+    OleCheck(StgCreateDocfileOnILockBytes(LockBytes,
+      STGM_CREATE or STGM_READWRITE or STGM_SHARE_EXCLUSIVE{ or STGM_DIRECT},
+      0, NewStorage));
+    OleCheck(Storage.CopyTo(0, nil, nil, NewStorage));
+    OleCheck(CreateStreamOnHGlobal(HGlob, True, Result));
+  except
+    // Eat exceptions since they wont work inside drag/drop anyway.
+    GlobalFree(HGlob);
+    Result := nil;
+  end;
+end;
+
+function CreateIStorageOnHGlobal(GlobalSource: HGLOBAL): IStorage;
+var
+  LockBytesSource, LockBytesDest: ILockBytes;
+  GlobalDest: HGLOBAL;
+  StorageSource: IStorage;
+begin
+  // Alloc memory for new storage.
+  GlobalDest := GlobalAlloc(GMEM_SHARE, 0);
+  try
+    // Open ILockBytes on allocated memory.
+    try
+      OleCheck(CreateILockBytesOnHGlobal(GlobalDest, True, LockBytesDest));
+    except
+      GlobalFree(GlobalDest);
+      raise;
+    end;
+    // Open ILockBytes on source memory.
+    OleCheck(CreateILockBytesOnHGlobal(GlobalSource, False, LockBytesSource));
+    // Create IStorage on source.
+    OleCheck(StgCreateDocfileOnILockBytes(LockBytesSource,
+      STGM_CREATE or STGM_READWRITE or STGM_SHARE_EXCLUSIVE{ or STGM_DIRECT},
+      0, StorageSource));
+    // Create IStorage on dest.
+    OleCheck(StgCreateDocfileOnILockBytes(LockBytesDest,
+      STGM_CREATE or STGM_READWRITE or STGM_SHARE_EXCLUSIVE{ or STGM_DIRECT},
+      0, Result));
+    // copy source IStorage to dest IStorage.
+    OleCheck(StorageSource.CopyTo(0, nil, nil, Result));
+  except
+    // Eat exceptions since they wont work inside drag/drop anyway.
+    Result := nil;
+  end;
+end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -788,7 +879,7 @@ end;
 
 procedure TStreamList.Clear;
 var
-  i			: integer;
+  i: integer;
 begin
   Changing;
   for i := 0 to FStreams.Count-1 do
@@ -800,28 +891,28 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TInterfaceList
+//		TNamedInterfaceList
 //
 ////////////////////////////////////////////////////////////////////////////////
-constructor TInterfaceList.Create;
+constructor TNamedInterfaceList.Create;
 begin
   inherited Create;
   FList := TStringList.Create;
 end;
 
-destructor TInterfaceList.Destroy;
+destructor TNamedInterfaceList.Destroy;
 begin
   Clear;
   FList.Free;
   inherited Destroy;
 end;
 
-function TInterfaceList.Add(Item: IUnknown): integer;
+function TNamedInterfaceList.Add(Item: IUnknown): integer;
 begin
   Result := AddNamed(Item, '');
 end;
 
-function TInterfaceList.AddNamed(Item: IUnknown; Name: string): integer;
+function TNamedInterfaceList.AddNamed(Item: IUnknown; Name: string): integer;
 begin
   Changing;
   with FList do
@@ -832,16 +923,16 @@ begin
   end;
 end;
 
-procedure TInterfaceList.Changing;
+procedure TNamedInterfaceList.Changing;
 begin
   if (Assigned(OnChanging)) then
     OnChanging(Self);
 end;
 
-procedure TInterfaceList.Clear;
+procedure TNamedInterfaceList.Clear;
 var
-  i			: Integer;
-  p			: pointer;
+  i: Integer;
+  p: pointer;
 begin
   Changing;
   with FList do
@@ -855,18 +946,18 @@ begin
   end;
 end;
 
-procedure TInterfaceList.Assign(Value: TInterfaceList);
+procedure TNamedInterfaceList.Assign(Value: TNamedInterfaceList);
 var
-  i			: Integer;
+  i: Integer;
 begin
   Changing;
   for i := 0 to Value.Count - 1 do
     AddNamed(Value.Items[i], Value.Names[i]);
 end;
 
-procedure TInterfaceList.Delete(Index: integer);
+procedure TNamedInterfaceList.Delete(Index: integer);
 var
-  p			: pointer;
+  p: pointer;
 begin
   Changing;
   with FList do
@@ -877,19 +968,19 @@ begin
   end;
 end;
 
-function TInterfaceList.GetCount: integer;
+function TNamedInterfaceList.GetCount: integer;
 begin
   Result := FList.Count;
 end;
 
-function TInterfaceList.GetName(Index: integer): string;
+function TNamedInterfaceList.GetName(Index: integer): string;
 begin
   Result := FList[Index];
 end;
 
-function TInterfaceList.GetItem(Index: integer): IUnknown;
+function TNamedInterfaceList.GetItem(Index: integer): IUnknown;
 var
-  p			: pointer;
+  p: pointer;
 begin
   p := FList.Objects[Index];
   Result := IUnknown(p);
@@ -939,6 +1030,7 @@ end;
 
 destructor TMemoryList.Destroy;
 begin
+  Clear;
   FList.Free;
   inherited Destroy;
 end;
@@ -959,6 +1051,21 @@ end;
 //		TFixedStreamAdapter
 //
 ////////////////////////////////////////////////////////////////////////////////
+function TFixedStreamAdapter.Seek(dlibMove: Largeint; dwOrigin: Integer;
+  out libNewPosition: Largeint): HResult;
+begin
+  Result := inherited Seek(dlibMove, dwOrigin, libNewPosition);
+  FHasSeeked := True;
+end;
+
+function TFixedStreamAdapter.Read(pv: Pointer; cb: Integer;
+  pcbRead: PLongint): HResult;
+begin
+  if (not FHasSeeked) then
+    Seek(0, STREAM_SEEK_SET, PLargeuint(nil)^);
+  Result := inherited Read(pv, cb, pcbRead);
+end;
+
 function TFixedStreamAdapter.CopyTo(stm: IStream; cb: Largeint; out cbRead: Largeint;
   out cbWritten: Largeint): HResult;
 const
@@ -1000,11 +1107,12 @@ begin
           break;
         Inc(BytesRead, BurstWriteSize);
         BurstWritten := 0;
+        // TODO : Add support for partial writes.
         Result := stm.Write(Buffer, BurstWriteSize, @BurstWritten);
         Inc(BytesWritten, BurstWritten);
-        if (Result = S_OK) and (Integer(BurstWritten) <> BurstWriteSize) then
+        if (Succeeded(Result)) and (Integer(BurstWritten) <> BurstWriteSize) then
           Result := E_FAIL;
-        if Result <> S_OK then
+        if (Failed(Result)) then
           Exit;
         Dec(cb, BurstWritten);
       end;
@@ -1029,39 +1137,55 @@ end;
 constructor TCustomSimpleClipboardFormat.Create;
 begin
   CreateFormat(TYMED_HGLOBAL or TYMED_ISTREAM);
+
+  // Note: Don't specify TYMED_ISTORAGE here or simple clipboard operations
+  // (e.g. copy/paste text) will fail. The clipboard apparently prefers
+  // TYMED_ISTORAGE over other mediums and some applications can't handle that
+  // medium.
 end;
 
 function TCustomSimpleClipboardFormat.DoGetData(ADataObject: IDataObject;
   const AMedium: TStgMedium): boolean;
 var
-  Stream		: IStream;
-  StatStg		: TStatStg;
-  Size			: integer;
+  Stream: IStream;
+  StatStg: TStatStg;
+  Size: integer;
+  Medium: TStgMedium;
 begin
   // Get size from HGlobal.
-  if (AMedium.tymed and TYMED_HGLOBAL <> 0) then
+  if (AMedium.tymed = TYMED_HGLOBAL) then
   begin
     Size := GlobalSize(AMedium.HGlobal);
     Result := True;
+    // Read the given amount of data.
+    if (Size > 0) then
+      Result := DoGetDataSized(ADataObject, AMedium, Size);
   end else
   // Get size from IStream.
-  if (AMedium.tymed and TYMED_ISTREAM <> 0) then
+  if (AMedium.tymed = TYMED_ISTREAM) then
   begin
     Stream := IStream(AMedium.stm);
-    Result := (Stream <> nil) and (Stream.Stat(StatStg, STATFLAG_NONAME) = S_OK);
+    Result := (Stream <> nil) and (Succeeded(Stream.Stat(StatStg, STATFLAG_NONAME)));
+    Stream := nil;
     Size := StatStg.cbSize;
-    Stream := nil; // Not really nescessary.
-  end else
-  begin
-    Size := 0;
-    Result := False;
-  end;
-
-  if (Result) and (Size > 0) then
-  begin
     // Read the given amount of data.
-    Result := DoGetDataSized(ADataObject, AMedium, Size);
-  end;
+    if (Result) and (Size > 0) then
+      Result := DoGetDataSized(ADataObject, AMedium, Size);
+  end else
+  // Get size and stream from IStorage.
+  if (AMedium.tymed = TYMED_ISTORAGE) then
+  begin
+    Stream := CreateIStreamFromIStorage(IStorage(AMedium.stg));
+    Result := (Stream <> nil) and (Succeeded(Stream.Stat(StatStg, STATFLAG_NONAME)));
+    Size := StatStg.cbSize;
+    Medium.tymed := TYMED_ISTREAM;
+    Medium.unkForRelease := nil;
+    Medium.stm := pointer(Stream);
+    if (Result) and (Size > 0) then
+      // Read the given amount of data.
+      Result := DoGetDataSized(ADataObject, Medium, Size);
+  end else
+    Result := False;
 end;
 
 function TCustomSimpleClipboardFormat.DoGetDataSized(ADataObject: IDataObject;
@@ -1072,16 +1196,15 @@ var
   Remaining: longInt;
   Chunk: longInt;
   pChunk: PChar;
+  HGlob: HGLOBAL;
+  ChunkBuffer: pointer;
+const
+  MaxChunk = 1024*1024; // 1Mb.
 begin
   if (Size > 0) then
   begin
-    (*
-    ** In this method we prefer TYMED_HGLOBAL over TYMED_ISTREAM and thus check
-    ** for TYMED_HGLOBAL first.
-    *)
-
     // Read data from HGlobal
-    if (AMedium.tymed and TYMED_HGLOBAL <> 0) then
+    if (AMedium.tymed = TYMED_HGLOBAL) then
     begin
       // Use global memory as buffer
       Buffer := GlobalLock(AMedium.HGlobal);
@@ -1093,7 +1216,7 @@ begin
       end;
     end else
     // Read data from IStream
-    if (AMedium.tymed and TYMED_ISTREAM <> 0) then
+    if (AMedium.tymed = TYMED_ISTREAM) then
     begin
       // Allocate buffer
       GetMem(Buffer, Size);
@@ -1106,13 +1229,51 @@ begin
           Result := True;
           Remaining := Size;
           pChunk := Buffer;
-          while (Result) and (Remaining > 0) do
+
+          // If we have to transfer large amounts of data it is much more
+          // efficient to do so in small chunks in and to use global memory.
+          // Memory allocated with GetMem is much too slow because it is paged
+          // and thus causes trashing (excessive page faults) if we access a
+          // large memory block sequentially.
+          // Tests has shown that allocating a 10Mb buffer and trying to read
+          // data into it in 1Kb chunks takes several minutes, while the same
+          // data can be read into a 32Kb buffer in 1Kb chunks in seconds. The
+          // Windows explorer uses a 1 Mb buffer.
+          // The above tests were performed using the AsyncSource demo.
+          HGlob := GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, MaxChunk);
+          if (HGlob = 0) then
           begin
-            Result := (Stream.Read(pChunk, Remaining, @Chunk) = S_OK);
-            if (Chunk = 0) then
-              break;
-            inc(pChunk, Chunk);
-            dec(Remaining, Chunk);
+            Result := False;
+            exit;
+          end;
+          try
+            ChunkBuffer := GlobalLock(HGlob);
+            try
+              if (ChunkBuffer = nil) then
+              begin
+                Result := False;
+                exit;
+              end;
+
+              while (Result) and (Remaining > 0) do
+              begin
+                if (Remaining > MaxChunk) then
+                  Chunk := MaxChunk
+                else
+                  Chunk := Remaining;
+                // Result := (Stream.Read(pChunk, Chunk, @Chunk) = S_OK);
+                Result := (Succeeded(Stream.Read(ChunkBuffer, Chunk, @Chunk)));
+                if (Chunk = 0) then
+                  break;
+                Move(ChunkBuffer^, pChunk^, Chunk);
+                inc(pChunk, Chunk);
+                dec(Remaining, Chunk);
+              end;
+            finally
+              GlobalUnlock(hGlob);
+            end;
+          finally
+            GlobalFree(HGlob);
           end;
           Stream := nil; // Not really nescessary.
         end else
@@ -1140,7 +1301,7 @@ begin
   if (Result) then
   begin
     // Read data from HGlobal
-    if (AMedium.tymed and TYMED_HGLOBAL <> 0) then
+    if (AMedium.tymed = TYMED_HGLOBAL) then
     begin
       p := GlobalLock(AMedium.HGlobal);
       try
@@ -1152,7 +1313,7 @@ begin
       end;
     end else
     // Read data from IStream
-    if (AMedium.tymed and TYMED_ISTREAM <> 0) then
+    if (AMedium.tymed = TYMED_ISTREAM) then
     begin
       Stream := IStream(AMedium.stm);
       if (Stream <> nil) then
@@ -1161,7 +1322,7 @@ begin
         Remaining := Size;
         while (Result) and (Remaining > 0) do
         begin
-          Result := (Stream.Read(Buffer, Remaining, @Chunk) = S_OK);
+          Result := (Succeeded(Stream.Read(Buffer, Remaining, @Chunk)));
           if (Chunk = 0) then
             break;
           inc(PChar(Buffer), Chunk);
@@ -1179,9 +1340,9 @@ function TCustomSimpleClipboardFormat.DoSetData(const FormatEtcIn: TFormatEtc;
 var
   p: pointer;
   Size: integer;
-  Stream: TMemoryStream;
-  // Warning: TStreamAdapter.CopyTo is broken!
-  StreamAdapter: TStreamAdapter;
+  Global: HGLOBAL;
+  Stream: IStream;
+  OleStream: TStream;
 begin
   Result := False;
 
@@ -1189,53 +1350,99 @@ begin
   if (Size <= 0) then
     exit;
 
-  if (FormatEtcIn.tymed and TYMED_ISTREAM <> 0) then
+  (*
+  ** In this method we prefer TYMED_ISTREAM over TYMED_HGLOBAL and thus check
+  ** for TYMED_ISTREAM first.
+  *)
+
+  // (FormatEtcIn.tymed <> -1) is a work around for drop targets that specify
+  // the tymed incorrectly. E.g. the Nero Express CD burner does this and thus
+  // asks for more than it can handle. 
+  if (FormatEtcIn.tymed <> -1) and
+    (FormatEtc.tymed and FormatEtcIn.tymed and TYMED_ISTREAM <> 0) then
   begin
 
-    Stream := TMemoryStream.Create;
-    StreamAdapter := TFixedStreamAdapter.Create(Stream, soOwned);
+    // Problems related to position of cursor in returned stream:
+    //
+    //   1) In some situations (e.g. after OleFlushClipboard) the clipboard
+    //      uses an IStream.Seek(0, STREAM_SEEK_CUR) to determine the size of
+    //      the stream and thus requires that Stream.Position=Stream.Size.
+    //
+    //   2) On Windows NT 4 the shell (shell32.dll 4.71) uses an
+    //      IStream.Read(-1) to read all of the stream and thus requires that
+    //      Stream.Position=0.
+    //
+    //   3) On Windows 2K the shell (shell32.dll 5.0) uses a IStream.Read(16K)
+    //      in a loop to sequentially read all of the stream and thus requires
+    //      that Stream.Position=0.
+    //
+    // This library uses an IStream.Stat to determine the size of the stream,
+    // then uses an IStream.Seek(0, STREAM_SEEK_SET) to position to start of
+    // stream and finally reads sequentially to end of stream with a number of
+    // IStream.Read().
+    //
+    // Since we have to satisfy #1 above in order to support the clipboard, we
+    // work must around #2 in TFixedStreamAdapter.CopyTo.
+    //
+    // At present there is no satisfactory solution to problem #3 so Windows
+    // 2000 might not be fully supported. One possible (but not fully tested)
+    // solution would be to implement special handling of IStream.Read(16K).
 
+//    Global := GlobalAlloc(GMEM_MOVEABLE, Size);
+    Global := GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, Size);
+    if (Global = 0) then
+      exit;
     try
-      Stream.Size := Size;
-      Result := WriteData(Stream.Memory, Size);
-      // Note: Conflicting information on which of the following two are correct:
-      //
-      //   1) Stream.Position := Size;
-      //
-      //   2) Stream.Position := 0;
-      //
-      // #1 is required for clipboard operations to succeed; The clipboard uses
-      // a Seek(0, STREAM_SEEK_CUR) to determine the size of the stream.
-      //
-      // #2 is required for shell operations to succeed; The shell uses a
-      // Read(-1) to read all of the stream.
-      //
-      // This library uses a Stream.Stat to determine the size of the stream and
-      // then reads from start to end of stream.
-      //
-      // Since we use #1 (see below), we work around #2 in
-      // TFixedStreamAdapter.CopyTo.
-      if (Result) then
-      begin
-        Stream.Position := Size;
-        IStream(AMedium.stm) := StreamAdapter as IStream;
+      p := GlobalLock(Global);
+      try
+        Result := WriteData(p, Size);
+      finally
+        GlobalUnlock(Global);
       end;
+
+      if (not Result) or (Failed(CreateStreamOnHGlobal(Global, True, Stream))) then
+      begin
+        GlobalFree(Global);
+        exit;
+      end;
+
+      Stream.Seek(0, STREAM_SEEK_END, PLargeuint(nil)^);
+
+      (*
+      ** The following is a bit weird...
+      ** In order to intercept the calls which the other end will make into our
+      ** IStream object, we have to first wrap it in a TOleStream and then wrap
+      ** the TOleStream in a TFixedStreamAdapter. The TFixedStreamAdapter will
+      ** then be able to work around the problems mentioned above.
+      **
+      ** However...
+      ** If you copy something to the clipboard and then close the source
+      ** application, the clipboard will make a copy of the stream, release our
+      ** TFixedStreamAdapter object and we are out of luck. If clipboard
+      ** operations are of no importance to you, you can disable the two lines
+      ** below which deals with TOLEStream and TFixedStreamAdapter and insert
+      ** the following instead:
+      **
+      **   Stream.Seek(0, STREAM_SEEK_SET, LargeInt(nil^));
+      *)
+      OleStream := TOLEStream.Create(Stream);
+      Stream := TFixedStreamAdapter.Create(OleStream, soOwned) as IStream;
+
+      IStream(AMedium.stm) := Stream;
     except
       Result := False;
     end;
 
     if (not Result) then
-    begin
-      StreamAdapter.Free;
-      AMedium.stm := nil;
-    end else
+      IStream(AMedium.stm) := nil
+    else
       AMedium.tymed := TYMED_ISTREAM;
 
   end else
-  if (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
+  if (FormatEtc.tymed and FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
   begin
 
-    AMedium.hGlobal := GlobalAlloc(GMEM_SHARE or GHND, Size);
+    AMedium.hGlobal := GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, Size);
     if (AMedium.hGlobal = 0) then
       exit;
 
@@ -1258,6 +1465,40 @@ begin
       AMedium.tymed := TYMED_HGLOBAL;
 
   end else
+(*
+  if (FormatEtcIn.tymed and TYMED_ISTORAGE <> 0) then
+  begin
+
+    Global := GlobalAlloc(GMEM_SHARE or GHND, Size);
+    if (Global = 0) then
+      exit;
+
+    try
+      try
+        p := GlobalLock(Global);
+        try
+          Result := (p <> nil) and WriteData(p, Size);
+        finally
+          GlobalUnlock(Global);
+        end;
+
+        if (Result) then
+        begin
+          IStorage(AMedium.stg) := CreateIStorageOnHGlobal(Global);
+          Result := (AMedium.stg <> nil);
+        end;
+      finally
+        GlobalFree(Global);
+      end;
+      if (Result) then
+        AMedium.tymed := TYMED_ISTORAGE;
+    except
+      IStorage(AMedium.stg) := nil;
+      Result := False;
+    end;
+
+  end else
+*)
     Result := False;
 end;
 
@@ -1352,7 +1593,7 @@ end;
 function TCustomStringListClipboardFormat.ReadData(Value: pointer;
   Size: integer): boolean;
 var
-  s			: string;
+  s: string;
 begin
   SetLength(s, Size+1);
   Move(Value^, PChar(s)^, Size);
@@ -1364,7 +1605,7 @@ end;
 function TCustomStringListClipboardFormat.WriteData(Value: pointer;
   Size: integer): boolean;
 var
-  s			: string;
+  s: string;
 begin
   s := FLines.Text;
   Result := (Size = Length(s)+1);
@@ -1574,7 +1815,7 @@ end;
 
 procedure TFileGroupDescritorClipboardFormat.CopyFrom(AFileGroupDescriptor: PFileGroupDescriptor);
 var
-  Size			: integer;
+  Size: integer;
 begin
   Clear;
   if (AFileGroupDescriptor <> nil) then
@@ -1596,9 +1837,10 @@ end;
 function TFileGroupDescritorClipboardFormat.ReadData(Value: pointer;
   Size: integer): boolean;
 begin
-  // Validate size against count
+  // Validate size against count.
+  // Note: Some sources (e.g. Outlook) provides a larger buffer than is needed.
   Result :=
-    (Size - SizeOf(UINT)) DIV SizeOf(TFileDescriptor) = integer(PFileGroupDescriptor(Value)^.cItems);
+    (Size >= integer(PFileGroupDescriptor(Value)^.cItems * SizeOf(TFileDescriptor)+SizeOf(UINT)));
   if (Result) then
     CopyFrom(PFileGroupDescriptor(Value));
 end;
@@ -1652,7 +1894,7 @@ end;
 
 procedure TFileGroupDescritorWClipboardFormat.CopyFrom(AFileGroupDescriptor: PFileGroupDescriptorW);
 var
-  Size			: integer;
+  Size: integer;
 begin
   Clear;
   if (AFileGroupDescriptor <> nil) then
@@ -1722,7 +1964,7 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 constructor TFileContentsStreamClipboardFormat.Create;
 begin
-  CreateFormat(TYMED_ISTREAM);
+  CreateFormat(TYMED_ISTREAM or TYMED_ISTORAGE);
   FStreams := TStreamList.Create;
 end;
 
@@ -1766,6 +2008,7 @@ end;
 {$ENDIF}
 function TFileContentsStreamClipboardFormat.GetData(DataObject: IDataObject): boolean;
 var
+  AFormatEtc: TFormatEtc;
   FGD: TFileGroupDescritorClipboardFormat;
   Count: integer;
   Medium: TStgMedium;
@@ -1782,44 +2025,74 @@ begin
   Clear;
   FGD := TFileGroupDescritorClipboardFormat.Create;
   try
+    // Make copy of original FormatEtc and work with the copy.
+    // If we modify the original, we *must* change it back when we are done with
+    // it.
+    AFormatEtc := FormatEtc;
     if (FGD.GetData(DataObject)) then
     begin
       // Multiple objects, retrieve one at a time
       Count := FGD.FileGroupDescriptor^.cItems;
-      FFormatEtc.lindex := 0;
+      AFormatEtc.lindex := 0;
     end else
     begin
       // Single object, retrieve "all" at once
       Count := 0;
-      FFormatEtc.lindex := -1;
+      AFormatEtc.lindex := -1;
       Name := '';
     end;
-    while (FFormatEtc.lindex < Count) do
+    while (AFormatEtc.lindex < Count) do
     begin
-      if (DataObject.GetData(FormatEtc, Medium) <> S_OK) then
+      FillChar(Medium, SizeOf(Medium), 0);
+      if (Failed(DataObject.GetData(AFormatEtc, Medium))) then
         break;
       try
-        inc(FFormatEtc.lindex);
-        if (Medium.tymed <> TYMED_ISTREAM) then
+        inc(AFormatEtc.lindex);
+
+        if (Medium.tymed = TYMED_ISTORAGE) then
+        begin
+          Stream := CreateIStreamFromIStorage(IStorage(Medium.stg));
+          if (Stream = nil) then
+          begin
+            Result := False;
+            break;
+          end;
+        end else
+        if (Medium.tymed = TYMED_ISTREAM) then
+          Stream := IStream(Medium.stm)
+        else
           continue;
-        Stream := IStream(Medium.stm);
+
         Stream.Stat(StatStg, STATFLAG_NONAME);
         MemStream := TMemoryStream.Create;
         try
           Remaining := StatStg.cbSize;
           MemStream.Size := Remaining;
           pChunk := MemStream.Memory;
+
+          // Fix for Outlook attachment paste bug #1.
+          // Some versions of Outlook doesn't reset the stream position after we
+          // have read data from the stream, so the next time we ask Outlook for
+          // the same stream (e.g. by pasting the same attachment twice), we get
+          // a stream where the current position is at EOS.
+          Stream.Seek(0, STREAM_SEEK_SET, PLargeuint(nil)^);
+
           while (Remaining > 0) do
           begin
-            if (Stream.Read(pChunk, Remaining, @Size) <> S_OK) or
+            if (Failed(Stream.Read(pChunk, Remaining, @Size))) or
               (Size = 0) then
               break;
             inc(pChunk, Size);
             dec(Remaining, Size);
           end;
+          // Fix for Outlook attachment paste bug  #2.
+          // We reset the stream position here just to be nice to other
+          // applications which might not have work arounds for this problem
+          // (e.g. Windows Explorer).
+          Stream.Seek(0, STREAM_SEEK_SET, PLargeuint(nil)^);
 
-          if (FFormatEtc.lindex > 0) then
-            Name := FGD.FileGroupDescriptor^.fgd[FFormatEtc.lindex-1].cFileName;
+          if (AFormatEtc.lindex > 0) then
+            Name := FGD.FileGroupDescriptor^.fgd[AFormatEtc.lindex-1].cFileName;
           Streams.AddNamed(MemStream, Name);
         except
           MemStream.Free;
@@ -1848,6 +2121,9 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 constructor TFileContentsStreamOnDemandClipboardFormat.Create;
 begin
+  // We also support TYMED_ISTORAGE for drop targets, but since we only support
+  // TYMED_ISTREAM for both source and targets, we can't specify TYMED_ISTORAGE
+  // here. See GetStream method.
   CreateFormat(TYMED_ISTREAM);
 end;
 
@@ -1879,7 +2155,7 @@ function TFileContentsStreamOnDemandClipboardFormat.AssignTo(Dest: TCustomDataFo
 begin
   if (Dest is TVirtualFileStreamDataFormat) then
   begin
-    Result := True
+    Result := True;
   end else
     Result := inherited AssignTo(Dest);
 end;
@@ -1900,12 +2176,28 @@ end;
 function TFileContentsStreamOnDemandClipboardFormat.DoSetData(
   const FormatEtcIn: TFormatEtc; var AMedium: TStgMedium): boolean;
 var
-  Stream		: IStream;
+  Stream: IStream;
+  Index: integer;
 begin
+  Index := FormatEtcIn.lindex;
+  (*
+  ** Warning:
+  ** The meaning of the value -1 in FormatEtcIn.lindex is undocumented in this
+  ** context (TYMED_ISTREAM), but can occur when pasting to the clipboard.
+  ** Apparently the clipboard doesn't use the stream returned from a call with
+  ** lindex = -1, but only uses it as a test to see if data is available.
+  ** When the clipboard actually needs the data it will specify correct values
+  ** for lindex.
+  ** In version 4.0 we rejected the call if -1 was specified, but in order to
+  ** support clipboard operations we now map -1 to 0.
+  *)
+  if (Index = -1) then
+    Index := 0;
+
   if (Assigned(FOnGetStream)) and (FormatEtcIn.tymed and TYMED_ISTREAM <> 0) and
-    (FormatEtcIn.lindex <> -1) then
+    (Index >= 0) then
   begin
-    FOnGetStream(Self, FormatEtcIn.lindex, Stream);
+    FOnGetStream(Self, Index, Stream);
 
     if (Stream <> nil) then
     begin
@@ -1928,15 +2220,25 @@ end;
 
 function TFileContentsStreamOnDemandClipboardFormat.GetStream(Index: integer): IStream;
 var
-  Medium		: TStgMedium;
+  Medium: TStgMedium;
+  AFormatEtc: TFormatEtc;
 begin
   Result := nil;
-  FFormatEtc.lindex := Index;
   // Get an IStream interface from the source.
-  if ((DataFormat.Owner as TCustomDroptarget).DataObject.GetData(FormatEtc,
-    Medium) = S_OK) and (Medium.tymed = TYMED_ISTREAM) then
+  AFormatEtc := FormatEtc;
+  AFormatEtc.tymed := AFormatEtc.tymed or TYMED_ISTORAGE;
+  AFormatEtc.lindex := Index;
+  if (Succeeded((DataFormat.Owner as TCustomDroptarget).DataObject.GetData(AFormatEtc,
+    Medium))) then
     try
-      Result := IStream(Medium.stm);
+      if (Medium.tymed = TYMED_ISTREAM) then
+      begin
+        Result := IStream(Medium.stm);
+      end else
+      if (Medium.tymed = TYMED_ISTORAGE) then
+      begin
+        Result := CreateIStreamFromIStorage(IStorage(Medium.stg));
+      end;
     finally
       ReleaseStgMedium(Medium);
     end;
@@ -1996,11 +2298,11 @@ end;
 {$ENDIF}
 function TFileContentsStorageClipboardFormat.GetData(DataObject: IDataObject): boolean;
 var
-  FGD			: TFileGroupDescritorClipboardFormat;
-  Count			: integer;
-  Medium		: TStgMedium;
-  Storage		: IStorage;
-  Name			: string;
+  FGD: TFileGroupDescritorClipboardFormat;
+  Count: integer;
+  Medium: TStgMedium;
+  Storage: IStorage;
+  Name: string;
 begin
   Result := False;
 
@@ -2021,7 +2323,7 @@ begin
     end;
     while (FFormatEtc.lindex < Count) do
     begin
-      if (DataObject.GetData(FormatEtc, Medium) <> S_OK) then
+      if (Failed(DataObject.GetData(FormatEtc, Medium))) then
         break;
       try
         inc(FFormatEtc.lindex);
@@ -2109,13 +2411,13 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TPasteSuccededClipboardFormat
+//		TPasteSucceededClipboardFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
 var
   CF_PASTESUCCEEDED: TClipFormat = 0;
 
-function TPasteSuccededClipboardFormat.GetClipboardFormat: TClipFormat;
+function TPasteSucceededClipboardFormat.GetClipboardFormat: TClipFormat;
 begin
   if (CF_PASTESUCCEEDED = 0) then
     CF_PASTESUCCEEDED := RegisterClipboardFormat(CFSTR_PASTESUCCEEDED);
@@ -2194,77 +2496,6 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-//		TTextDataFormat
-//
-////////////////////////////////////////////////////////////////////////////////
-function TTextDataFormat.Assign(Source: TClipboardFormat): boolean;
-begin
-  Result := True;
-
-  if (Source is TTextClipboardFormat) then
-    FText := TTextClipboardFormat(Source).Text
-  else if (Source is TFileContentsClipboardFormat) then
-    FText := TFileContentsClipboardFormat(Source).Data
-  else
-    Result := inherited Assign(Source);
-end;
-
-function TTextDataFormat.AssignTo(Dest: TClipboardFormat): boolean;
-var
-  FGD: TFileGroupDescriptor;
-  FGDW: TFileGroupDescriptorW;
-resourcestring
-  // Name of the text scrap file.
-  sTextScrap = 'Text scrap.txt';
-begin
-  Result := True;
-
-  if (Dest is TTextClipboardFormat) then
-    TTextClipboardFormat(Dest).Text := FText
-  else if (Dest is TFileContentsClipboardFormat) then
-    TFileContentsClipboardFormat(Dest).Data := FText
-  else if (Dest is TFileGroupDescritorClipboardFormat) then
-  begin
-    FillChar(FGD, SizeOf(FGD), 0);
-    FGD.cItems := 1;
-    StrPLCopy(FGD.fgd[0].cFileName, sTextScrap, SizeOf(FGD.fgd[0].cFileName));
-    TFileGroupDescritorClipboardFormat(Dest).CopyFrom(@FGD);
-  end else
-  if (Dest is TFileGroupDescritorWClipboardFormat) then
-  begin
-    FillChar(FGDW, SizeOf(FGDW), 0);
-    FGDW.cItems := 1;
-    StringToWideChar(sTextScrap, PWideChar(@(FGDW.fgd[0].cFileName)), MAX_PATH);
-    TFileGroupDescritorWClipboardFormat(Dest).CopyFrom(@FGDW);
-  end else
-    Result := inherited AssignTo(Dest);
-end;
-
-procedure TTextDataFormat.Clear;
-begin
-  Changing;
-  FText := '';
-end;
-
-procedure TTextDataFormat.SetText(const Value: string);
-begin
-  Changing;
-  FText := Value;
-end;
-
-function TTextDataFormat.HasData: boolean;
-begin
-  Result := (FText <> '');
-end;
-
-function TTextDataFormat.NeedsData: boolean;
-begin
-  Result := (FText = '');
-end;
-
-
-////////////////////////////////////////////////////////////////////////////////
-//
 //		TDataStreamDataFormat
 //
 ////////////////////////////////////////////////////////////////////////////////
@@ -2310,11 +2541,15 @@ type
   TFileDescriptorToFilenameStrings = class(TStrings)
   private
     FFileDescriptors: TMemoryList;
+    FObjects: TList;
   protected
     function Get(Index: Integer): string; override;
     function GetCount: Integer; override;
+    procedure PutObject(Index: Integer; AObject: TObject); override;
+    function GetObject(Index: Integer): TObject; override;
   public
     constructor Create(AFileDescriptors: TMemoryList);
+    destructor Destroy; override;
     procedure Clear; override;
     procedure Delete(Index: Integer); override;
     procedure Insert(Index: Integer; const S: string); override;
@@ -2325,6 +2560,13 @@ constructor TFileDescriptorToFilenameStrings.Create(AFileDescriptors: TMemoryLis
 begin
   inherited Create;
   FFileDescriptors := AFileDescriptors;
+  FObjects := TList.Create;
+end;
+
+destructor TFileDescriptorToFilenameStrings.Destroy;
+begin
+  FObjects.Free;
+  inherited Destroy;
 end;
 
 function TFileDescriptorToFilenameStrings.Get(Index: Integer): string;
@@ -2347,7 +2589,7 @@ begin
     try
       FFileDescriptors.Clear;
       for i := 0 to TStrings(Source).Count-1 do
-        Add(TStrings(Source)[i]);
+        AddObject(TStrings(Source)[i], TStrings(Source).Objects[i]);
     finally
       EndUpdate;
     end;
@@ -2358,11 +2600,13 @@ end;
 procedure TFileDescriptorToFilenameStrings.Clear;
 begin
   FFileDescriptors.Clear;
+  FObjects.Clear;
 end;
 
 procedure TFileDescriptorToFilenameStrings.Delete(Index: Integer);
 begin
   FFileDescriptors.Delete(Index);
+  FObjects.Delete(Index);
 end;
 
 procedure TFileDescriptorToFilenameStrings.Insert(Index: Integer; const S: string);
@@ -2376,11 +2620,23 @@ begin
       FillChar(FD^, SizeOf(TFileDescriptor), 0);
       StrPLCopy(FD.cFileName, S, SizeOf(FD.cFileName));
       FFileDescriptors.Add(FD);
+      FObjects.Add(nil);
     except
       FreeMem(FD);
       raise;
     end;
   end;
+end;
+
+procedure TFileDescriptorToFilenameStrings.PutObject(Index: Integer;
+  AObject: TObject);
+begin
+  FObjects[Index] := AObject;
+end;
+
+function TFileDescriptorToFilenameStrings.GetObject(Index: Integer): TObject;
+begin
+  Result := FObjects[Index];
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2404,11 +2660,6 @@ begin
   CompatibleFormats.Add(FFileContentsClipboardFormat);
 
   FFileGroupDescritorClipboardFormat := TFileGroupDescritorClipboardFormat.Create;
-
-  // Normaly TFileGroupDescritorClipboardFormat supports both HGlobal and
-  // IStream storage medium transfers, but for this demo we only use IStream.
-//  FFileGroupDescritorClipboardFormat.FormatEtc.tymed := TYMED_ISTREAM;
-
   CompatibleFormats.Add(FFileGroupDescritorClipboardFormat);
 end;
 
@@ -2567,8 +2818,8 @@ begin
   else if (Source is TLogicalPerformedDropEffectClipboardFormat) then
     FLogicalPerformedDropEffect := TLogicalPerformedDropEffectClipboardFormat(Source).Value
 
-  else if (Source is TPasteSuccededClipboardFormat) then
-    FPasteSucceded := TPasteSuccededClipboardFormat(Source).Value
+  else if (Source is TPasteSucceededClipboardFormat) then
+    FPasteSucceeded := TPasteSucceededClipboardFormat(Source).Value
 
   else if (Source is TTargetCLSIDClipboardFormat) then
     FTargetCLSID := TTargetCLSIDClipboardFormat(Source).CLSID
@@ -2594,8 +2845,8 @@ begin
   else if (Dest is TLogicalPerformedDropEffectClipboardFormat) then
     TLogicalPerformedDropEffectClipboardFormat(Dest).Value := FLogicalPerformedDropEffect
 
-  else if (Dest is TPasteSuccededClipboardFormat) then
-    TPasteSuccededClipboardFormat(Dest).Value := FPasteSucceded
+  else if (Dest is TPasteSucceededClipboardFormat) then
+    TPasteSucceededClipboardFormat(Dest).Value := FPasteSucceeded
 
   else if (Dest is TTargetCLSIDClipboardFormat) then
     TTargetCLSIDClipboardFormat(Dest).CLSID := FTargetCLSID
@@ -2622,10 +2873,10 @@ begin
   FInShellDragLoop := Value;
 end;
 
-procedure TFeedbackDataFormat.SetPasteSucceded(const Value: longInt);
+procedure TFeedbackDataFormat.SetPasteSucceeded(const Value: longInt);
 begin
   Changing;
-  FPasteSucceded := Value;
+  FPasteSucceeded := Value;
 end;
 
 procedure TFeedbackDataFormat.SetPerformedDropEffect(
@@ -2659,7 +2910,7 @@ function TFeedbackDataFormat.HasData: boolean;
 begin
   Result := (FPreferredDropEffect <> DROPEFFECT_NONE) or
     (FPerformedDropEffect <> DROPEFFECT_NONE) or
-    (FPasteSucceded <> DROPEFFECT_NONE) or
+    (FPasteSucceeded <> DROPEFFECT_NONE) or
     (FGotInShellDragLoop);
 end;
 
@@ -2667,7 +2918,7 @@ function TFeedbackDataFormat.NeedsData: boolean;
 begin
   Result := (FPreferredDropEffect = DROPEFFECT_NONE) or
     (FPerformedDropEffect = DROPEFFECT_NONE) or
-    (FPasteSucceded = DROPEFFECT_NONE) or
+    (FPasteSucceeded = DROPEFFECT_NONE) or
     (not FGotInShellDragLoop);
 end;
 
@@ -2782,25 +3033,19 @@ end;
 
 initialization
   // Data format registration
-  TTextDataFormat.RegisterDataFormat;
   TDataStreamDataFormat.RegisterDataFormat;
   TVirtualFileStreamDataFormat.RegisterDataFormat;
 
   // Clipboard format registration
-  TTextDataFormat.RegisterCompatibleFormat(TTextClipboardFormat, 0, csSourceTarget, [ddRead]);
-  TTextDataFormat.RegisterCompatibleFormat(TFileContentsClipboardFormat, 1, csSourceTarget, [ddRead]);
-  TTextDataFormat.RegisterCompatibleFormat(TFileGroupDescritorClipboardFormat, 1, [csSource], [ddRead]);
-  TTextDataFormat.RegisterCompatibleFormat(TFileGroupDescritorWClipboardFormat, 1, [csSource], [ddRead]);
   TFeedbackDataFormat.RegisterCompatibleFormat(TPreferredDropEffectClipboardFormat, 0, csSourceTarget, [ddRead]);
   TFeedbackDataFormat.RegisterCompatibleFormat(TPerformedDropEffectClipboardFormat, 0, csSourceTarget, [ddWrite]);
-  TFeedbackDataFormat.RegisterCompatibleFormat(TPasteSuccededClipboardFormat, 0, csSourceTarget, [ddWrite]);
+  TFeedbackDataFormat.RegisterCompatibleFormat(TPasteSucceededClipboardFormat, 0, csSourceTarget, [ddWrite]);
   TFeedbackDataFormat.RegisterCompatibleFormat(TInShellDragLoopClipboardFormat, 0, csSourceTarget, [ddRead]);
   TFeedbackDataFormat.RegisterCompatibleFormat(TTargetCLSIDClipboardFormat, 0, csSourceTarget, [ddWrite]);
   TFeedbackDataFormat.RegisterCompatibleFormat(TLogicalPerformedDropEffectClipboardFormat, 0, csSourceTarget, [ddWrite]);
   TDataStreamDataFormat.RegisterCompatibleFormat(TFileContentsStreamClipboardFormat, 0, [csTarget], [ddRead]);
 
 finalization
-  TTextDataFormat.UnregisterDataFormat;
   TDataStreamDataFormat.UnregisterDataFormat;
   TFeedbackDataFormat.UnregisterDataFormat;
   TVirtualFileStreamDataFormat.UnregisterDataFormat;
@@ -2812,11 +3057,10 @@ finalization
   TFileContentsStreamClipboardFormat.UnregisterClipboardFormat;
   TPreferredDropEffectClipboardFormat.UnregisterClipboardFormat;
   TPerformedDropEffectClipboardFormat.UnregisterClipboardFormat;
-  TPasteSuccededClipboardFormat.UnregisterClipboardFormat;
+  TPasteSucceededClipboardFormat.UnregisterClipboardFormat;
   TInShellDragLoopClipboardFormat.UnregisterClipboardFormat;
   TTargetCLSIDClipboardFormat.UnregisterClipboardFormat;
   TLogicalPerformedDropEffectClipboardFormat.UnregisterClipboardFormat;
 
 end.
-
 

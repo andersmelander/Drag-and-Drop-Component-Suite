@@ -1,15 +1,15 @@
 unit DragDropFile;
-
 // -----------------------------------------------------------------------------
 // Project:         Drag and Drop Component Suite.
 // Module:          DragDropFile
 // Description:     Implements Dragging and Dropping of files and folders.
-// Version:         4.0
-// Date:            18-MAY-2001
-// Target:          Win32, Delphi 5-6
+// Version:         4.1
+// Date:            22-JAN-2002
+// Target:          Win32, Delphi 4-6, C++Builder 4-6
 // Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2001 Angus Johnson & Anders Melander
+// Copyright        © 1997-2002 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
+
 interface
 
 uses
@@ -79,7 +79,7 @@ type
   // DONE -oanme -cStopShip : Rename TFilenameMapClipboardFormat to TFilenameMapClipboardFormat. Also wide version.
   TFilenameMapClipboardFormat = class(TCustomSimpleClipboardFormat)
   private
-    FFileMaps		: TStrings;
+    FFileMaps: TStrings;
   protected
     function ReadData(Value: pointer; Size: integer): boolean; override;
     function WriteData(Value: pointer; Size: integer): boolean; override;
@@ -100,7 +100,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TFilenameMapWClipboardFormat = class(TCustomSimpleClipboardFormat)
   private
-    FFileMaps		: TStrings;
+    FFileMaps: TStrings;
   protected
     function ReadData(Value: pointer; Size: integer): boolean; override;
     function WriteData(Value: pointer; Size: integer): boolean; override;
@@ -122,7 +122,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TFileMapDataFormat = class(TCustomDataFormat)
   private
-    FFileMaps		: TStrings;
+    FFileMaps: TStrings;
   public
     constructor Create(AOwner: TDragDropComponent); override;
     destructor Destroy; override;
@@ -141,7 +141,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TFileDataFormat = class(TCustomDataFormat)
   private
-    FFiles		: TStrings;
+    FFiles: TStrings;
   protected
   public
     constructor Create(AOwner: TDragDropComponent); override;
@@ -161,8 +161,8 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TDropFileTarget = class(TCustomDropMultiTarget)
   private
-    FFileFormat		: TFileDataFormat;
-    FFileMapFormat	: TFileMapDataFormat;
+    FFileFormat: TFileDataFormat;
+    FFileMapFormat: TFileMapDataFormat;
   protected
     function GetFiles: TStrings;
     function GetMappedNames: TStrings;
@@ -181,8 +181,8 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TDropFileSource = class(TCustomDropMultiSource)
   private
-    FFileFormat		: TFileDataFormat;
-    FFileMapFormat	: TFileMapDataFormat;
+    FFileFormat: TFileDataFormat;
+    FFileMapFormat: TFileMapDataFormat;
     function GetFiles: TStrings;
     function GetMappedNames: TStrings;
   protected
@@ -214,10 +214,10 @@ procedure Register;
 ////////////////////////////////////////////////////////////////////////////////
 function ReadFilesFromHGlobal(const HGlob: HGlobal; Files: TStrings): boolean; // V4: renamed
 function ReadFilesFromData(Data: pointer; Size: integer; Files: TStrings): boolean;
-function ReadFilesFromZeroList(Data: pointer; Size: integer;
+function ReadFilesFromZeroList(const Data: pointer; Size: integer;
   Wide: boolean; Files: TStrings): boolean;
 function WriteFilesToZeroList(Data: pointer; Size: integer;
-  Wide: boolean; Files: TStrings): boolean;
+  Wide: boolean; const Files: TStrings): boolean;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -255,7 +255,7 @@ end;
 
 function ReadFilesFromHGlobal(const HGlob: HGlobal; Files: TStrings): boolean;
 var
-  DropFiles		: PDropFiles;
+  DropFiles: PDropFiles;
 begin
   DropFiles := PDropFiles(GlobalLock(HGlob));
   try
@@ -267,7 +267,7 @@ end;
 
 function ReadFilesFromData(Data: pointer; Size: integer; Files: TStrings): boolean;
 var
-  Wide			: boolean;
+  Wide: boolean;
 begin
   Files.Clear;
   if (Data <> nil) then
@@ -281,59 +281,67 @@ begin
   Result := (Files.Count > 0);
 end;
 
-function ReadFilesFromZeroList(Data: pointer; Size: integer;
+function ReadFilesFromZeroList(const Data: pointer; Size: integer;
   Wide: boolean; Files: TStrings): boolean;
 var
-  StringSize		: integer;
-begin
-  Result := False;
-  if (Data <> nil) then
-    while (Size > 0) and (PChar(Data)^ <> #0) do
-    begin
-      if (Wide) then
-      begin
-        Files.Add(PWideChar(Data));
-        StringSize := (Length(PWideChar(Data)) + 1) * 2;
-      end else
-      begin
-        Files.Add(PChar(Data));
-        StringSize := Length(PChar(Data)) + 1;
-      end;
-      inc(PChar(Data), StringSize);
-      dec(Size, StringSize);
-      Result := True;
-    end;
-end;
-
-function WriteFilesToZeroList(Data: pointer; Size: integer;
-  Wide: boolean; Files: TStrings): boolean;
-var
-  i			: integer;
+  p: PChar;
+  StringSize: integer;
 begin
   Result := False;
   if (Data <> nil) then
   begin
+    p := Data;
+    while (Size > 0) and (p^ <> #0) do
+    begin
+      if (Wide) then
+      begin
+        Files.Add(PWideChar(p));
+        StringSize := (Length(PWideChar(p)) + 1) * 2;
+      end else
+      begin
+        Files.Add(p);
+        StringSize := Length(p) + 1;
+      end;
+      inc(p, StringSize);
+      dec(Size, StringSize);
+      Result := True;
+    end;
+  end;
+end;
+
+function WriteFilesToZeroList(Data: pointer; Size: integer;
+  Wide: boolean; const Files: TStrings): boolean;
+var
+  i: integer;
+  p: PChar;
+  StringSize: integer;
+begin
+  Result := False;
+  if (Data <> nil) then
+  begin
+    p := Data;
     i := 0;
     dec(Size);
     while (Size > 0) and (i < Files.Count) do
     begin
       if (Wide) then
       begin
-        StringToWideChar(Files[i], Data, Size);
-        dec(Size, (Length(Files[i])+1)*2);
+        StringToWideChar(Files[i], PWideChar(p), Size);
+        StringSize := (Length(Files[i])+1)*2;
       end else
       begin
-        StrPLCopy(Data, Files[i], Size);
-        dec(Size, Length(Files[i])+1);
+        StrPLCopy(p, Files[i], Size);
+        StringSize := Length(Files[i])+1;
       end;
-      inc(PChar(Data), Length(Files[i])+1);
+      inc(p, StringSize);
+      dec(Size, StringSize);
       inc(i);
       Result := True;
     end;
 
     // Final teminating zero.
     if (Size >= 0) then
-      PChar(Data)^ := #0;
+      p^ := #0;
   end;
 end;
 
@@ -375,11 +383,15 @@ end;
 
 function TFileClipboardFormat.GetSize: integer;
 var
-  i			: integer;
+  i: integer;
 begin
-  Result := SizeOf(TDropFiles) + FFiles.Count + 1;
+  Result := 0;
   for i := 0 to FFiles.Count-1 do
-    inc(Result, Length(FFiles[i]));
+    inc(Result, Length(FFiles[i])+1);
+  if (Win32Platform = VER_PLATFORM_WIN32_NT) then
+    // Wide strings
+    Result := Result*2;
+  inc(Result, SizeOf(TDropFiles)+2);
 end;
 
 function TFileClipboardFormat.ReadData(Value: pointer;
@@ -399,12 +411,13 @@ begin
   if (not Result) then
     exit;
 
+  FillChar(Value^, Size, 0);
   PDropFiles(Value)^.pfiles := SizeOf(TDropFiles);
-  PDropFiles(Value)^.fwide := False;
+  PDropFiles(Value)^.fwide := BOOL(ord(Win32Platform = VER_PLATFORM_WIN32_NT));
   inc(PChar(Value), SizeOf(TDropFiles));
   dec(Size, SizeOf(TDropFiles));
 
-  WriteFilesToZeroList(Value, Size, False, FFiles);
+  WriteFilesToZeroList(Value, Size, (Win32Platform = VER_PLATFORM_WIN32_NT), FFiles);
 end;
 
 function TFileClipboardFormat.Assign(Source: TCustomDataFormat): boolean;
@@ -541,7 +554,7 @@ end;
 
 function TFilenameMapClipboardFormat.GetSize: integer;
 var
-  i			: integer;
+  i: integer;
 begin
   Result := FFileMaps.Count + 1;
   for i := 0 to FFileMaps.Count-1 do
@@ -600,7 +613,7 @@ end;
 
 function TFilenameMapWClipboardFormat.GetSize: integer;
 var
-  i			: integer;
+  i: integer;
 begin
   Result := FFileMaps.Count + 1;
   for i := 0 to FFileMaps.Count-1 do
@@ -778,6 +791,7 @@ end;
 
 function TDropFileTarget.GetPreferredDropEffect: LongInt;
 begin
+  // TODO : Needs explanation of why this is nescessary.
   Result := inherited GetPreferredDropEffect;
   if (Result = DROPEFFECT_NONE) then
     Result := DROPEFFECT_COPY;

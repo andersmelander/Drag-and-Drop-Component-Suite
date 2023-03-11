@@ -2,6 +2,7 @@
 #include <vcl.h>
 #pragma hdrstop
 USEUNIT("DragDrop.pas");
+USERES("DragDrop.dcr");
 USEUNIT("DragDropFile.pas");
 USERES("DragDropFile.dcr");
 USEUNIT("DragDropFormats.pas");
@@ -22,6 +23,12 @@ USEUNIT("DropComboTarget.pas");
 USERES("DropComboTarget.dcr");
 USEUNIT("DragDropHandler.pas");
 USERES("DragDropHandler.dcr");
+USEUNIT("DragDropContext.pas");
+USERES("DragDropContext.dcr");
+USEUNIT("DropHandler.pas");
+USERES("DropHandler.dcr");
+USEUNIT("DragDropDesign.pas");
+USEUNIT("DragDropComObj.pas");
 //---------------------------------------------------------------------------
 #pragma package(smart_init)
 //---------------------------------------------------------------------------

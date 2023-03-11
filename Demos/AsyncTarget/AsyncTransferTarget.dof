@@ -1,0 +1,97 @@
+[Compiler]
+A=8
+B=0
+C=1
+D=1
+E=0
+F=0
+G=1
+H=1
+I=1
+J=1
+K=0
+L=1
+M=0
+N=1
+O=0
+P=1
+Q=1
+R=1
+S=0
+T=0
+U=0
+V=1
+W=1
+X=1
+Y=1
+Z=1
+ShowHints=1
+ShowWarnings=1
+UnitAliases=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[Linker]
+MapFile=0
+OutputObjs=0
+ConsoleApp=1
+DebugInfo=0
+RemoteSymbols=0
+MinStackSize=16384
+MaxStackSize=1048576
+ImageBase=4194304
+ExeDescription=
+[Directories]
+OutputDir=
+UnitOutputDir=
+PackageDLLOutputDir=
+PackageDCPOutputDir=
+SearchPath=$(DELPHI)\Lib\Debug
+Packages=Vcl50;Vclx50;Vcldb50;vcldbx50
+Conditionals=
+DebugSourceDirs=
+UsePackages=0
+[Parameters]
+RunParams=
+HostApplication=
+[Version Info]
+IncludeVerInfo=1
+AutoIncBuild=1
+MajorVer=1
+MinorVer=0
+Release=0
+Build=282
+Debug=0
+PreRelease=0
+Special=0
+Private=0
+DLL=0
+Locale=1030
+CodePage=1252
+[Version Info Keys]
+CompanyName=SYNTAX Gruppen A/S
+FileDescription=S-BOSS Designer
+FileVersion=1.0.0.282
+InternalName=dcd
+LegalCopyright=Copyright © 2000,2001  SYNTAX Gruppen A/S
+LegalTrademarks=S-BOSS and the "S" logo is a trademark of SYNTAX Gruppen A/S
+OriginalFilename=
+ProductName=S-BOSS Designer
+ProductVersion=1.0.0.0
+mailto=s-boss@syntax.dk
+URL=http://www.syntax.dk
+[Excluded Packages]
+C:\WINNT\System32\ibevnt60.bpl=Borland Interbase Event Alerter Component
+d:\development\delphi6\Bin\dclqrt60.bpl=QuickReport Components
+d:\development\delphi6\Bin\dcldss60.bpl=Borland Decision Cube Components
+d:\development\delphi6\Bin\dcltqr60.bpl=TeeChart 5.0 for QuickReport Components Design Package
+d:\development\delphi6\Bin\dclindy60.bpl=Internet Direct "Indy" for D6 Property and Component Editors
+d:\development\delphi6\Bin\dclld060.bpl=Borland Local DBX ClientDataset Components
+d:\development\delphi6\Bin\dcllda60.bpl=Borland Local ADO ClientDataset Components
+d:\development\delphi6\Bin\dclldb60.bpl=Borland Local BDE ClientDataset Components
+d:\development\delphi6\Bin\dcllds60.bpl=Borland Local DBX ClientDataset Components
+d:\development\delphi6\Bin\dclemacsedit60.bpl=Borland Editor Emacs Enhancements
+d:\development\delphi6\Bin\DCLNMF60.bpl=NetMasters Fastnet Tools
+[HistoryLists\hlUnitAliases]
+Count=1
+Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[HistoryLists\hlSearchPath]
+Count=1
+Item0=$(DELPHI)\Lib\Debug

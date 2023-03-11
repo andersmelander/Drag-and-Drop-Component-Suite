@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<!-- C++Builder XML Project -->
+<PROJECT>
+  <MACROS>
+    <VERSION value="BCB.05.03"/>
+    <PROJECT value="ComboTargetDemo.exe"/>
+    <OBJFILES value="ComboTargetDemo.obj main.obj"/>
+    <RESFILES value="ComboTargetDemo.res"/>
+    <IDLFILES value=""/>
+    <IDLGENFILES value=""/>
+    <DEFFILE value=""/>
+    <RESDEPEN value="$(RESFILES) main.dfm"/>
+    <LIBFILES value=""/>
+    <LIBRARIES value="Vcl50.lib"/>
+    <SPARELIBS value="Vcl50.lib"/>
+    <PACKAGES value=""/>
+    <PATHCPP value=".;"/>
+    <PATHPAS value=".;"/>
+    <PATHRC value=".;"/>
+    <PATHASM value=".;"/>
+    <DEBUGLIBPATH value="$(BCB)\lib\debug"/>
+    <RELEASELIBPATH value="$(BCB)\lib\release"/>
+    <LINKER value="tlink32"/>
+    <USERDEFINES value="NO_WIN32_LEAN_AND_MEAN"/>
+    <SYSDEFINES value="NO_STRICT"/>
+    <MAINSOURCE value="ComboTargetDemo.cpp"/>
+    <INCLUDEPATH value="..\..\components;$(BCB)\Imports;$(BCB)\include;$(BCB)\include\vcl"/>
+    <LIBPATH value="..\..\components;$(BCB)\Projects\Lib;$(BCB)\Imports;$(BCB)\lib\obj;$(BCB)\lib"/>
+    <WARNINGS value="-w-par"/>
+  </MACROS>
+  <OPTIONS>
+    <IDLCFLAGS value="-I..\..\components -I$(BCB)\Imports -I$(BCB)\include -I$(BCB)\include\vcl 
+      -src_suffixcpp -DNO_WIN32_LEAN_AND_MEAN -boa"/>
+    <CFLAG1 value="-Od -H=$(BCB)\lib\vcl50.csm -Hc -Vx -Ve -X- -r- -a8 -5 -b- -k -y -v -vi- 
+      -c -tW -tWM"/>
+    <PFLAGS value="-$YD -$W -$O- -v -JPHNE -M"/>
+    <RFLAGS value=""/>
+    <AFLAGS value="/mx /w2 /zd"/>
+    <LFLAGS value="-aa -Tpe -x -v"/>
+  </OPTIONS>
+  <LINKER>
+    <ALLOBJ value="c0w32.obj sysinit.obj $(OBJFILES)"/>
+    <ALLRES value="$(RESFILES)"/>
+    <ALLLIB value="$(LIBFILES) $(LIBRARIES) import32.lib cp32mt.lib"/>
+  </LINKER>
+  <IDEOPTIONS>
+[Debugging]
+DebugSourceDirs=$(BCB)\source\vcl
+
+[Parameters]
+RunParams=
+HostApplication=
+RemoteHost=
+RemotePath=
+RemoteDebug=0
+
+[Compiler]
+ShowInfoMsgs=0
+LinkDebugVcl=0
+LinkCGLIB=0
+
+[CORBA]
+AddServerUnit=1
+AddClientUnit=1
+PrecompiledHeaders=1
+
+[Language]
+ActiveLang=
+ProjectLang=
+RootDir=
+  </IDEOPTIONS>
+</PROJECT>

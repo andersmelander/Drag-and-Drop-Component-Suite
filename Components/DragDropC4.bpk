@@ -1,101 +1,58 @@
-<?xml version='1.0' encoding='utf-8' ?>
-<!-- C++Builder XML Project -->
-<PROJECT>
-  <MACROS>
-    <VERSION value="BCB.05.03"/>
-    <PROJECT value="DragDropC4.bpl"/>
-    <OBJFILES value="DragDrop.obj DragDropFile.obj DragDropFormats.obj DragDropGraphics.obj 
-      DragDropPIDL.obj DragDropText.obj DragDropURL.obj DropMultiTarget.obj 
-      DropSource.obj DropTarget.obj DragDropC4.obj"/>
-    <RESFILES value="dragdropC4.res DragDropFile.dcr DragDropGraphics.dcr DragDropPIDL.dcr 
-      DragDropText.dcr DragDropURL.dcr DropMultiTarget.dcr DropSource.dcr 
-      DropTarget.dcr"/>
-    <IDLFILES value=""/>
-    <IDLGENFILES value=""/>
-    <DEFFILE value=""/>
-    <RESDEPEN value="$(RESFILES)"/>
-    <LIBFILES value=""/>
-    <LIBRARIES value="DCLUSR50.lib nmfast50.lib tee50.lib teedb50.lib teeui50.lib vcldbx50.lib 
-      ibsmp50.lib vclbde50.lib vcldb50.lib qrpt50.lib bcbsmp50.lib vcljpg50.lib 
-      vclx50.lib"/>
-    <SPARELIBS value="vcl50.lib vclx50.lib vcljpg50.lib bcbsmp50.lib qrpt50.lib vcldb50.lib 
-      vclbde50.lib ibsmp50.lib vcldbx50.lib teeui50.lib teedb50.lib tee50.lib 
-      nmfast50.lib DCLUSR50.lib"/>
-    <PACKAGES value="vcl50.bpi"/>
-    <PATHCPP value=".;"/>
-    <PATHPAS value=".;"/>
-    <PATHRC value=".;"/>
-    <PATHASM value=".;"/>
-    <DEBUGLIBPATH value="$(BCB)\lib\debug"/>
-    <RELEASELIBPATH value="$(BCB)\lib\release"/>
-    <LINKER value="ilink32"/>
-    <USERDEFINES value=""/>
-    <SYSDEFINES value="NO_STRICT;USEPACKAGES"/>
-    <MAINSOURCE value="DragDropC4.cpp"/>
-    <INCLUDEPATH value="$(BCB)\include;$(BCB)\include\vcl"/>
-    <LIBPATH value="$(BCB)\Projects\Lib;$(BCB)\lib\obj;$(BCB)\lib"/>
-    <WARNINGS value="-w-par -w-8027 -w-8026"/>
-  </MACROS>
-  <OPTIONS>
-    <IDLCFLAGS value="-src_suffixcpp -I$(BCB)\include -I$(BCB)\include\vcl"/>
-    <CFLAG1 value="-Od -H=d:\DEVELO~1\rampage\lib\vcl50.csm -Hc -Vx -Ve -Tkh30000 -X- -r- -a8 
-      -b- -k -y -v -vi- -c -tWM"/>
-    <PFLAGS value="-$YD -$W -v -M -JPHNE"/>
-    <RFLAGS value=""/>
-    <AFLAGS value="/mx /w2 /zd"/>
-    <LFLAGS value="-D&quot;Drag and Drop Component Suite&quot; -aa -Tpp -x -Gn -Gl -Gi"/>
-  </OPTIONS>
-  <LINKER>
-    <ALLOBJ value="c0pkg32.obj $(PACKAGES) sysinit.obj $(OBJFILES)"/>
-    <ALLRES value="$(RESFILES)"/>
-    <ALLLIB value="$(LIBFILES) $(LIBRARIES) import32.lib cp32mt.lib"/>
-  </LINKER>
-  <IDEOPTIONS>
-[Version Info]
-IncludeVerInfo=1
-AutoIncBuild=1
-MajorVer=4
-MinorVer=0
-Release=3
-Build=12
-Debug=0
-PreRelease=0
-Special=0
-Private=0
-DLL=1
-Locale=1030
-CodePage=1252
+# ---------------------------------------------------------------------------
+!if !$d(BCB)
+BCB = $(MAKEDIR)\..
+!endif
 
-[Version Info Keys]
-CompanyName=Johnson &amp; Melander
-FileDescription=Drag and Drop Component Suite
-FileVersion=4.0.3.12
-InternalName=DragDrop
-LegalCopyright=Copyright © 1997-2000,  Johnson &amp;  Melander
-LegalTrademarks=
-OriginalFilename=DragDropC4
-ProductName=DragDrop
-ProductVersion=4.0.0.0
-Comments=Freeware.
-mailto=anders@melander.dk
-URL=http://www.melander.dk
+# ---------------------------------------------------------------------------
+# IDE SECTION
+# ---------------------------------------------------------------------------
+# The following section of the project makefile is managed by the BCB IDE.
+# It is recommended to use the IDE to change any of the values in this
+# section.
+# ---------------------------------------------------------------------------
 
-[HistoryLists\hlIncludePath]
-Count=1
-Item0=$(BCB)\include;$(BCB)\include\vcl
-
-[HistoryLists\hlLibraryPath]
-Count=2
-Item0=$(BCB)\Projects\Lib;$(BCB)\lib\obj;$(BCB)\lib
-Item1=$(BCB)\lib\obj;$(BCB)\lib
-
-[HistoryLists\hlDebugSourcePath]
-Count=1
-Item0=$(BCB)\source\vcl
-
-[HistoryLists\hlConditionals]
-Count=1
-Item0=USEPACKAGES
+VERSION = BCB.04.04
+# ---------------------------------------------------------------------------
+PROJECT = DragDropC4.bpl
+OBJFILES = DropSource.obj DropTarget.obj DragDropDesign.obj DragDropFormats.obj \
+  DragDropGraphics.obj DragDropInternet.obj DragDropText.obj DropComboTarget.obj \
+  DragDrop.obj DragDropPIDL.obj DragDropC4.obj
+RESFILES = dragdropC4.res DropSource.dcr DropTarget.dcr DragDropGraphics.dcr \
+  DragDropInternet.dcr DragDropText.dcr DropComboTarget.dcr DragDrop.dcr \
+  DragDropPIDL.dcr
+DEFFILE =
+RESDEPEN = $(RESFILES)
+LIBFILES =
+PACKAGES = vcl40.bpi
+# ---------------------------------------------------------------------------
+PATHCPP = .;
+PATHASM = .;
+PATHPAS = .;
+PATHRC = .;
+DEBUGLIBPATH = $(BCB)\lib\debug
+RELEASELIBPATH = $(BCB)\lib\release
+SYSDEFINES = NO_STRICT;USEPACKAGES
+USERDEFINES = NO_WIN32_LEAN_AND_MEAN
+# ---------------------------------------------------------------------------
+CFLAG1 = -I$(BCB)\include;$(BCB)\include\vcl -Od -Hc -H=$(BCB)\lib\vcl40.csm -w -Ve \
+  -Tkh30000 -r- -a8 -k -y -v -vi- -D$(SYSDEFINES);$(USERDEFINES) -c -b- -w-par \
+  -w-inl -Vx -tWM
+CFLAG2 =
+CFLAG3 =
+PFLAGS = -U$(BCB)\Lib\Release;$(BCB)\Projects\Lib;$(BCB)\lib\obj;$(BCB)\lib;$(RELEASELIBPATH) \
+  -I$(BCB)\include;$(BCB)\include\vcl -DNO_WIN32_LEAN_AND_MEAN -$YD -$W -$T -$R \
+  -$Q -$O- -$J- -$I- -v -M -JPHNE
+RFLAGS = -i$(BCB)\include;$(BCB)\include\vcl -DNO_WIN32_LEAN_AND_MEAN
+AFLAGS = /i$(BCB)\include /i$(BCB)\include\vcl /dNO_WIN32_LEAN_AND_MEAN /mx /w2 /zd
+LFLAGS = -L$(BCB)\Lib\Release;$(BCB)\Projects\Lib;$(BCB)\lib\obj;$(BCB)\lib;$(RELEASELIBPATH) \
+  -D"Drag and Drop Component Suite" -aa -Tpp -Gpd -x -Gn
+IFLAGS =
+# ---------------------------------------------------------------------------
+ALLOBJ = c0pkg32.obj $(PACKAGES) sysinit.obj $(OBJFILES)
+ALLRES = $(RESFILES)
+ALLLIB = $(LIBFILES) $(LIBRARIES) import32.lib cp32mt.lib
+# ---------------------------------------------------------------------------
+!ifdef IDEOPTIONS
 
 [Debugging]
 DebugSourceDirs=$(BCB)\source\vcl
@@ -108,18 +65,82 @@ RemotePath=
 RemoteDebug=0
 
 [Compiler]
+InMemoryExe=0
 ShowInfoMsgs=0
-LinkDebugVcl=0
-LinkCGLIB=0
 
-[CORBA]
-AddServerUnit=1
-AddClientUnit=1
-PrecompiledHeaders=1
+!endif
 
-[Language]
-ActiveLang=
-ProjectLang=
-RootDir=
-  </IDEOPTIONS>
-</PROJECT>
+# ---------------------------------------------------------------------------
+# MAKE SECTION
+# ---------------------------------------------------------------------------
+# This section of the project file is not used by the BCB IDE.  It is for
+# the benefit of building from the command-line using the MAKE utility.
+# ---------------------------------------------------------------------------
+
+.autodepend
+# ---------------------------------------------------------------------------
+!if !$d(BCC32)
+BCC32 = bcc32
+!endif
+
+!if !$d(DCC32)
+DCC32 = dcc32
+!endif
+
+!if !$d(TASM32)
+TASM32 = tasm32
+!endif
+
+!if !$d(LINKER)
+LINKER = ilink32
+!endif
+
+!if !$d(BRCC32)
+BRCC32 = brcc32
+!endif
+# ---------------------------------------------------------------------------
+!if $d(PATHCPP)
+.PATH.CPP = $(PATHCPP)
+.PATH.C   = $(PATHCPP)
+!endif
+
+!if $d(PATHPAS)
+.PATH.PAS = $(PATHPAS)
+!endif
+
+!if $d(PATHASM)
+.PATH.ASM = $(PATHASM)
+!endif
+
+!if $d(PATHRC)
+.PATH.RC  = $(PATHRC)
+!endif
+# ---------------------------------------------------------------------------
+$(PROJECT): $(OBJFILES) $(RESDEPEN) $(DEFFILE)
+    $(BCB)\BIN\$(LINKER) @&&!
+    $(LFLAGS) +
+    $(ALLOBJ), +
+    $(PROJECT),, +
+    $(ALLLIB), +
+    $(DEFFILE), +
+    $(ALLRES)
+!
+# ---------------------------------------------------------------------------
+.pas.hpp:
+    $(BCB)\BIN\$(DCC32) $(PFLAGS) {$< }
+
+.pas.obj:
+    $(BCB)\BIN\$(DCC32) $(PFLAGS) {$< }
+
+.cpp.obj:
+    $(BCB)\BIN\$(BCC32) $(CFLAG1) $(CFLAG2) $(CFLAG3) -n$(@D) {$< }
+
+.c.obj:
+    $(BCB)\BIN\$(BCC32) $(CFLAG1) $(CFLAG2) $(CFLAG3) -n$(@D) {$< }
+
+.asm.obj:
+    $(BCB)\BIN\$(TASM32) $(AFLAGS) $<, $@
+
+.rc.res:
+    $(BCB)\BIN\$(BRCC32) $(RFLAGS) -fo$@ $<
+# ---------------------------------------------------------------------------

@@ -1,0 +1,109 @@
+[Compiler]
+A=0
+B=0
+C=1
+D=1
+E=0
+F=0
+G=0
+H=1
+I=0
+J=0
+K=0
+L=1
+M=0
+N=1
+O=0
+P=1
+Q=1
+R=1
+S=0
+T=1
+U=0
+V=1
+W=1
+X=1
+Y=1
+Z=1
+ShowHints=1
+ShowWarnings=1
+UnitAliases=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[Linker]
+MapFile=0
+OutputObjs=0
+ConsoleApp=1
+DebugInfo=0
+RemoteSymbols=0
+MinStackSize=16384
+MaxStackSize=1048576
+ImageBase=4548489
+ExeDescription=Drag and Drop Component Suite
+[Directories]
+OutputDir=
+UnitOutputDir=
+PackageDLLOutputDir=
+PackageDCPOutputDir=
+SearchPath=$(DELPHI)\Lib\Debug
+Packages=
+Conditionals=
+DebugSourceDirs=
+UsePackages=0
+[Parameters]
+RunParams=
+HostApplication=
+[Language]
+ActiveLang=
+ProjectLang=$00000406
+RootDir=
+[Version Info]
+IncludeVerInfo=1
+AutoIncBuild=1
+MajorVer=4
+MinorVer=1
+Release=4
+Build=28
+Debug=0
+PreRelease=0
+Special=0
+Private=0
+DLL=1
+Locale=1033
+CodePage=1252
+[Version Info Keys]
+CompanyName=Anders Melander
+FileDescription=Drag and Drop Component Suite
+FileVersion=4.1.4.28
+InternalName=DragDrop
+LegalCopyright=Copyright © 1997-2001 Anders Melander
+LegalTrademarks=
+OriginalFilename=DragDrop
+ProductName=DragDrop
+ProductVersion=4.0.0.0
+Comments=This is freeware. Use as you please, but please give me credit.
+mailto=anders@melander.dk
+URL=http://www.melander.dk
+[Excluded Packages]
+$(DELPHI)\Projects\Bpl\MMCExpert.bpl=MMC Snapin Expert
+$(DELPHI)\Projects\Bpl\sb3scheduler.bpl=S-BOSS 3 scheduler components
+C:\Development\CodeSite2\Bin\CSP20IDsgn50.bpl=CodeSite 2 Professional Components
+C:\Projects\Library\UIL Plugin\Delphi 5\Lib\Delphi 5\uPluginFramework5.bpl=UIL Plugin Framework 6.0
+[HistoryLists\hlDebugSourcePath]
+Count=1
+Item0=D:\Development\Delphi6\Source\Indy;C:\Development\Delphi6\Source\Rtl\Common\
+[HistoryLists\hlConditionals]
+Count=1
+Item0=DEBUG
+[HistoryLists\hlUnitAliases]
+Count=1
+Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[HistoryLists\hlSearchPath]
+Count=2
+Item0=$(DELPHI)\Lib\Debug
+Item1=$(DELPHI)\Lib\Debug;D:\Development\Delphi6\Source\Indy
+[HistoryLists\hlUnitOutputDirectory]
+Count=1
+Item0=..\lib
+[HistoryLists\hlOutputDirectorry]
+Count=2
+Item0=..\..\Bin
+Item1=..\Bin

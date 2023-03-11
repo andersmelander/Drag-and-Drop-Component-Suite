@@ -1,14 +1,13 @@
 unit DragDropPIDL;
-
 // -----------------------------------------------------------------------------
 // Project:         Drag and Drop Component Suite
 // Module:          DragDropPIDL
 // Description:     Implements Dragging & Dropping of PIDLs (files and folders).
-// Version:         4.0
-// Date:            18-MAY-2001
-// Target:          Win32, Delphi 5-6
+// Version:         4.1
+// Date:            22-JAN-2002
+// Target:          Win32, Delphi 4-6, C++Builder 4-6
 // Authors:         Anders Melander, anders@melander.dk, http://www.melander.dk
-// Copyright        © 1997-2001 Angus Johnson & Anders Melander
+// Copyright        © 1997-2002 Angus Johnson & Anders Melander
 // -----------------------------------------------------------------------------
 
 interface
@@ -61,8 +60,8 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TPIDLDataFormat = class(TCustomDataFormat)
   private
-    FPIDLs		: TStrings;
-    FFilenames		: TStrings;
+    FPIDLs: TStrings;
+    FFilenames: TStrings;
   protected
   public
     constructor Create(AOwner: TDragDropComponent); override;
@@ -85,8 +84,8 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TDropPIDLTarget = class(TCustomDropMultiTarget)
   private
-    FPIDLDataFormat	: TPIDLDataFormat;
-    FFileMapDataFormat	: TFileMapDataFormat;
+    FPIDLDataFormat: TPIDLDataFormat;
+    FFileMapDataFormat: TFileMapDataFormat;
     function GetFilenames: TStrings;
   protected
     function GetPIDLs: TStrings;
@@ -124,8 +123,8 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TDropPIDLSource = class(TCustomDropMultiSource)
   private
-    FPIDLDataFormat	: TPIDLDataFormat;
-    FFileMapDataFormat	: TFileMapDataFormat;
+    FPIDLDataFormat: TPIDLDataFormat;
+    FFileMapDataFormat: TFileMapDataFormat;
   protected
     function GetMappedNames: TStrings;
   public
@@ -257,9 +256,9 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 function GetPIDLsFromData(Data: pointer; Size: integer; PIDLs: TStrings): boolean;
 var
-  i			: integer;
-  pOffset		: ^UINT;
-  PIDL			: PItemIDList;
+  i: integer;
+  pOffset: ^UINT;
+  PIDL: PItemIDList;
 begin
   PIDLs.Clear;
 
@@ -282,7 +281,7 @@ end;
 
 function GetPIDLsFromHGlobal(const HGlob: HGlobal; PIDLs: TStrings): boolean;
 var
-  pCIDA			: PIDA;
+  pCIDA: PIDA;
 begin
   pCIDA := PIDA(GlobalLock(HGlob));
   try
@@ -436,8 +435,8 @@ end;
 
 function GetFullPIDLFromPath(Path: string): pItemIDList;
 var
-  DeskTopFolder		: IShellFolder;
-  WidePath		: WideString;
+  DeskTopFolder: IShellFolder;
+  WidePath: WideString;
 begin
   WidePath := Path;
   if (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then
@@ -549,7 +548,7 @@ end;
 
 function PIDLToString(pidl: PItemIDList): String;
 var
-  PidlLength		: integer;
+  PidlLength: integer;
 begin
   PidlLength := GetSizeOfPidl(pidl);
   SetLength(Result, PidlLength);
@@ -565,7 +564,7 @@ end;
 
 function JoinPIDLStrings(pidl1, pidl2: string): String;
 var
-  PidlLength		: integer;
+  PidlLength: integer;
 begin
   if Length(pidl1) <= 2 then
     PidlLength := 0
@@ -578,7 +577,9 @@ begin
 end;
 
 {$ifndef BCB}
-// BCB appearantly doesn't support ordinal DLL imports. Strange!
+// BCB appearantly doesn't support ordinal DLL imports in Delphi units. Strange!
+// Use LoadLibrary and GetProcAddress if you need access to these functions from
+// C++Builder.
 function ILCombine(pidl1,pidl2:PItemIDList): PItemIDList; stdcall;
   external shell32 index 25;
 function ILFindLastID(pidl: PItemIDList): PItemIDList; stdcall;
@@ -778,7 +779,7 @@ end;
 
 function TPIDLClipboardFormat.GetSize: integer;
 var
-  i			: integer;
+  i: integer;
 begin
   Result := (FPIDLs.Count+1) * SizeOf(UINT);
   for i := 0 to FPIDLs.Count-1 do
@@ -794,11 +795,11 @@ end;
 function TPIDLClipboardFormat.WriteData(Value: pointer;
   Size: integer): boolean;
 var
-  i			: integer;
-  pCIDA			: PIDA;
-  Offset		: integer;
-  pOffset		: ^UINT;
-  PIDL			: PItemIDList;
+  i: integer;
+  pCIDA: PIDA;
+  Offset: integer;
+  pOffset: ^UINT;
+  PIDL: PItemIDList;
 begin
   pCIDA := PIDA(Value);
   pCIDA^.cidl := FPIDLs.Count-1; // Don't count folder PIDL
@@ -911,7 +912,7 @@ end;
 
 function TDropPIDLTarget.DoGetPIDL(Index: integer): pItemIdList;
 var
-  PIDL			: string;
+  PIDL: string;
 begin
   PIDL := PIDLs[Index];
   Result := ShellMalloc.Alloc(Length(PIDL));
@@ -934,7 +935,7 @@ end;
 
 function TDropPIDLTarget.GetAbsoluteFilePidl(Index: integer): pItemIdList;
 var
-  PIDL			: string;
+  PIDL: string;
 begin
   Result := nil;
   if (index < 1) then

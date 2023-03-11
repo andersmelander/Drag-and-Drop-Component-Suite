@@ -1,0 +1,89 @@
+[Compiler]
+A=0
+B=0
+C=1
+D=1
+E=0
+F=0
+G=1
+H=1
+I=1
+J=0
+K=0
+L=1
+M=0
+N=1
+O=0
+P=1
+Q=1
+R=1
+S=0
+T=1
+U=0
+V=1
+W=0
+X=1
+Y=1
+Z=1
+ShowHints=1
+ShowWarnings=1
+UnitAliases=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[Linker]
+MapFile=0
+OutputObjs=0
+ConsoleApp=1
+DebugInfo=0
+RemoteSymbols=0
+MinStackSize=16384
+MaxStackSize=1048576
+ImageBase=4194304
+ExeDescription=
+[Directories]
+OutputDir=
+UnitOutputDir=
+PackageDLLOutputDir=
+PackageDCPOutputDir=
+SearchPath=$(DELPHI)\Lib\Debug
+Packages=Vcl50
+Conditionals=
+DebugSourceDirs=
+UsePackages=0
+[Parameters]
+RunParams=
+HostApplication=
+[Version Info]
+IncludeVerInfo=1
+AutoIncBuild=0
+MajorVer=4
+MinorVer=0
+Release=3
+Build=3
+Debug=0
+PreRelease=0
+Special=0
+Private=0
+DLL=0
+Locale=1033
+CodePage=1252
+[Version Info Keys]
+CompanyName=Johnson & Melander
+FileDescription=Drag Drop Source & Target Demo
+FileVersion=4.0.3.3
+InternalName=DragDropDemo
+LegalCopyright=© 1997-99 Johnson & Melander
+LegalTrademarks=
+OriginalFilename=DragDropDemo.exe
+ProductName=Drag and Component Suite
+ProductVersion=1.0.0.0
+Comments=Freeware.
+mailto=ajohnson@rpi.net.au ; anders@melander.dk
+URL=http://www.melander.dk
+[Excluded Packages]
+d:\development\delphi6\Bin\dcltee40.bpl=Borland TeeChart Components
+d:\development\delphi6\Bin\dcldss40.bpl=Borland Decision Cube Components
+[HistoryLists\hlUnitAliases]
+Count=1
+Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+[HistoryLists\hlSearchPath]
+Count=1
+Item0=$(DELPHI)\Lib\Debug

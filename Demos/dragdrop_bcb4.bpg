@@ -1,0 +1,54 @@
+#------------------------------------------------------------------------------
+VERSION = BWS.01
+#------------------------------------------------------------------------------
+!ifndef ROOT
+ROOT = $(MAKEDIR)\..
+!endif
+#------------------------------------------------------------------------------
+MAKE = $(ROOT)\bin\make.exe -$(MAKEFLAGS) -f$**
+DCC = $(ROOT)\bin\dcc32.exe $**
+BRCC = $(ROOT)\bin\brcc32.exe $**
+#------------------------------------------------------------------------------
+PROJECTS = FileDemoBCB4.exe AdapterBCB4.exe AsyncTransferSourceBCB4.exe \
+  AutoScrollBCB4.exe ComboTargetDemoBCB4.exe CustomFormat1BCB4.exe \
+  DragDropDemoBCB4.exe MultipleTargetsBCB4.exe ExtractDemoBCB4.exe \
+  NetscapeDemoBCB4.exe DragDropC4.bpl
+#------------------------------------------------------------------------------
+default: $(PROJECTS)
+#------------------------------------------------------------------------------
+
+
+AdapterBCB4.exe: Adapters.BCB\AdapterBCB4.bpr
+  $(MAKE)
+
+FileDemoBCB4.exe: SimpleFileDemo.BCB\FileDemoBCB4.bpr
+  $(MAKE)
+
+AsyncTransferSourceBCB4.exe: AsyncSource.BCB\AsyncTransferSourceBCB4.bpr
+  $(MAKE)
+
+AutoScrollBCB4.exe: AutoScroll.BCB\AutoScrollBCB4.bpr
+  $(MAKE)
+
+ComboTargetDemoBCB4.exe: ComboTargetDemo.BCB\ComboTargetDemoBCB4.bpr
+  $(MAKE)
+
+CustomFormat1BCB4.exe: CustomFormat1.BCB\CustomFormat1BCB4.bpr
+  $(MAKE)
+
+DragDropDemoBCB4.exe: DetailedDemo.BCB\DragDropDemoBCB4.bpr
+  $(MAKE)
+
+DragDropC4.bpl: ..\Components\DragDropC4.bpk
+  $(MAKE)
+
+MultipleTargetsBCB4.exe: MultipleTargets.BCB\MultipleTargetsBCB4.bpr
+  $(MAKE)
+
+ExtractDemoBCB4.exe: ExtractDemo.BCB\ExtractDemoBCB4.bpr
+  $(MAKE)
+
+NetscapeDemoBCB4.exe: NetscapeDemo.BCB\NetscapeDemoBCB4.bpr
+  $(MAKE)
+
+

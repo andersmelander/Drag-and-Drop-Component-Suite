@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<!-- C++Builder XML Project -->
+<PROJECT>
+  <MACROS>
+    <VERSION value="BCB.06.00"/>
+    <PROJECT value="DragDropC6.bpl"/>
+    <OBJFILES value="DragDropC6.obj DragDrop.obj DragDropFile.obj DragDropFormats.obj 
+      DragDropGraphics.obj DragDropPIDL.obj DragDropText.obj DropSource.obj 
+      DropTarget.obj DragDropInternet.obj DropComboTarget.obj 
+      DragDropHandler.obj DragDropContext.obj DropHandler.obj DragDropDesign.obj 
+      DragDropComObj.obj"/>
+    <RESFILES value=""/>
+    <IDLFILES value=""/>
+    <IDLGENFILES value=""/>
+    <DEFFILE value=""/>
+    <RESDEPEN value="$(RESFILES)"/>
+    <LIBFILES value=""/>
+    <LIBRARIES value=""/>
+    <SPARELIBS value="rtl.lib vcl.lib"/>
+    <PACKAGES value="rtl.bpi vcl.bpi designide.bpi"/>
+    <PATHCPP value=".;"/>
+    <PATHPAS value=".;"/>
+    <PATHRC value=".;"/>
+    <PATHASM value=".;"/>
+    <DEBUGLIBPATH value="$(BCB)\lib\debug"/>
+    <RELEASELIBPATH value="$(BCB)\lib\release"/>
+    <LINKER value="ilink32"/>
+    <USERDEFINES value="NO_WIN32_LEAN_AND_MEAN"/>
+    <SYSDEFINES value="NO_STRICT;USEPACKAGES"/>
+    <MAINSOURCE value="DragDropC6.cpp"/>
+    <INCLUDEPATH value="$(BCB)\include;$(BCB)\include\vcl"/>
+    <LIBPATH value="$(BCB)\Projects\Lib;$(BCB)\lib\obj;$(BCB)\lib"/>
+    <WARNINGS value="-w-par -w-8027 -w-8026"/>
+    <OTHERFILES value=""/>
+  </MACROS>
+  <OPTIONS>
+    <CFLAG1 value="-Od -H=$(BCB)\lib\vcl60.csm -Hc -Vx -Ve -Tkh30000 -X-
+      -r- -a8 -b- -k -y -v -vi- -c -tWM"/>
+    <PFLAGS value="-$YD -$W -$T -$R -$Q -$O- -$I- -v -M -JPHNE -LUvcl;designide"/>
+    <RFLAGS value=""/>
+    <AFLAGS value="/mx /w2 /zd"/>
+    <LFLAGS value="-D&quot;Drag and Drop Component Suite&quot; -aa -Tpp -Gpd -x -Gn -Gl -Gi"/>
+    <OTHERFILES value=""/>
+  </OPTIONS>
+  <LINKER>
+    <ALLOBJ value="c0pkg32.obj $(PACKAGES) sysinit.obj $(OBJFILES)"/>
+    <ALLRES value="$(RESFILES)"/>
+    <ALLLIB value="$(LIBFILES) $(LIBRARIES) import32.lib cp32mt.lib"/>
+    <OTHERFILES value=""/>
+  </LINKER>
+  <FILELIST>
+      <FILE FILENAME="DragDropC6.cpp" FORMNAME="" UNITNAME="DragDropC6" CONTAINERID="CCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDrop.pas" FORMNAME="" UNITNAME="DragDrop" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDrop.dcr" FORMNAME="" UNITNAME="DragDrop" CONTAINERID="" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropFile.pas" FORMNAME="" UNITNAME="DragDropFile" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropFile.dcr" FORMNAME="" UNITNAME="DragDropFile" CONTAINERID="" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropFormats.pas" FORMNAME="" UNITNAME="DragDropFormats" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropGraphics.pas" FORMNAME="" UNITNAME="DragDropGraphics" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropGraphics.dcr" FORMNAME="" UNITNAME="DragDropGraphics" CONTAINERID="" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropPIDL.pas" FORMNAME="" UNITNAME="DragDropPIDL" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropPIDL.dcr" FORMNAME="" UNITNAME="DragDropPIDL" CONTAINERID="" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropText.pas" FORMNAME="" UNITNAME="DragDropText" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropText.dcr" FORMNAME="" UNITNAME="DragDropText" CONTAINERID="" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DropSource.pas" FORMNAME="" UNITNAME="DropSource" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DropSource.dcr" FORMNAME="" UNITNAME="DropSource" CONTAINERID="" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DropTarget.pas" FORMNAME="" UNITNAME="DropTarget" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DropTarget.dcr" FORMNAME="" UNITNAME="DropTarget" CONTAINERID="" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropInternet.pas" FORMNAME="" UNITNAME="DragDropInternet" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropInternet.dcr" FORMNAME="" UNITNAME="DragDropInternet" CONTAINERID="" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DropComboTarget.pas" FORMNAME="" UNITNAME="DropComboTarget" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DropComboTarget.dcr" FORMNAME="" UNITNAME="DropComboTarget" CONTAINERID="" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropHandler.pas" FORMNAME="" UNITNAME="DragDropHandler" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropHandler.dcr" FORMNAME="" UNITNAME="DragDropHandler" CONTAINERID="" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropContext.pas" FORMNAME="" UNITNAME="DragDropContext" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropContext.dcr" FORMNAME="" UNITNAME="DragDropContext" CONTAINERID="" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DropHandler.pas" FORMNAME="" UNITNAME="DropHandler" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DropHandler.dcr" FORMNAME="" UNITNAME="DropHandler" CONTAINERID="" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropDesign.pas" FORMNAME="" UNITNAME="DragDropDesign" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="DragDropComObj.pas" FORMNAME="" UNITNAME="DragDropComObj" CONTAINERID="PascalCompiler" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="rtl.bpi" FORMNAME="" UNITNAME="rtl" CONTAINERID="BPITool" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="vcl.bpi" FORMNAME="" UNITNAME="vcl" CONTAINERID="BPITool" DESIGNCLASS="" LOCALCOMMAND=""/>
+      <FILE FILENAME="$(BCB)\Lib\designide.bpi" FORMNAME="" UNITNAME="designide" CONTAINERID="BPITool" DESIGNCLASS="" LOCALCOMMAND=""/>
+  </FILELIST>
+  <BUILDTOOLS>
+  </BUILDTOOLS>
+
+  <IDEOPTIONS>
+  </IDEOPTIONS>
+</PROJECT>

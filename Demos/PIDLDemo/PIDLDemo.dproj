@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{0ae4860d-3c14-4d83-8545-1e063a45cfcb}</ProjectGuid>
+    <MainSource>PIDLDemo.dpr</MainSource>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
+    <DCC_DependencyCheckOutputName>PIDLDemo.exe</DCC_DependencyCheckOutputName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <Version>7.0</Version>
+    <DCC_AssertionsAtRuntime>False</DCC_AssertionsAtRuntime>
+    <DCC_DebugInformation>False</DCC_DebugInformation>
+    <DCC_WriteableConstants>True</DCC_WriteableConstants>
+    <DCC_LocalDebugSymbols>False</DCC_LocalDebugSymbols>
+    <DCC_Optimize>False</DCC_Optimize>
+    <DCC_IntegerOverflowCheck>True</DCC_IntegerOverflowCheck>
+    <DCC_RangeChecking>True</DCC_RangeChecking>
+    <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
+    <DCC_UnitSearchPath>$(DELPHI)\Lib\Debug</DCC_UnitSearchPath>
+    <DCC_ResourcePath>$(DELPHI)\Lib\Debug</DCC_ResourcePath>
+    <DCC_ObjPath>$(DELPHI)\Lib\Debug</DCC_ObjPath>
+    <DCC_IncludePath>$(DELPHI)\Lib\Debug</DCC_IncludePath>
+    <DCC_Define>RELEASE</DCC_Define>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <Version>7.0</Version>
+    <DCC_AssertionsAtRuntime>False</DCC_AssertionsAtRuntime>
+    <DCC_WriteableConstants>True</DCC_WriteableConstants>
+    <DCC_Optimize>False</DCC_Optimize>
+    <DCC_IntegerOverflowCheck>True</DCC_IntegerOverflowCheck>
+    <DCC_RangeChecking>True</DCC_RangeChecking>
+    <DCC_SymbolReferenceInfo>2</DCC_SymbolReferenceInfo>
+    <DCC_UnitSearchPath>$(DELPHI)\Lib\Debug;..\..\components</DCC_UnitSearchPath>
+    <DCC_ResourcePath>$(DELPHI)\Lib\Debug;..\..\components</DCC_ResourcePath>
+    <DCC_ObjPath>$(DELPHI)\Lib\Debug;..\..\components</DCC_ObjPath>
+    <DCC_IncludePath>$(DELPHI)\Lib\Debug;..\..\components</DCC_IncludePath>
+    <DCC_Define>DEBUG</DCC_Define>
+  </PropertyGroup>
+  <ProjectExtensions>
+    <Borland.Personality>Delphi.Personality</Borland.Personality>
+    <Borland.ProjectType>VCLApplication</Borland.ProjectType>
+    <BorlandProject>
+<BorlandProject> <Delphi.Personality>   <Parameters>
+      <Parameters Name="UseLauncher">False</Parameters>
+      <Parameters Name="LoadAllSymbols">True</Parameters>
+      <Parameters Name="LoadUnspecifiedSymbols">False</Parameters>
+    </Parameters>
+    <VersionInfo>
+      <VersionInfo Name="IncludeVerInfo">True</VersionInfo>
+      <VersionInfo Name="AutoIncBuild">True</VersionInfo>
+      <VersionInfo Name="MajorVer">3</VersionInfo>
+      <VersionInfo Name="MinorVer">7</VersionInfo>
+      <VersionInfo Name="Release">2</VersionInfo>
+      <VersionInfo Name="Build">18</VersionInfo>
+      <VersionInfo Name="Debug">False</VersionInfo>
+      <VersionInfo Name="PreRelease">False</VersionInfo>
+      <VersionInfo Name="Special">False</VersionInfo>
+      <VersionInfo Name="Private">False</VersionInfo>
+      <VersionInfo Name="DLL">False</VersionInfo>
+      <VersionInfo Name="Locale">3081</VersionInfo>
+      <VersionInfo Name="CodePage">1252</VersionInfo>
+    </VersionInfo>
+    <VersionInfoKeys>
+      <VersionInfoKeys Name="CompanyName">Johnson &amp; Melander</VersionInfoKeys>
+      <VersionInfoKeys Name="FileDescription">TDropPIDLSource demo</VersionInfoKeys>
+      <VersionInfoKeys Name="FileVersion">3.7.2.18</VersionInfoKeys>
+      <VersionInfoKeys Name="InternalName">TDropPIDLSource demo</VersionInfoKeys>
+      <VersionInfoKeys Name="LegalCopyright">© 1997-99 Johnson &amp; Melander</VersionInfoKeys>
+      <VersionInfoKeys Name="LegalTrademarks"></VersionInfoKeys>
+      <VersionInfoKeys Name="OriginalFilename">PIDLDemo.exe</VersionInfoKeys>
+      <VersionInfoKeys Name="ProductName">Drag and Drop Component Suite</VersionInfoKeys>
+      <VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys>
+      <VersionInfoKeys Name="Comments">Freeware.</VersionInfoKeys>
+    </VersionInfoKeys>
+    <Source>
+      <Source Name="MainSource">PIDLDemo.dpr</Source>
+    </Source>
+  </Delphi.Personality> </BorlandProject></BorlandProject>
+  </ProjectExtensions>
+  <Import Project="$(MSBuildBinPath)\Borland.Delphi.Targets" />
+  <ItemGroup>
+    <DelphiCompile Include="PIDLDemo.dpr">
+      <MainSource>MainSource</MainSource>
+    </DelphiCompile>
+    <DCCReference Include="PathComboBox.pas" />
+    <DCCReference Include="Unit1.pas">
+      <Form>Form1</Form>
+    </DCCReference>
+    <None Include="readme.txt" />
+  </ItemGroup>
+</Project>

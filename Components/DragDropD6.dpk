@@ -19,7 +19,7 @@ package DragDropD6;
 {$DEBUGINFO ON}
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA OFF}
-{$IOCHECKS ON}
+{$IOCHECKS OFF}
 {$LOCALSYMBOLS ON}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
@@ -40,7 +40,8 @@ package DragDropD6;
 {$DEFINE DEBUG}
 
 requires
-  Vcl;
+  Vcl,
+  designide;
 
 contains
   DropSource in 'DropSource.pas',
@@ -56,6 +57,7 @@ contains
   DragDropContext in 'DragDropContext.pas',
   DragDropHandler in 'DragDropHandler.pas',
   DragDropComObj in 'DragDropComObj.pas',
-  DropHandler in 'DropHandler.pas';
+  DropHandler in 'DropHandler.pas',
+  DragDropDesign in 'DragDropDesign.pas';
 
 end.
