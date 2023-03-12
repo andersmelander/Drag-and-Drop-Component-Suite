@@ -14,10 +14,10 @@ unit DragDropComObj;
 interface
 
 uses
-  ComObj,
-  Classes,
-  ActiveX,
-  Windows;
+  Win.ComObj,
+  System.Classes,
+  WinApi.ActiveX,
+  WinApi.Windows;
 
 {$include DragDrop.inc}
 
@@ -88,6 +88,9 @@ type
     FFileClass: string;
   protected
     function GetProgID: string; override;
+    function HandlerRegSubKey: string; virtual; abstract;
+    function UseSystemFileAssociations: boolean; virtual;
+    function OwnsFileExtension: boolean; virtual;
   public
     constructor Create(ComServer: TComServerObject; ComponentClass: TComponentClass;
       const ClassID: TGUID; const ClassName, Description, AFileClass,
@@ -117,7 +120,9 @@ function DeleteEmptyRegKey(Key: string; DeleteTree: boolean = True; RootKey: HKE
 implementation
 
 uses
-  SysUtils;
+  System.SysUtils,
+  Win.Registry,
+  WinApi.ShlObj;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -398,24 +403,96 @@ begin
   Result := '';
 end;
 
+function TShellExtFactory.OwnsFileExtension: boolean;
+begin
+  // Return True if it's safe to delete the file association upon unregistration.
+  // Be careful that we don't delete file associations used by other applications
+  Result := False;
+end;
+
+{$define UseSystemFileAssociations}
+
 procedure TShellExtFactory.UpdateRegistry(ARegister: Boolean);
 var
   RegPrefix: string;
   RootKey: HKEY;
+  ClassIDStr: string;
+  Registry: TRegistry;
 begin
   ComServer.GetRegRootAndPrefix(RootKey, RegPrefix);
+
+  ClassIDStr := GUIDToString(ClassID);
 
   if ARegister then
   begin
     inherited UpdateRegistry(ARegister);
-    if (FileExtension <> '') then
-      CreateRegKey(RegPrefix + FileExtension, '', FileClass, RootKey);
+
+    if UseSystemFileAssociations and (FileExtension <> '') then
+    begin
+      CreateRegKey(RegPrefix+'SystemFileAssociations\'+FileExtension+'\shellex\'+HandlerRegSubKey+'\'+ClassName, '', ClassIDStr, RootKey);
+    end else
+    if (FileClass <> '') then
+    begin
+      if (FileExtension <> '') and (GetRegStringValue(RegPrefix+FileExtension, '', RootKey) = '') then
+        CreateRegKey(RegPrefix+FileExtension, '', FileClass, RootKey);
+      CreateRegKey(RegPrefix+FileClass+'\shellex\'+HandlerRegSubKey+'\'+ClassName, '', ClassIDStr, RootKey);
+    end;
+
+    if (Win32Platform = VER_PLATFORM_WIN32_NT) then
+    begin
+      Registry := TRegistry.Create;
+      try
+        if (ComServer.PerUserRegistration) then
+          Registry.RootKey := HKEY_CURRENT_USER
+        else
+          Registry.RootKey := HKEY_LOCAL_MACHINE;
+
+        if Registry.OpenKey('SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved', False) then
+          Registry.WriteString(ClassIDStr, Description);
+      finally
+        Registry.Free;
+      end;
+    end;
   end else
   begin
-    if (FileExtension <> '') then
-      DeleteDefaultRegValue(RegPrefix + FileExtension, RootKey);
+    if (Win32Platform = VER_PLATFORM_WIN32_NT) then
+    begin
+      Registry := TRegistry.Create;
+      try
+        if (ComServer.PerUserRegistration) then
+          Registry.RootKey := HKEY_CURRENT_USER
+        else
+          Registry.RootKey := HKEY_LOCAL_MACHINE;
+
+        if Registry.OpenKey('SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved', False) then
+          Registry.DeleteKey(ClassIDStr);
+      finally
+        Registry.Free;
+      end;
+    end;
+
+    if UseSystemFileAssociations and (FileExtension <> '') then
+    begin
+      DeleteDefaultRegValue(RegPrefix+'SystemFileAssociations\'+FileExtension+'\shellex\'+HandlerRegSubKey+'\'+ClassName, RootKey);
+      DeleteEmptyRegKey(RegPrefix+'SystemFileAssociations\'+FileExtension+'\shellex\'+HandlerRegSubKey+'\'+ClassName, True, RootKey);
+    end else
+    if (FileClass <> '') then
+    begin
+      if (FileExtension <> '') and (OwnsFileExtension) and (GetRegStringValue(RegPrefix+FileExtension, '', RootKey) = FileClass) then
+        DeleteDefaultRegValue(RegPrefix + FileExtension, RootKey);
+      DeleteDefaultRegValue(RegPrefix+FileClass+'\shellex\'+HandlerRegSubKey+'\'+ClassName, RootKey);
+      DeleteEmptyRegKey(RegPrefix+FileClass+'\shellex\'+HandlerRegSubKey+'\'+ClassName, True, RootKey);
+    end;
+
     inherited UpdateRegistry(ARegister);
   end;
+
+  SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nil, nil);
+end;
+
+function TShellExtFactory.UseSystemFileAssociations: boolean;
+begin
+  Result := True;
 end;
 
 end.

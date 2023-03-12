@@ -131,9 +131,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TDropContextMenuFactory = class(TShellExtFactory)
   protected
-    function HandlerRegSubKey: string; virtual;
-  public
-    procedure UpdateRegistry(ARegister: Boolean); override;
+    function HandlerRegSubKey: string; override;
   end;
 
 
@@ -157,9 +155,11 @@ uses
   Dialogs,
   DragDropFile,
   DragDropPIDL,
-  Registry,
   ComObj,
   SysUtils,
+{$if RTLVersion >= 25} // XE4
+  AnsiStrings,
+{$ifend}
   ImgList,
   Controls, // TControlCanvas
   Forms; // Screen
@@ -218,7 +218,7 @@ begin
         // return ANSI help string for menu item.
         begin
           sAnsi := AnsiString(MenuItem.Hint);
-          StrLCopy(pszName, PAnsiChar(sAnsi), cchMax);
+          {$if RTLVersion >= 25}AnsiStrings.{$ifend}StrPLCopy(pszName, sAnsi, cchMax);
         end;
 
       GCS_HELPTEXTW:
@@ -1082,57 +1082,6 @@ end;
 function TDropContextMenuFactory.HandlerRegSubKey: string;
 begin
   Result := 'ContextMenuHandlers';
-end;
-
-procedure TDropContextMenuFactory.UpdateRegistry(ARegister: Boolean);
-var
-  RegPrefix: string;
-  RootKey: HKEY;
-  ClassIDStr: string;
-begin
-  ComServer.GetRegRootAndPrefix(RootKey, RegPrefix);
-
-  ClassIDStr := GUIDToString(ClassID);
-
-  if ARegister then
-  begin
-    inherited UpdateRegistry(ARegister);
-    CreateRegKey(RegPrefix+FileClass+'\shellex\'+HandlerRegSubKey+'\'+ClassName, '', ClassIDStr, RootKey);
-    CreateRegKey(RegPrefix+'SystemFileAssociations\'+FileExtension+'\shellex\'+HandlerRegSubKey+'\'+ClassName, '', ClassIDStr, RootKey);
-
-    if (Win32Platform = VER_PLATFORM_WIN32_NT) then
-      with TRegistry.Create do
-        try
-          if (ComServer.PerUserRegistration) then
-            RootKey := HKEY_CURRENT_USER
-          else
-            RootKey := HKEY_LOCAL_MACHINE;
-          if OpenKey('SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved', False) then
-            WriteString(ClassIDStr, Description);
-        finally
-          Free;
-        end;
-  end else
-  begin
-    if (Win32Platform = VER_PLATFORM_WIN32_NT) then
-      with TRegistry.Create do
-        try
-          if (ComServer.PerUserRegistration) then
-            RootKey := HKEY_CURRENT_USER
-          else
-            RootKey := HKEY_LOCAL_MACHINE;
-          if OpenKey('SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved', False) then
-            DeleteKey(ClassIDStr);
-        finally
-          Free;
-        end;
-
-    DeleteDefaultRegValue(RegPrefix+FileClass+'\shellex\'+HandlerRegSubKey+'\'+ClassName, RootKey);
-    DeleteEmptyRegKey(RegPrefix+FileClass+'\shellex\'+HandlerRegSubKey+'\'+ClassName, True, RootKey);
-    DeleteDefaultRegValue(RegPrefix+'SystemFileAssociations\'+FileExtension+'\shellex\'+HandlerRegSubKey+'\'+ClassName, RootKey);
-    DeleteEmptyRegKey(RegPrefix+'SystemFileAssociations\'+FileExtension+'\shellex\'+HandlerRegSubKey+'\'+ClassName, True, RootKey);
-    inherited UpdateRegistry(ARegister);
-  end;
 end;
 
 end.

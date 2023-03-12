@@ -261,7 +261,7 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 
 type
-  TPropertySheetHandlerFactory = class(TDropContextMenuFactory)
+  TPropertySheetHandlerFactory = class(TShellExtFactory)
   protected
     function HandlerRegSubKey: string; override;
   end;

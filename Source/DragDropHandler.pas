@@ -89,7 +89,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
 // COM Class factory for TDragDropHandler.
 ////////////////////////////////////////////////////////////////////////////////
-  TDragDropHandlerFactory = class(TDropContextMenuFactory)
+  TDragDropHandlerFactory = class(TShellExtFactory)
   protected
     function HandlerRegSubKey: string; override;
   end;

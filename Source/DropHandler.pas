@@ -85,8 +85,7 @@ type
 ////////////////////////////////////////////////////////////////////////////////
   TDropHandlerFactory = class(TShellExtFactory)
   protected
-  public
-    procedure UpdateRegistry(Register: Boolean); override;
+    function HandlerRegSubKey: string; override;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -157,18 +156,9 @@ end;
 //              TDropHandlerFactory
 //
 ////////////////////////////////////////////////////////////////////////////////
-procedure TDropHandlerFactory.UpdateRegistry(Register: Boolean);
+function TDropHandlerFactory.HandlerRegSubKey: string;
 begin
-  if Register then
-  begin
-    inherited UpdateRegistry(Register);
-    CreateRegKey(FileClass+'\shellex\DropHandler', '', GUIDToString(ClassID));
-  end else
-  begin
-    DeleteDefaultRegValue(FileClass+'\shellex\DropHandler');
-    DeleteEmptyRegKey(FileClass+'\shellex\DropHandler', True);
-    inherited UpdateRegistry(Register);
-  end;
+  Result := 'DropHandler';
 end;
 
 end.
