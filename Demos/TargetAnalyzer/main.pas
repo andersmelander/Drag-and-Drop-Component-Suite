@@ -14,6 +14,8 @@ type
     Medium: integer;
   end;
 
+const
+  MSG_FIREFOX_DETECTED = WM_USER;
 
 type
   TOnQueryGetData = procedure(const FormatEtc: TFormatEtc; var Result: HRESULT; var Handled: boolean) of object;
@@ -76,6 +78,7 @@ type
     procedure Trace(Kind: TTraceKind; const Action: string; const Details: string = '');
     procedure AddClipboardFormat(Format: TClipFormat; Medium: integer);
     procedure OnQueryGetData(const FormatEtc: TFormatEtc; var Result: HRESULT; var Handled: boolean);
+    procedure MsgFirefoxDetected(var Msg: TMessage); message MSG_FIREFOX_DETECTED;
   public
   end;
 
@@ -103,6 +106,13 @@ const
 
 resourcestring
   sAnyMedia = '(any)';
+
+resourcestring
+  sMsgFirefoxDetectTitle = 'Mozilla Firefox detected';
+  sMsgFirefoxWorkaround = 'Applying work around';
+  sMsgFirefoxDetect = 'Due to a bug in Firefox, dropping from this application onto Firefox causes an endless loop in Firefox.'#13#13+
+    'The application will now terminate.'#13#13+
+    'Please press [Esc] to terminate.';
 
 type
   TDragContextClipboardFormat = class(TCustomDWORDClipboardFormat)
@@ -308,14 +318,17 @@ begin
   DropEmptySource1.FlushClipboard;
 end;
 
+procedure TFormTarget.MsgFirefoxDetected(var Msg: TMessage);
+begin
+  Screen.Cursor := crDefault;
+  MessageBox(Handle, PChar(sMsgFirefoxDetect), PChar(sMsgFirefoxDetectTitle), MB_ICONWARNING or MB_OK);
+  Halt;
+end;
+
 procedure TFormTarget.OnQueryGetData(const FormatEtc: TFormatEtc;
   var Result: HRESULT; var Handled: boolean);
 var
   Name: string;
-resourcestring
-  sMsgFirefoxDetectTitle = 'Mozilla Firefox detected';
-  sMsgFirefoxWorkaround = 'Applying work around';
-  sMsgFirefoxDetect = 'Due to a bug in Firefox, dropping from this application onto Firefox causes an endless loop in Firefox.'#13#13'The application will now terminate.';
 begin
   AddClipboardFormat(FormatEtc.cfFormat, FormatEtc.tymed);
 
@@ -323,36 +336,31 @@ begin
 
   Trace(tkTargetEnd, 'IDataObject.QueryGetData', Format('%d: %s on %s', [FormatEtc.cfFormat, Name, GetMediaName(FormatEtc.tymed)]));
 
+  // Work around Firefox's endless QuerygetData loop
   if (not FMozillaFirefox) and (Name = 'Mozilla/IDataObjectCollectionFormat') then
   begin
     Trace(tkInfo, sMsgFirefoxDetectTitle, sMsgFirefoxWorkaround);
-    FMozillaFirefox := True;
+    // Note: The original Firefox appears to have been fixed, but Firefox is
+    // still a bit slow to react to the E_ABORT.
+    // FMozillaFirefox := True;
   end;
 
-  // Work around Firefox's endless QuerygetData loop
-  if (FMozillaFirefox) then
-    Result:= DV_E_FORMATETC
-  else
-    Result := S_OK;
+  Result := S_OK;
   Handled := True;
 
-
-  // Provide us with some means of getting out of Firefox's endless QuerygetData loop
-  if (FMozillaFirefox) then
-    Application.ProcessMessages;
-
-  if (GetAsyncKeyState(VK_ESCAPE) and $0001 = $0001) then
-    inc(FAbortCount);
-
-  if (FAbortCount > 0) then
+  if (FMozillaFirefox) or (FAbortCount > 0) or (GetAsyncKeyState(VK_ESCAPE) and $0001 = $0001) then
   begin
     Result := E_ABORT;
+
     // Halt if we have detected that the application ignored the previous abort
     // request and are requesting one of the Firefox formats.
-    if (FAbortCount > 1) and (FMozillaFirefox) then
+    if (FMozillaFirefox) and (FAbortCount > 100) then
     begin
-      MessageBox(Handle, PChar(sMsgFirefoxDetect), PChar(sMsgFirefoxDetectTitle), MB_ICONWARNING or MB_OK);
-      Halt;
+      PostMessage(Handle, MSG_FIREFOX_DETECTED, 0, 0);
+      // Provide us with some means of getting out of Firefox's endless QuerygetData loop
+      Self.Enabled := False;
+      while (True) do
+        Application.ProcessMessages;
     end;
     inc(FAbortCount);
   end;
