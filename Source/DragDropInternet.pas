@@ -895,7 +895,7 @@ begin
   end;
 end;
 
-function DOSStringToUnixString(dos: string): string;
+function DOSStringToUnixString(const dos: string): string;
 var
   s, d: PChar;
   l: integer;

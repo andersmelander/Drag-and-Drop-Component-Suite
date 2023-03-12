@@ -368,7 +368,7 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 constructor TGDIClipboardFormat.Create;
 begin
-  CreateFormat(TYMED_GDI);
+  inherited CreateFormat(TYMED_GDI);
 end;
 
 
@@ -518,8 +518,8 @@ end;
 constructor TDIBClipboardFormat.Create;
 begin
   // Note: We must override Create since base class Create sets tymed to
-  // TYMED_GDI. 
-  CreateFormat(TYMED_HGLOBAL);
+  // TYMED_GDI.
+  inherited CreateFormat(TYMED_HGLOBAL);
 end;
 
 function TDIBClipboardFormat.GetClipboardFormat: TClipFormat;
@@ -602,7 +602,7 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 constructor TCustomMetaFileClipboardFormat.Create;
 begin
-  CreateFormat(TYMED_MFPICT);
+  inherited CreateFormat(TYMED_MFPICT);
   FMetaFile := TMetaFile.Create;
 end;
 

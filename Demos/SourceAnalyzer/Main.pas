@@ -256,11 +256,6 @@ var
   s: string;
   Size: integer;
   Direction: Longint;
-const
- ClipNames: array[CF_TEXT..CF_MAX-1] of string =
-   ('CF_TEXT', 'CF_BITMAP', 'CF_METAFILEPICT', 'CF_SYLK', 'CF_DIF', 'CF_TIFF',
-   'CF_OEMTEXT', 'CF_DIB', 'CF_PALETTE', 'CF_PENDATA', 'CF_RIFF', 'CF_WAVE',
-   'CF_UNICODETEXT', 'CF_ENHMETAFILE', 'CF_HDROP', 'CF_LOCALE');
 begin
   StatusBar1.SimpleText := 'Data dropped';
   ListViewDataFormats.Items.BeginUpdate;
@@ -298,10 +293,7 @@ begin
       Item.Caption := IntToStr(SourceFormatEtc.cfFormat);
 
       // Format name
-      if (SourceFormatEtc.cfFormat < CF_MAX) then
-        Item.SubItems.Add(ClipNames[SourceFormatEtc.cfFormat])
-      else
-        Item.SubItems.Add(GetClipboardFormatNameStr(SourceFormatEtc.cfFormat));
+      Item.SubItems.Add(GetClipboardFormatNameStr(SourceFormatEtc.cfFormat));
 
       // Aspect names
       Item.SubItems.Add(AspectsToString(SourceFormatEtc.dwAspect));

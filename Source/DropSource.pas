@@ -31,10 +31,8 @@ uses
   Classes;
 
 {$include DragDrop.inc}
-{$ifdef VER135_PLUS}
 // shldisp.h only exists in C++Builder 5 and later.
 {$HPPEMIT '#include <shldisp.h>'}
-{$endif}
 
 type
   // These have been disabled since they break the generated C++ headers.

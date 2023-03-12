@@ -2163,9 +2163,10 @@ begin
         exit;
   end;
 
-  // Check mouse state, and punt if the mouse isn't down.
+  // Check mouse state, and punt if none of the mouse buttons are down.
 {$ifndef DEBUG_DRAGDETECT}
   if ((GetKeyState(VK_LBUTTON) AND $8000) = 0) and
+    ((GetKeyState(VK_MBUTTON) AND $8000) = 0) and
     ((GetKeyState(VK_RBUTTON) AND $8000) = 0) then
     exit;
 {$endif DEBUG_DRAGDETECT}

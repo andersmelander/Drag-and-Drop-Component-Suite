@@ -212,7 +212,8 @@ var
   i: integer;
   Stream: IStream;
   StatStg: TStatStg;
-  Size, Chunk: longInt;
+  Size: LargeInt;
+  Chunk: FixedUInt;
   Buffer: pointer;
   Progress: integer;
 begin

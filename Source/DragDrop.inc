@@ -127,10 +127,10 @@
   {$DEFINE VER_OK}
 {$ENDIF}
 
-// Unknown compiler version - assume D2009 compatible for Unicode or D2007 for Ansi
+// Unknown compiler version - assume D2010 compatible for Unicode or D2007 for Ansi
 {$IFNDEF VER_OK}
   {$ifdef UNICODE}
-    {$DEFINE VER20_PLUS}
+    {$DEFINE VER21_PLUS}
   {$else}
     {$DEFINE VER19_PLUS}
   {$endif}

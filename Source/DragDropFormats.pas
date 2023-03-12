@@ -45,7 +45,7 @@ type
     constructor Create;
     destructor Destroy; override;
     function Add(Stream: TStream): integer;
-    function AddNamed(Stream: TStream; Name: string): integer;
+    function AddNamed(Stream: TStream; const Name: string): integer;
     procedure Delete(Index: integer);
     procedure Clear;
     procedure Assign(Value: TStreamList);
@@ -81,7 +81,7 @@ type
     constructor Create;
     destructor Destroy; override;
     function Add(const Item: IUnknown): integer;
-    function AddNamed(const Item: IUnknown; Name: string): integer;
+    function AddNamed(const Item: IUnknown; const Name: string): integer;
     procedure Delete(Index: integer);
     procedure Clear;
     procedure Assign(Value: TNamedInterfaceList);
@@ -687,7 +687,7 @@ begin
   Result := AddNamed(Stream, '');
 end;
 
-function TStreamList.AddNamed(Stream: TStream; Name: string): integer;
+function TStreamList.AddNamed(Stream: TStream; const Name: string): integer;
 begin
   Changing;
   Result := FStreams.AddObject(Name, Stream);
@@ -747,7 +747,7 @@ begin
   Result := AddNamed(Item, '');
 end;
 
-function TNamedInterfaceList.AddNamed(const Item: IUnknown; Name: string): integer;
+function TNamedInterfaceList.AddNamed(const Item: IUnknown; const Name: string): integer;
 begin
   Changing;
   with FList do
@@ -1137,7 +1137,7 @@ function TCustomSimpleClipboardFormat.ReadDataInto(const ADataObject: IDataObjec
 var
   Stream: IStream;
   p: pointer;
-  Remaining: longInt;
+  Remaining: FixedUInt;
   Chunk: FixedUInt;
 begin
   Result := (Buffer <> nil) and (Size > 0);

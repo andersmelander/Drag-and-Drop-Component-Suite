@@ -48,7 +48,7 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure Add(Item: PItemIDList); overload;
-    procedure Add(Item: AnsiString); overload;
+    procedure Add(const Item: AnsiString); overload;
     procedure Assign(Source: TPIDLList);
     procedure Clear;
     property Count: integer read GetCount;
@@ -244,11 +244,6 @@ function ILIsEqual(Pidl1, Pidl2: PItemIDList): LongBool; stdcall;
 function ILCombine(Pidl1, Pidl2: PItemIDList): PItemIDList; stdcall;
 function ILGetSize(Pidl: PItemIDList): Word; stdcall;
 function ILGetNext(Pidl: PItemIDList): PItemIDList; stdcall;
-procedure ILFree(Pidl: PItemIDList); stdcall; {$ifdef VER15_PLUS} deprecated; {$endif}
-
-// Undocumented IMalloc utility functions...
-function SHAlloc(BufferSize: ULONG): Pointer; stdcall; {$ifdef VER15_PLUS} deprecated; {$endif}
-procedure SHFree(Buffer: Pointer); stdcall; {$ifdef VER15_PLUS} deprecated; {$endif}
 
 {$else}
 
@@ -771,7 +766,7 @@ begin
   end;
 end;
 
-procedure TPIDLList.Add(Item: AnsiString);
+procedure TPIDLList.Add(const Item: AnsiString);
 begin
   FList.Add(StringToPIDL(Item));
   Changing;

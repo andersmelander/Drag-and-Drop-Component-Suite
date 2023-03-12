@@ -115,6 +115,7 @@ type
     FAutoRegister: boolean;
     FEnabled: boolean;
     procedure SetNoScrollZone(const Value: TRect);
+    procedure SetOptimizedMove(const Value: boolean);
   protected
     // IDropTarget  implementation
     function DragEnter(const DataObj: IDataObject; grfKeyState: Longint;
@@ -198,7 +199,7 @@ type
     // Auto-scroll
     property AutoScroll: boolean read FAutoScroll write FAutoScroll default True;
     // Misc
-    property OptimizedMove: boolean read FOptimizedMove write FOptimizedMove default False;
+    property OptimizedMove: boolean read FOptimizedMove write SetOptimizedMove default False;
     // Async transfer...
     property AllowAsyncTransfer: boolean read FAllowAsync write FAllowAsync default False;
   end;
@@ -910,9 +911,6 @@ type
     constructor Create(ADropTarget: TCustomDropTarget;
       const ADataObject: IDataObject; AEffect: Longint);
     destructor Destroy; override;
-{$ifndef VER21_PLUS}
-    procedure Start;
-{$endif}
     property DropTarget: TCustomDropTarget read FDropTarget;
     property DataObject: IDataObject read FDataObject;
     property Effect: Longint read FEffect;
@@ -982,13 +980,6 @@ begin
     CoUninitialize;
   end;
 end;
-
-{$ifndef VER21_PLUS}
-procedure TDropTargetTransferThread.Start;
-begin
-  Resume;
-end;
-{$endif}
 
 procedure TCustomDropTarget.DoEndAsyncTransfer(Sender: TObject);
 begin
@@ -1421,6 +1412,11 @@ procedure TCustomDropTarget.SetNoScrollZone(const Value: TRect);
 begin
   FNoScrollZone := Value;
   FCustomScrollZone := True;
+end;
+
+procedure TCustomDropTarget.SetOptimizedMove(const Value: boolean);
+begin
+  FOptimizedMove := Value;
 end;
 
 procedure TCustomDropTarget.SetShowImage(Show: boolean);

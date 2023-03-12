@@ -691,8 +691,8 @@ var
   Buffer: array of byte;
   Data: TMemoryStream;
   SourceStream: IStream;
-  Size: integer;
-  Dummy: int64;
+  Size: FixedUInt;
+  Dummy: LargeUInt;
 const
   BufferSize = 64*1024; // 64Kb
   MaxMessageSize = 256*1024; // 256 Kb
@@ -774,7 +774,7 @@ var
 
   FileName: AnsiString;
   SourceStream, DestStream: IStream;
-  Dummy: int64;
+  Dummy: LargeUInt;
 
   Msg: IMessage;
 begin
@@ -812,7 +812,7 @@ begin
           // Another way to do it:
           // DestStream := TFixedStreamAdapter.Create(TFileStream.Create(FileName, fmCreate), soOwned);
 
-          SourceStream.CopyTo(DestStream, -1, Dummy, Dummy);
+          SourceStream.CopyTo(DestStream, High(LargeUInt), Dummy, Dummy);
           DestStream := nil;
 
           Execute(String(FileName));
@@ -958,7 +958,7 @@ var
   s: string;
   Size: integer;
   Stream: IStream;
-  Pos: Largeint;
+  Pos: LargeUInt;
   Msg: IMessage;
   SHFileInfo: TSHFileInfo;
 begin
