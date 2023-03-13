@@ -8,11 +8,14 @@ uses
   ComServ,
   ContextMenuHandlerMain in 'ContextMenuHandlerMain.pas' {DataModuleContextMenuHandler: TDataModule};
 
+{$R *.res}
+
 exports
   DllGetClassObject,
   DllCanUnloadNow,
   DllRegisterServer,
-  DllUnregisterServer;
+  DllUnregisterServer,
+  DllInstall;
 
 begin
 end.

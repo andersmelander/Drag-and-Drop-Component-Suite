@@ -3,6 +3,8 @@
 library ContextMenuHandlerShellExt;
 
 {$R 'About.res' 'About.rc'}
+{$R *.res}
+
 uses
   ComServ,
   ContextMenuHandlerMain in 'ContextMenuHandlerMain.pas' {DataModuleContextMenuHandler: TDataModule};
@@ -11,7 +13,8 @@ exports
   DllGetClassObject,
   DllCanUnloadNow,
   DllRegisterServer,
-  DllUnregisterServer;
+  DllUnregisterServer,
+  DllInstall;
 
 begin
 end.

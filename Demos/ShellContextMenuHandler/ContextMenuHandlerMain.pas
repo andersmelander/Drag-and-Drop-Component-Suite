@@ -6,20 +6,19 @@ unit ContextMenuHandlerMain;
 *)
 interface
 
+{$WARN SYMBOL_PLATFORM OFF}
+
 uses
-  DragDrop, DropTarget, DragDropContext,
   Forms, ShlObj, SysUtils, Classes, Menus, Windows, Graphics, ImgList,
-  Controls;
+  Controls, System.ImageList,
 
-{$include 'DragDrop.inc'}
-
-{$ifndef VER13_PLUS}
-type
-  TDataModule = TForm;
-{$endif}
+  DragDrop,
+  DropTarget,
+  DragDropContext;
 
 type
   TRegAction = (raReg, raUnreg);
+  TRegScope = (rsUser, rsSystem);
 
   (*
   ** The data module implements our shell extension and must support all the
@@ -42,6 +41,10 @@ type
     MenuAboutInfo: TMenuItem;
     N1: TMenuItem;
     N2: TMenuItem;
+    N3: TMenuItem;
+    MenuRegisterUser: TMenuItem;
+    MenuUnregisterUser: TMenuItem;
+    ImageList1: TImageList;
     procedure DropContextMenu1Popup(Sender: TObject);
     procedure MenuRegisterClick(Sender: TObject);
     procedure MenuUnregisterClick(Sender: TObject);
@@ -51,13 +54,15 @@ type
     procedure MenuAboutInfoDrawItem(Sender: TObject; ACanvas: TCanvas;
       ARect: TRect; Selected: Boolean);
     procedure DataModuleCreate(Sender: TObject);
+    procedure MenuRegisterUserClick(Sender: TObject);
+    procedure MenuUnregisterUserClick(Sender: TObject);
   private
     Status: string;
   protected
-    procedure DoRegister(Action: TRegAction);
+    procedure DoRegister(Action: TRegAction; Scope: TRegScope);
     procedure RegisterTypeLib(const Filename: string; Action: TRegAction);
-    procedure RegisterExe(const Filename: string; Action: TRegAction);
-    procedure RegisterActiveX(const Filename: string; Action: TRegAction);
+    procedure RegisterExe(const Filename: string; Action: TRegAction; Scope: TRegScope);
+    procedure RegisterActiveX(const Filename: string; Action: TRegAction; Scope: TRegScope);
     procedure OutputStr(const s: string);
   public
     // Aggregate IShellExtInit and IContextMenu to the TDropContextMenu component.
@@ -82,16 +87,20 @@ const
   CLSID_ContextMenuHandler: TGUID = '{516EC4D3-4AD9-11D5-AA6A-00E0189008B3}';
 
   // Name of the file class we wish to operate on.
+  // When we're using SystemFileAssociations these aren't used at all.
   sFileClass1 = 'dllfile'; // .DLL
   sFileClass2 = 'exefile'; // .EXE
   sFileClass3 = 'tlbfile'; // .TLB
 
-  // The extension would normally have been '.dll' (or '.exe' or '.tlb'), but
-  // since we don't want to delete the original file registration when we are
-  // uninstalled, we specify an empty string as the extension and thus disable
-  // the registration and unregistration of the file type.
-  sFileExtension1 = '';
-  sFileExtension2 = '';
+  // The file extensions we're opeating on.
+  // When using SystemFileAssociations we can safely register against these
+  // without the risk of overwriting existing registrations.
+  // If we were not using SystemFileAssociations then we would need to register
+  // against the file classes above and leave existing file associations alone.
+  // We would do this by specifying an empty file extension thus disabling the
+  // registration and unregistration of the file type.
+  sFileExtension1 = '.dll';
+  sFileExtension2 = '.exe';
   sFileExtension3 = '.tlb';
 
   // Class name of our shell extension.
@@ -99,13 +108,16 @@ const
 
 resourcestring
   // Description of our shell extension.
-  sDescription = 'Drag and Drop Component Suite Context Menu demo';
+  sDescription = 'Drag and Drop Component Suite context menu demo';
 
   // File name replacement in case multiple files has been selected.
   sManyFiles = 'multiple files';
 
 procedure TDataModuleContextMenuHandler.DataModuleCreate(Sender: TObject);
 begin
+{$ifopt D+}
+  OutputDebugString('TDataModuleContextMenuHandler.DataModuleCreate');
+{$endif}
   // We keep the bitmap in a resource in order to keep the size of the DFM file
   // down. The size of the RES file with the bitmap is 83Kb. The size of the DFM
   // file if it contained the bitmap would be ~3Mb.
@@ -113,18 +125,12 @@ begin
 end;
 
 procedure TDataModuleContextMenuHandler.DropContextMenu1Popup(Sender: TObject);
-
-  procedure ClearItem(Item: TMenuItem);
-  begin
-  {$ifdef VER13_PLUS}
-    Item.Clear;
-  {$else}
-    while (Item.Count > 0) do
-      Item[0].Free;
-  {$endif}
-  end;
-
+var
+  TargetName: string;
 begin
+{$ifopt D+}
+  OutputDebugString('TDataModuleContextMenuHandler.DropContextMenu1Popup');
+{$endif}
   (*
   ** The TDropContextMenu.OnPopup even is executed when the user has selected
   ** one or more files in the explorer and right clicks on them.
@@ -132,40 +138,67 @@ begin
   *)
 
   // Insert selected filename into menu.
-  if (DropContextMenu1.Files.Count = 1) then
+  if (DropContextMenu1.Files.Count > 0) then
   begin
-    MenuRegister.Caption := Format(MenuRegister.Caption,
-      [ExtractFileName(DropContextMenu1.Files[0])]);
-    MenuUnregister.Caption := Format(MenuUnregister.Caption,
-      [ExtractFileName(DropContextMenu1.Files[0])]);
+    MenuRegisterUser.Visible := (not AnsiSametext(ExtractFileExt(DropContextMenu1.Files[0]), '.tlb'));
+    MenuUnregisterUser.Visible := MenuRegisterUser.Visible;
+
+    if (DropContextMenu1.Files.Count > 1) then
+      TargetName := sManyFiles
+    else
+      TargetName := ExtractFileName(DropContextMenu1.Files[0]);
+
+    MenuRegister.Caption := Format(MenuRegister.Caption, [TargetName]);
+    MenuUnregister.Caption := Format(MenuUnregister.Caption, [TargetName]);
+    MenuRegisterUser.Caption := Format(MenuRegisterUser.Caption, [TargetName]);
+    MenuUnregisterUser.Caption := Format(MenuUnregisterUser.Caption, [TargetName]);
   end else
-  if (DropContextMenu1.Files.Count > 1) then
-  begin
-    MenuRegister.Caption := Format(MenuRegister.Caption, [sManyFiles]);
-    MenuUnregister.Caption := Format(MenuUnregister.Caption, [sManyFiles]);
-  end else
-    ClearItem(PopupMenu1.Items);
+    PopupMenu1.Items.Clear;
 end;
 
 procedure TDataModuleContextMenuHandler.MenuRegisterClick(Sender: TObject);
 begin
+{$ifopt D+}
+  OutputDebugString('TDataModuleContextMenuHandler.MenuRegisterClick');
+{$endif}
   (*
   ** Register menu item was clicked.
   *)
-  DoRegister(raReg);
+  DoRegister(raReg, rsSystem);
+end;
+
+procedure TDataModuleContextMenuHandler.MenuRegisterUserClick(Sender: TObject);
+begin
+{$ifopt D+}
+  OutputDebugString('TDataModuleContextMenuHandler.MenuRegisterUserClick');
+{$endif}
+  DoRegister(raReg, rsUser);
 end;
 
 procedure TDataModuleContextMenuHandler.MenuUnregisterClick(Sender: TObject);
 begin
+{$ifopt D+}
+  OutputDebugString('TDataModuleContextMenuHandler.MenuUnregisterClick');
+{$endif}
   (*
   ** Unregister menu item was clicked.
   *)
-  DoRegister(raUnreg);
+  DoRegister(raUnreg, rsSystem);
 end;
 
-procedure TDataModuleContextMenuHandler.MenuAboutInfoClick(
-  Sender: TObject);
+procedure TDataModuleContextMenuHandler.MenuUnregisterUserClick(Sender: TObject);
 begin
+{$ifopt D+}
+  OutputDebugString('TDataModuleContextMenuHandler.MenuUnregisterUserClick');
+{$endif}
+  DoRegister(raUnreg, rsUser);
+end;
+
+procedure TDataModuleContextMenuHandler.MenuAboutInfoClick(Sender: TObject);
+begin
+{$ifopt D+}
+  OutputDebugString('TDataModuleContextMenuHandler.MenuAboutInfoClick');
+{$endif}
   (*
   ** User has clicked on the About item.
   **
@@ -180,7 +213,7 @@ begin
   end;
 end;
 
-procedure TDataModuleContextMenuHandler.DoRegister(Action: TRegAction);
+procedure TDataModuleContextMenuHandler.DoRegister(Action: TRegAction; Scope: TRegScope);
 var
   i: integer;
   FileExt: string;
@@ -206,12 +239,13 @@ begin
       if (CompareText(FileExt, '.TLB') = 0) then
         // Register type library.
         RegisterTypeLib(DropContextMenu1.Files[i], Action)
-      else if (CompareText(FileExt, '.EXE') = 0) then
+      else
+      if (CompareText(FileExt, '.EXE') = 0) then
         // Register COM server.
-        RegisterExe(DropContextMenu1.Files[i], Action)
+        RegisterExe(DropContextMenu1.Files[i], Action, Scope)
       else
         // Register DLL (e.g. ActiveX).
-        RegisterActiveX(DropContextMenu1.Files[i], Action);
+        RegisterActiveX(DropContextMenu1.Files[i], Action, Scope);
 
       OutputStr(sRegSuccessful);
 
@@ -231,10 +265,9 @@ begin
 end;
 
 procedure TDataModuleContextMenuHandler.RegisterActiveX(const Filename: string;
-  Action: TRegAction);
+  Action: TRegAction; Scope: TRegScope);
 const
-  ProcName: array[TRegAction] of PAnsiChar =
-    ('DllRegisterServer', 'DllUnregisterServer');
+  ProcName: array[TRegAction] of PAnsiChar = ('DllRegisterServer', 'DllUnregisterServer');
 resourcestring
   sActiveXName = 'ActiveX file: %s';
   sLoadFail = '  Failed to load library';
@@ -243,8 +276,10 @@ resourcestring
   sErrorUnknown = '  Unknown error';
 type
   TRegProc = function : HResult; stdcall;
+  TInstallProc = function(bInstall: WordBool; pszCmdLine: LPCWSTR): HResult; stdcall;
 var
   RegProc: TRegProc;
+  InstallProc: TInstallProc;
   LibHandle: THandle;
 begin
   (*
@@ -257,27 +292,40 @@ begin
   if (LibHandle = 0) then
     raise Exception.Create(sLoadFail);
   try
-    // Get pointer to entry point.
-    @RegProc := GetProcAddress(LibHandle, ProcName[Action]);
-    if (@RegProc = nil) then
-      raise Exception.CreateFmt(sCantFindProc, [ProcName[Action]]);
-    // Execute entry point.
-    if (RegProc <> 0) then
-      raise Exception.CreateFmt(sRegFail, [ProcName[Action]]);
+    if (Scope = rsSystem) then
+    begin
+      // Get pointer to entry point.
+      @RegProc := GetProcAddress(LibHandle, ProcName[Action]);
+      if (@RegProc = nil) then
+        raise Exception.CreateFmt(sCantFindProc, [ProcName[Action]]);
+      // Execute entry point.
+      if (RegProc <> 0) then
+        raise Exception.CreateFmt(sRegFail, [ProcName[Action]]);
+    end else
+    begin
+      // Get pointer to entry point.
+      @InstallProc := GetProcAddress(LibHandle, 'DllInstall');
+      if (@InstallProc = nil) then
+        raise Exception.CreateFmt(sCantFindProc, ['DllInstall']);
+      // Execute entry point.
+      if (InstallProc(Action = raReg, 'user') <> 0) then
+        raise Exception.CreateFmt(sRegFail, ['DllInstall']);
+    end;
   finally
     FreeLibrary(LibHandle);
   end;
 end;
 
 procedure TDataModuleContextMenuHandler.RegisterExe(const Filename: string;
-  Action: TRegAction);
+  Action: TRegAction; Scope: TRegScope);
 var
   SI: TStartupInfo;
   PI: TProcessInformation;
   RegisterExitCode: BOOL;
 const
-  ExeFlags: array[TRegAction] of string =
-    (' /regserver', ' /unregserver');
+  ExeFlags: array[TRegAction, TRegScope] of string =
+    ((' /regserver', ' /unregserver'),
+     (' /regserverperuser', ' /unregserverperuser'));
 resourcestring
   sExeName = 'EXE file: %s';
   sErrorUnknown = '  Unknown error';
@@ -288,12 +336,15 @@ begin
 
   OutputStr(Format(sExeName, [ExtractFileName(FileName)]));
   // Execute EXE with command line.
-  FillChar(SI, SizeOf(SI), 0);
+  SI := Default(TStartupInfo);
   SI.cb := SizeOf(SI);
-  RegisterExitCode := Win32Check(CreateProcess(PChar(FileName),
-    PChar(FileName+ExeFlags[Action]), nil, nil, True, 0, nil, nil, SI, PI));
+
+  RegisterExitCode := CreateProcess(PChar(FileName), PChar(FileName+ExeFlags[Action, Scope]), nil, nil, True, 0, nil, nil, SI, PI);
+  Win32Check(RegisterExitCode);
+
   CloseHandle(PI.hThread);
   CloseHandle(PI.hProcess);
+
   if (not RegisterExitCode) then
     raise Exception.Create(sErrorUnknown);
 end;
@@ -326,11 +377,11 @@ begin
   // Get type library attributes.
   OleCheck(TypeLib.GetLibAttr(LibAttr));
   try
-    OutputStr(Format(sTlbGuid, [GuidToString(LibAttr^.Guid)]));
+    OutputStr(Format(sTlbGuid, [GuidToString(LibAttr.Guid)]));
     if (Action = raReg) then
     begin
       // Retrieves the path of the type library's help file.
-      OleCheck(TypeLib.GetDocumentation(-1, nil, nil, nil, @DocName));
+      OleCheck(TypeLib.GetDocumentation(-1, nil, nil, nil, PWideString(DocName)));
       DocName := ExtractFilePath(DocName);
       // Register type library.
       OleCheck(ActiveX.RegisterTypeLib(TypeLib, PWideChar(WFileName),
@@ -347,8 +398,7 @@ begin
       if (@UnRegTlbProc = nil) then
         raise Exception.Create(sCantUnregTlb);
       // Unregister type library.
-      with LibAttr^ do
-        OleCheck(UnRegTlbProc(Guid, wMajorVerNum, wMinorVerNum, LCID, SysKind));
+      OleCheck(UnRegTlbProc(LibAttr.Guid, LibAttr.wMajorVerNum, LibAttr.wMinorVerNum, LibAttr.LCID, LibAttr.SysKind));
     end;
   finally
     TypeLib.ReleaseTLibAttr(LibAttr);
@@ -425,6 +475,9 @@ begin
 end;
 
 initialization
+{$ifopt D+}
+  OutputDebugString('ContextMenuHandlerMain.initialization');
+{$endif}
   (*
   ** The object factory is responsible for creating the shell extension instance
   ** (when called by the shell) and for registering and unregistering the
@@ -436,13 +489,10 @@ initialization
   ** by updating the relevant registry entries manually.
   *)
   TDropContextMenuFactory.Create(ComServer, TDataModuleContextMenuHandler,
-    CLSID_ContextMenuHandler, sClassName, sDescription, sFileClass1,
-    sFileExtension1, ciMultiInstance);
+    CLSID_ContextMenuHandler, sClassName, sDescription, sFileClass1, sFileExtension1, ciMultiInstance);
   TDropContextMenuFactory.Create(ComServer, TDataModuleContextMenuHandler,
-    CLSID_ContextMenuHandler, sClassName, sDescription, sFileClass2,
-    sFileExtension2, ciMultiInstance);
+    CLSID_ContextMenuHandler, sClassName, sDescription, sFileClass2, sFileExtension2, ciMultiInstance);
   TDropContextMenuFactory.Create(ComServer, TDataModuleContextMenuHandler,
-    CLSID_ContextMenuHandler, sClassName, sDescription, sFileClass3,
-    sFileExtension3, ciMultiInstance);
+    CLSID_ContextMenuHandler, sClassName, sDescription, sFileClass3, sFileExtension3, ciMultiInstance);
 end.
 

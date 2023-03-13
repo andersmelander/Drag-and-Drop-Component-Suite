@@ -5,7 +5,7 @@ interface
 uses
   DragDrop, DropTarget, DragDropContext,
   Forms, ShlObj, SysUtils, Classes, Menus, Graphics, Windows, ImgList,
-  Controls;
+  Controls, System.ImageList;
 
 {$include 'DragDrop.inc'}
 
@@ -92,6 +92,9 @@ const
   **   Printers                   All printers
   *)
 
+  // Note: The following comment mostly only applies to the classic
+  // registration. Since we're using SystemFileAssociations now it no longer
+  // applies universally.
   // Normally we would have specified the file extension of the file class our
   // shell extension should apply to, but since this demo applies to a
   // Predefined Shell Object and we don't want to delete the original file
@@ -105,7 +108,7 @@ const
 
 resourcestring
   // Description of our shell extension.
-  sDescription = 'Drag and Drop Component Suite Simple Context Menu demo';
+  sDescription = 'Drag and Drop Component Suite simple context menu demo';
 
 procedure TDataModuleContextMenuHandler.MenuTest1Click(Sender: TObject);
 begin
