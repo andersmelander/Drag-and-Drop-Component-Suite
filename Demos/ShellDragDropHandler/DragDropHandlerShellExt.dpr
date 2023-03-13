@@ -8,11 +8,14 @@ uses
   ComServ,
   DragDropHandlerMain in 'DragDropHandlerMain.pas' {DataModuleDragDropHandler: TDataModule};
 
+{$R *.res}
+
 exports
   DllGetClassObject,
   DllCanUnloadNow,
   DllRegisterServer,
-  DllUnregisterServer;
+  DllUnregisterServer,
+  DllInstall;
 
 begin
 end.

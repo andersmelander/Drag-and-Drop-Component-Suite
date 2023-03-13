@@ -8,11 +8,6 @@ uses
 
 {$include 'DragDrop.inc'}
 
-{$ifndef VER13_PLUS}
-type
-  TDataModule = TForm;
-{$endif}
-
 type
   (*
   ** The data module implements our shell extension and must support all the
@@ -71,7 +66,7 @@ resourcestring
   // Class name of our shell extension.
   sClassName = 'SimpleEncrypter';
   // Description of our shell extension.
-  sDescription = 'Drag and Drop Component Suite Drag Drop Handler demo';
+  sDescription = 'Drag and Drop Component Suite drag drop handler demo';
 
   // File name replacement in case multiple files has been selected.
   sManyFiles = 'multiple files';
@@ -122,17 +117,6 @@ begin
 end;
 
 procedure TDataModuleDragDropHandler.DragDropHandler1Popup(Sender: TObject);
-
-  procedure ClearItem(Item: TMenuItem);
-  begin
-  {$ifdef VER13_PLUS}
-    Item.Clear;
-  {$else}
-    while (Item.Count > 0) do
-      Item[0].Free;
-  {$endif}
-  end;
-
 begin
   // TDragDropHandler component now contains the files being dragged.
 
@@ -143,14 +127,14 @@ begin
   if (DragDropHandler1.Files.Count > 1) then
     MenuEncrypt.Caption := Format(MenuEncrypt.Caption, [sManyFiles])
   else
-    ClearItem(PopupMenu1.Items);
+    PopupMenu1.Items.Clear;
 end;
 
 initialization
   (*
   ** The object factory is responsible for creating the shell extension instance
   ** (when called by the shell) and for registering and unregistering the
-  ** extension (when installing and uninstalling).  
+  ** extension (when installing and uninstalling).
   *)
   TDragDropHandlerFactory.Create(ComServer, TDataModuleDragDropHandler,
     CLSID_DragDropHandler, sClassName, sDescription, sFileClass,

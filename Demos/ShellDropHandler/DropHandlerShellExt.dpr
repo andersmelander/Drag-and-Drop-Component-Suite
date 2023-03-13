@@ -8,11 +8,14 @@ uses
   ComServ,
   DropHandlerMain in 'DropHandlerMain.pas' {DataModuleDropHandler: TDataModule};
 
+{$R *.res}
+
 exports
   DllGetClassObject,
   DllCanUnloadNow,
   DllRegisterServer,
-  DllUnregisterServer;
+  DllUnregisterServer,
+  DllInstall;
 
 begin
 end.

@@ -6,13 +6,6 @@ uses
   DragDrop, DropTarget, DragDropFile, DropHandler,
   Forms, ActiveX, Classes, Windows;
 
-{$include 'DragDrop.inc'}
-
-{$ifndef VER13_PLUS}
-type
-  TDataModule = TForm;
-{$endif}
-
 type
   TDataModuleDropHandler = class(TDataModule, IUnknown, IDropTarget, IPersistFile)
     DropHandler1: TDropHandler;
@@ -47,29 +40,9 @@ resourcestring
   sFileExtension = '.foobar';
 
   // Class name of our shell extension.
-  sClassName = 'FoobarFileEditor';
+  sClassName = '';//'FoobarFileEditor';
   // Description of our shell extension.
-  sDescription = 'Drag and Drop Component Suite demo drop handler';
-
-{$ifndef VER13_PLUS}
-function GetRegStringValue(const Key, ValueName: string): string;
-var
-  Size: DWord;
-  RegKey: HKEY;
-begin
-  Result := '';
-  if RegOpenKey(HKEY_CLASSES_ROOT, PChar(Key), RegKey) = ERROR_SUCCESS then
-  try
-    Size := 256;
-    SetLength(Result, Size);
-    if RegQueryValueEx(RegKey, PChar(ValueName), nil, nil, PByte(PChar(Result)), @Size) = ERROR_SUCCESS then
-      SetLength(Result, Size - 1) else
-      Result := '';
-  finally
-    RegCloseKey(RegKey);
-  end;
-end;
-{$endif}
+  sDescription = 'Drag and Drop Component Suite drop handler demo';
 
 (*
 ** TDropHandler.OnDrop is called when the user drops one or more files on the

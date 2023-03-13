@@ -2,8 +2,6 @@ unit FoobarMain;
 
 interface
 
-{$include dragdrop.inc} // Disables .NET warnings
-
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   Menus, StdCtrls, ExtCtrls;
@@ -59,6 +57,10 @@ implementation
 uses
   ComObj;
 
+const
+  RegistryRoot: HKEY = HKEY_CURRENT_USER;
+  RegistryPrefix: string = 'SOFTWARE\Classes\';
+
 resourcestring
   sFileClass = 'FoobarFile';
   sFileType = 'Foobar File List';
@@ -70,29 +72,7 @@ resourcestring
   sUnregisterNotice = 'Remember to also unregister the drop handler DLL';
   sRegisterNotice = 'Remember to also register the drop handler DLL';
 
-{$ifndef VER13_PLUS}
-function GetRegStringValue(const Key, ValueName: string): string;
-var
-  Size: DWord;
-  RegKey: HKEY;
-begin
-  Result := '';
-  if RegOpenKey(HKEY_CLASSES_ROOT, PChar(Key), RegKey) = ERROR_SUCCESS then
-  try
-    Size := 256;
-    SetLength(Result, Size);
-    if RegQueryValueEx(RegKey, PChar(ValueName), nil, nil, PByte(PChar(Result)), @Size) = ERROR_SUCCESS then
-      SetLength(Result, Size - 1) else
-      Result := '';
-  finally
-    RegCloseKey(RegKey);
-  end;
-end;
-{$endif}
-
 procedure TFormFileList.FormCreate(Sender: TObject);
-var
-  i: integer;
 
   procedure LoadFileList(const List: string);
   var
@@ -100,18 +80,21 @@ var
   begin
     Files := TStringList.Create;
     try
-      Files.LoadFromFile(List);
+      Files.LoadFromFile(List, TEncoding.Unicode);
       MemoFileList.Lines.AddStrings(Files);
     finally
       Files.Free;
     end;
   end;
 
+var
+  i: integer;
+  ParamFileName: string;
 begin
   FileName := '';
 
   // Display command line (for debug purposes).
-  Memo1.Lines.Text := CmdLine;
+  Memo1.Lines.Text := GetCommandLine;
 
   if (ParamCount > 0) then
   begin
@@ -122,15 +105,18 @@ begin
     // If a filename starts with @ it indicates that the file contains a list of
     // file names which should be added to the list.
     for i := 2 to ParamCount do
-      if (Copy(ParamStr(i), 1, 1) = '@') then
-        LoadFileList(Copy(ParamStr(i), 2, MaxInt))
+    begin
+      ParamFileName := ParamStr(i);
+      if (Copy(ParamFileName, 1, 1) = '@') then
+        LoadFileList(Copy(ParamFileName, 2, MaxInt))
       else
-        MemoFileList.Lines.Add(ParamStr(i));
+        MemoFileList.Lines.Add(ParamFileName);
+    end;
   end;
 
   // Determine if the file association has already been registered and modify
   // the register menu items accordingly.
-  MenuSetupRegister.Enabled := (GetRegStringValue(sFileClass+'\DefaultIcon', '') = '');
+  MenuSetupRegister.Enabled := (GetRegStringValue(RegistryPrefix+sFileClass+'\DefaultIcon', '', RegistryRoot) = '');
   MenuSetupUnregister.Enabled := not MenuSetupRegister.Enabled;
 end;
 
@@ -143,30 +129,30 @@ end;
 procedure TFormFileList.MenuSetupRegisterClick(Sender: TObject);
 begin
   // Register file association.
-  CreateRegKey(sFileExtension, '', sFileClass);
-  CreateRegKey(sFileExtension+'\ShellNew', 'NullFile', '');
-  CreateRegKey(sFileClass, '', sFileType);
-  CreateRegKey(sFileClass+'\shell\open\command', '', Application.ExeName+' "%1"');
-  CreateRegKey(sFileClass+'\DefaultIcon', '', Application.ExeName+',0');
+  CreateRegKey(RegistryPrefix+sFileExtension, '', sFileClass, RegistryRoot);
+  CreateRegKey(RegistryPrefix+sFileExtension+'\ShellNew', 'NullFile', '', RegistryRoot);
+  CreateRegKey(RegistryPrefix+sFileClass, '', sFileType, RegistryRoot);
+  CreateRegKey(RegistryPrefix+sFileClass+'\shell\open\command', '', Application.ExeName+' "%1"', RegistryRoot);
+  CreateRegKey(RegistryPrefix+sFileClass+'\DefaultIcon', '', Application.ExeName+',0', RegistryRoot);
   MenuSetupRegister.Enabled := False;
   MenuSetupUnregister.Enabled := True;
-  if (GetRegStringValue(sFileClass+'\shellex\DropHandler', '') = '') then
+  if (GetRegStringValue(RegistryPrefix+sFileClass+'\shellex\DropHandler', '', RegistryRoot) = '') then
     ShowMessage(sRegisterNotice);
 end;
 
 procedure TFormFileList.MenuSetupUnregisterClick(Sender: TObject);
 begin
   // Unregister file association.
-  DeleteRegKey(sFileClass+'\DefaultIcon');
-  DeleteRegKey(sFileClass+'\shell\open\command');
-  DeleteRegKey(sFileClass+'\shell\open');
-  DeleteRegKey(sFileClass+'\shell');
-  DeleteRegKey(sFileClass);
-  DeleteRegKey(sFileExtension+'\ShellNew');
-  DeleteRegKey(sFileExtension);
+  DeleteRegKey(RegistryPrefix+sFileClass+'\DefaultIcon', RegistryRoot);
+  DeleteRegKey(RegistryPrefix+sFileClass+'\shell\open\command', RegistryRoot);
+  DeleteRegKey(RegistryPrefix+sFileClass+'\shell\open', RegistryRoot);
+  DeleteRegKey(RegistryPrefix+sFileClass+'\shell', RegistryRoot);
+  DeleteRegKey(RegistryPrefix+sFileClass, RegistryRoot);
+  DeleteRegKey(RegistryPrefix+sFileExtension+'\ShellNew', RegistryRoot);
+  DeleteRegKey(RegistryPrefix+sFileExtension, RegistryRoot);
   MenuSetupRegister.Enabled := True;
   MenuSetupUnregister.Enabled := False;
-  if (GetRegStringValue(sFileClass+'\shellex\DropHandler', '') <> '') then
+  if (GetRegStringValue(RegistryPrefix+sFileClass+'\shellex\DropHandler', '', RegistryRoot) <> '') then
     ShowMessage(sUnregisterNotice);
 end;
 
