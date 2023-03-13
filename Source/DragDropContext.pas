@@ -379,7 +379,7 @@ begin
     for i := 0 to FContextMenu.Items.Count-1 do
       if (FContextMenu.Items[i].Visible) then
       begin
-        FillChar(MenuItemInfo, SizeOf(MenuItemInfo), 0);
+        MenuItemInfo := Default(TMenuItemInfo);
         MenuItemInfo.cbSize := SizeOf(MenuItemInfo);
         MenuItemInfo.fMask := MIIM_FTYPE;
 
@@ -465,6 +465,9 @@ begin
           begin
             if (SupportsOwnerDraw) then
             begin
+{$ifopt D+}
+  OutputDebugString('MFT_OWNERDRAW');
+{$endif}
               // Method #3: MFT_OWNERDRAW
               MenuItemInfo.fType := MFT_OWNERDRAW;
               (* Method #1
@@ -472,20 +475,49 @@ begin
               MenuItemInfo.hbmpItem := FContextMenu.Items[i].Bitmap.Handle;
               *)
             end else
+            if (False) then
             begin
+{$ifopt D+}
+  OutputDebugString('MFT_RADIOCHECK');
+{$endif}
               // Method #2: MFT_RADIOCHECK
 
               // If the menu item is using an imagelist we extract the relevant
               // bitmap from the image list so we can use it as a checkmark.
               if (FContextMenu.Items[i].Bitmap.Empty) then
-                FContextMenu.Images.GetBitmap(FContextMenu.Items[i].ImageIndex,
-                  FContextMenu.Items[i].Bitmap);
+              begin
+                FContextMenu.Items[i].Bitmap.PixelFormat := pf32bit;
+                FContextMenu.Items[i].Bitmap.AlphaFormat := afDefined;
+                FContextMenu.Images.GetBitmap(FContextMenu.Items[i].ImageIndex, FContextMenu.Items[i].Bitmap);
+//                FContextMenu.Items[i].Bitmap.AlphaFormat := afPremultiplied;
+              end;
 
               MenuItemInfo.fType := MFT_RADIOCHECK;
               MenuItemInfo.fMask := MenuItemInfo.fMask or MIIM_CHECKMARKS;
               // TODO : Who owns these bitmap handles?
               MenuItemInfo.hbmpChecked := FContextMenu.Items[i].Bitmap.Handle;
               MenuItemInfo.hbmpUnchecked := MenuItemInfo.hbmpChecked;
+            end;
+            begin
+{$ifopt D+}
+  OutputDebugString('MFT_STRING');
+{$endif}
+              // Method #1: MFT_STRING
+
+              // If the menu item is using an imagelist we extract the relevant
+              // bitmap from the image list so we can use it as a checkmark.
+              if (FContextMenu.Items[i].Bitmap.Empty) then
+              begin
+                // TODO : This doesn't work. The bitmap isn't transparent.
+                FContextMenu.Items[i].Bitmap.PixelFormat := pf32bit;
+                FContextMenu.Items[i].Bitmap.AlphaFormat := afDefined;
+                FContextMenu.Images.GetBitmap(FContextMenu.Items[i].ImageIndex, FContextMenu.Items[i].Bitmap);
+                FContextMenu.Items[i].Bitmap.AlphaFormat := afPremultiplied;
+              end;
+
+              MenuItemInfo.fMask := MenuItemInfo.fMask or MIIM_BITMAP;
+              // TODO : Who owns these bitmap handles?
+              MenuItemInfo.hbmpItem := FContextMenu.Items[i].Bitmap.Handle;
             end;
           end;
 
@@ -841,7 +873,7 @@ end;
 
 function TDropContextMenu.GetSupportsOwnerDraw: boolean;
 begin
-  Result := True;
+  Result := False;
 end;
 
 type
@@ -912,7 +944,6 @@ begin
         begin
           Canvas.Brush.Color := clHighlight;
           Canvas.Font.Color := clHighlightText;
-          Exclude(State, odSelected);
         end else
         if Win98Plus and (odInactive in State) then
         begin

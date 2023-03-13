@@ -95,7 +95,9 @@ type
     constructor Create(ComServer: TComServerObject; ComponentClass: TComponentClass;
       const ClassID: TGUID; const ClassName, Description, AFileClass,
       AFileExtension: string; Instancing: TClassInstancing);
+
     procedure UpdateRegistry(ARegister: Boolean); override;
+
     property FileClass: string read FFileClass write FFileClass;
     property FileExtension: string read FFileExtension write FFileExtension;
   end;
