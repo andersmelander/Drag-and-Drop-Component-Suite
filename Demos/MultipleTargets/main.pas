@@ -43,6 +43,9 @@ implementation
 
 {$R *.DFM}
 
+uses
+  System.Types;
+
 procedure TForm1.MemoSourceMouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin

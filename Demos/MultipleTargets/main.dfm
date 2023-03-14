@@ -1,6 +1,7 @@
 object Form1: TForm1
   Left = 639
   Top = 369
+  BorderStyle = bsDialog
   Caption = 'Multi Target demo'
   ClientHeight = 305
   ClientWidth = 492
