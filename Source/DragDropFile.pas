@@ -2181,7 +2181,7 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 constructor TFileContentsStreamClipboardFormat.Create;
 begin
-  inherited CreateFormat(TYMED_ISTREAM or TYMED_ISTORAGE);
+  CreateFormat(TYMED_ISTREAM or TYMED_ISTORAGE);
   FStreams := TStreamList.Create;
 end;
 
@@ -2356,7 +2356,7 @@ begin
   // We also support TYMED_ISTORAGE for drop targets, but since we only support
   // TYMED_ISTREAM for both source and targets, we can't specify TYMED_ISTORAGE
   // here. See GetStream method.
-  inherited CreateFormat(TYMED_ISTREAM or TYMED_HGLOBAL);
+  CreateFormat(TYMED_ISTREAM or TYMED_HGLOBAL);
 end;
 
 destructor TFileContentsStreamOnDemandClipboardFormat.Destroy;
@@ -2521,7 +2521,7 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 constructor TFileContentsStorageClipboardFormat.Create;
 begin
-  inherited CreateFormat(TYMED_ISTORAGE);
+  CreateFormat(TYMED_ISTORAGE);
   FStorages := TStorageInterfaceList.Create;
 end;
 

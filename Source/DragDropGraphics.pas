@@ -368,7 +368,7 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 constructor TGDIClipboardFormat.Create;
 begin
-  inherited CreateFormat(TYMED_GDI);
+  CreateFormat(TYMED_GDI);
 end;
 
 
@@ -434,8 +434,7 @@ end;
 
 destructor TCustomBitmapClipboardFormat.Destroy;
 begin
-  if (FBitmap <> nil) then
-    FBitmap.Free;
+  FBitmap.Free;
 
   inherited Destroy;
 end;
@@ -519,7 +518,7 @@ constructor TDIBClipboardFormat.Create;
 begin
   // Note: We must override Create since base class Create sets tymed to
   // TYMED_GDI.
-  inherited CreateFormat(TYMED_HGLOBAL);
+  CreateFormat(TYMED_HGLOBAL);
 end;
 
 function TDIBClipboardFormat.GetClipboardFormat: TClipFormat;
