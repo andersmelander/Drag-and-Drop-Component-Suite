@@ -5,7 +5,7 @@ interface
 uses
   Windows, Classes, Controls, Forms, ExtCtrls, StdCtrls,
   DragDrop, DropSource, DragDropFile, DropTarget, Graphics, ImgList, Menus,
-  ActnList;
+  ActnList, System.Actions, System.ImageList;
 
 type
   (*
@@ -73,6 +73,7 @@ implementation
 
 uses
   DragDropFormats,
+  Types,
   ShlObj,
   ComObj,
   ActiveX,
@@ -87,13 +88,22 @@ end;
 
 procedure TFormMain.OnMouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
+var
+  Bytes: TBytes;
+  Utf8string: AnsiString;
 begin
   // Ignore right mouse button so popup menu can be invoked
   if (Button = mbLeft) and DragDetectPlus(Handle, Point(X,Y)) then
   begin
     // Transfer the file name and contents to the data format...
     FSourceDataFormat.FileName := EditFileName.Text;
-    FSourceDataFormat.Contents := MemoContents.Lines.Text;
+
+    // Convert content to UTF8
+    Bytes := TEncoding.UTF8.GetBytes(MemoContents.Lines.Text);
+    SetLength(Utf8string, Length(Bytes));
+    if (Length(Bytes) > 0) then
+      Move(Bytes[0], Utf8string[1], Length(Bytes));
+    FSourceDataFormat.Contents := Utf8string;
 
     // ...and let it rip!
     DropEmptySource1.Execute;
@@ -101,10 +111,19 @@ begin
 end;
 
 procedure TFormMain.ActionCopyExecute(Sender: TObject);
+var
+  Bytes: TBytes;
+  Utf8string: AnsiString;
 begin
   // Transfer the file name and contents to the data format...
   FSourceDataFormat.FileName := EditFileName.Text;
-  FSourceDataFormat.Contents := MemoContents.Lines.Text;
+
+  // Convert content to UTF8
+  Bytes := TEncoding.UTF8.GetBytes(MemoContents.Lines.Text);
+  SetLength(Utf8string, Length(Bytes));
+  if (Length(Bytes) > 0) then
+    Move(Bytes[0], Utf8string[1], Length(Bytes));
+  FSourceDataFormat.Contents := Utf8string;
 
   // ...and copy to clipboard.
   DropEmptySource1.CopyToClipboard;
@@ -159,11 +178,13 @@ begin
   // Transfer the file name and contents from the data format.
   EditFileName.Text := FTargetDataFormat.FileName;
 
-  // Limit the amount of data to 32Kb. If someone drops a huge amount on data on
+  // Limit the amount of data to 32Kb. If someone drops a huge amount of data on
   // us (e.g. the AsyncTransferSource demo which transfers 10Mb of data) we need
   // to limit how much data we try to stuff into the poor memo field. Otherwise
   // we could wait for hours before transfer was finished.
-  MemoContents.Lines.Text := Copy(FTargetDataFormat.Contents, 1, 1024*32);
+  // Note: There's no Ansi/Utf8/unicode conversion here. That's up to you to
+  // implement if you need it.
+  MemoContents.Lines.Text := Copy(string(FTargetDataFormat.Contents), 1, 1024*32);
 end;
 
 
@@ -200,7 +221,7 @@ begin
   if (Source is TAnsiFileGroupDescriptorClipboardFormat) then
   begin
     if (TAnsiFileGroupDescriptorClipboardFormat(Source).Count > 0) then
-      FFileName := TAnsiFileGroupDescriptorClipboardFormat(Source).Filenames[0];
+      FFileName := string(TAnsiFileGroupDescriptorClipboardFormat(Source).Filenames[0]);
   end else
   (*
   ** TUnicodeFileGroupDescriptorClipboardFormat
@@ -233,7 +254,7 @@ begin
   if (Dest is TAnsiFileGroupDescriptorClipboardFormat) then
   begin
     TAnsiFileGroupDescriptorClipboardFormat(Dest).Count := 1;
-    TAnsiFileGroupDescriptorClipboardFormat(Dest).Filenames[0] := FFileName;
+    TAnsiFileGroupDescriptorClipboardFormat(Dest).Filenames[0] := AnsiString(FFileName);
   end else
   (*
   ** TUnicodeFileGroupDescriptorClipboardFormat
