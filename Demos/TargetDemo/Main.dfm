@@ -3,6 +3,7 @@ object Form1: TForm1
   Top = 171
   Width = 402
   Height = 288
+  BorderIcons = [biSystemMenu]
   Caption = 'Simple Target Demo'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
