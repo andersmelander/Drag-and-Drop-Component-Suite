@@ -3,13 +3,13 @@ unit Source;
 interface
 
 uses
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  ExtCtrls, StdCtrls,
   DragDrop,
   DropSource,
   DragDropFormats,
   DragDropText,
-  DragDropTimeOfDay,
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  ExtCtrls, StdCtrls;
+  DragDropTimeOfDay;
 
 type
   TFormSource = class(TForm)
@@ -37,6 +37,9 @@ var
 implementation
 
 {$R *.DFM}
+
+uses
+  Types;
 
 procedure TFormSource.FormCreate(Sender: TObject);
 begin

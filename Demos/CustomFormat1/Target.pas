@@ -3,12 +3,12 @@ unit Target;
 interface
 
 uses
+  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  ExtCtrls, StdCtrls,
   DragDrop,
   DropTarget,
   DragDropFormats,
-  DragDropText,
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  ExtCtrls, StdCtrls;
+  DragDropText;
 
 type
   TFormTarget = class(TForm)

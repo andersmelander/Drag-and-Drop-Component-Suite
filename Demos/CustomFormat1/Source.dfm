@@ -84,8 +84,7 @@ object FormSource: TFormSource
         
           'drop on the target window. You can also do this between multiple' +
           ' instances of '
-        'this '
-        'application.')
+        'this application.')
       ParentColor = True
       ReadOnly = True
       TabOrder = 0
