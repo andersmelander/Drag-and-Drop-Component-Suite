@@ -578,7 +578,7 @@ begin
 
   if (Dest is TFileGroupDescritorClipboardFormat) then
   begin
-    FillChar(FGD, SizeOf(FGD), 0);
+    FGD := Default(TFileGroupDescriptorA);
     FGD.cItems := 1;
     StrPLCopy(FGD.fgd[0].cFileName, sTextScrap, SizeOf(FGD.fgd[0].cFileName));
     TFileGroupDescritorClipboardFormat(Dest).CopyFrom(@FGD);
@@ -586,7 +586,7 @@ begin
 
   if (Dest is TFileGroupDescritorWClipboardFormat) then
   begin
-    FillChar(FGDW, SizeOf(FGDW), 0);
+    FGDW := Default(TFileGroupDescriptorW);
     FGDW.cItems := 1;
     StringToWideChar(sTextScrap, PWideChar(@(FGDW.fgd[0].cFileName)), MAX_PATH);
     TFileGroupDescritorWClipboardFormat(Dest).CopyFrom(@FGDW);

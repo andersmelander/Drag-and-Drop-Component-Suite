@@ -20,7 +20,7 @@ uses
   DragDrop,
   DropTarget,
   DragDropFile,
-  DragDropComObj,
+  DragDropComObj;
 
 {$include DragDrop.inc}
 
@@ -105,7 +105,7 @@ type
 implementation
 
 uses
-  WinApi.ComObj;
+  Win.ComObj;
 
 ////////////////////////////////////////////////////////////////////////////////
 //

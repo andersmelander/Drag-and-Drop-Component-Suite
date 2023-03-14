@@ -1678,7 +1678,7 @@ begin
         if (sbVertical in FScrollBars) then
         begin
           // Get scroll info to check if we *need* to scroll vertically.
-          FillChar(si, SizeOf(si), 0);
+          si := Default(TScrollInfo);
           si.cbSize := SizeOf(si);
           si.fMask  := SIF_PAGE or SIF_POS or SIF_RANGE;
           GetScrollInfo(FTarget.Handle, SB_VERT, si);
@@ -1698,7 +1698,7 @@ begin
         if (sbHorizontal in FScrollBars) then
         begin
           // Get scroll info to check if we *need* to scroll horizontally.
-          FillChar(si, SizeOf(si), 0);
+          si := Default(TScrollInfo);
           si.cbSize := SizeOf(si);
           si.fMask  := SIF_POS or SIF_RANGE;
           GetScrollInfo(FTarget.Handle, SB_HORZ, si);

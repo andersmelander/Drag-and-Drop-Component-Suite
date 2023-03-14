@@ -2275,7 +2275,7 @@ begin
 
     while (AFormatEtc.lindex < Count) do
     begin
-      FillChar(Medium, SizeOf(Medium), 0);
+      Medium := Default(TStgMedium);
       if (Failed(DataObject.GetData(AFormatEtc, Medium))) then
         break;
       try
@@ -2739,7 +2739,7 @@ begin
   begin
     GetMem(FD, SizeOf(TFileDescriptorW));
     try
-      FillChar(FD^, SizeOf(TFileDescriptorW), 0);
+      FD^ := Default(TFileDescriptorW);
       StringToWideChar(S, FD.cFileName, SizeOf(FD.cFileName));
       FFileDescriptors.Add(FD);
       FObjects.Add(nil);

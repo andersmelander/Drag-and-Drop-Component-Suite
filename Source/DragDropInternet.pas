@@ -1174,7 +1174,7 @@ begin
   *)
   if (Dest is TAnsiFileGroupDescriptorClipboardFormat) then
   begin
-    FillChar(FGDA, SizeOf(FGDA), 0);
+    FGDA := Default(TFileGroupDescriptorA);
     FGDA.cItems := 1;
     if (Title <> '') then
       Filename := AnsiString(Title)
@@ -1191,7 +1191,7 @@ begin
   *)
   if (Dest is TUnicodeFileGroupDescriptorClipboardFormat) then
   begin
-    FillChar(FGDW, SizeOf(FGDW), 0);
+    FGDW := Default(TFileGroupDescriptorW);
     FGDW.cItems := 1;
     if (Title <> '') then
       Filename := AnsiString(Title)

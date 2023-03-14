@@ -162,7 +162,7 @@ uses
   Vcl.Controls, // TControlCanvas
   Vcl.Forms, // Screen
   DragDropFile,
-  DragDropPIDL,
+  DragDropPIDL;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -274,7 +274,7 @@ begin
       except
         on E: Exception do
         begin
-          Windows.MessageBox(0, PChar(E.Message), 'Error',
+          WinApi.Windows.MessageBox(0, PChar(E.Message), 'Error',
             MB_OK or MB_ICONEXCLAMATION or MB_SYSTEMMODAL);
           Result := E_UNEXPECTED;
         end;
@@ -297,11 +297,11 @@ function TDropContextMenu.QueryContextMenu(Menu: HMENU; indexMenu, idCmdFirst,
     if (MenuItem.Parent.Parent <> nil) then
     begin
       // Store the command ID and a reference to the TMenuItem
-      FillChar(MenuItemInfo, SizeOf(MenuItemInfo), 0);
+      MenuItemInfo := Default(TMenuItemInfo);
       MenuItemInfo.cbSize := SizeOf(MenuItemInfo);
       MenuItemInfo.fMask := MIIM_ID or MIIM_DATA;
       MenuItemInfo.wID := MenuID;
-      MenuItemInfo.dwItemData := integer(MenuItem);
+      MenuItemInfo.dwItemData := ULONG_PTR(MenuItem);
 
       Win32Check(SetMenuItemInfo(MenuItem.Parent.Handle, MenuIndex, True, MenuItemInfo));
 
@@ -397,7 +397,7 @@ begin
 
         // Store a reference to the TMenuItem
         MenuItemInfo.fMask := MenuItemInfo.fMask or MIIM_DATA;
-        MenuItemInfo.dwItemData := integer(FContextMenu.Items[i]);
+        MenuItemInfo.dwItemData := ULONG_PTR(FContextMenu.Items[i]);
 
         if (IsLine(FContextMenu.Items[i])) then
         begin
@@ -714,7 +714,7 @@ function TDropContextMenu.ProcessMenuChar(Menu: HMenu; Shortcut: Char): integer;
       if (not Menu[i].Visible) then
         Continue;
 
-      FillChar(MenuItemInfo, SizeOf(MenuItemInfo), 0);
+      MenuItemInfo := Default(TMenuItemInfo);
       MenuItemInfo.cbSize := SizeOf(MenuItemInfo);
       MenuItemInfo.fMask := MIIM_ID or MIIM_STATE;
       Win32Check(GetMenuItemInfo(MenuHandle, ItemIndex, True, MenuItemInfo));
@@ -783,7 +783,7 @@ begin
   while (Count > 0) do
   begin
     // Look for an item with a command ID in our range
-    FillChar(MenuItemInfo, SizeOf(MenuItemInfo), 0);
+    MenuItemInfo := Default(TMenuItemInfo);
     MenuItemInfo.cbSize := SizeOf(MenuItemInfo);
     MenuItemInfo.fMask := MIIM_ID or MIIM_DATA;
     Win32Check(GetMenuItemInfo(Menu, i, True, MenuItemInfo));

@@ -1009,7 +1009,7 @@ var
   AFormatEtc: TFormatEtc;
 begin
   Clear;
-  FillChar(Medium, SizeOf(Medium), 0);
+  Medium := Default(TStgMedium);
   AFormatEtc := FFormatEtc;
   // Make sure we only ask for data on a media supported by the data object.
   // Apparently some data objects (e.g. Bluesoleil Shell Integration) fail if
@@ -1045,7 +1045,7 @@ function TClipboardFormat.SetDataToMedium(const FormatEtcIn: TFormatEtc;
 begin
   Result := False;
 
-  FillChar(AMedium, SizeOf(AMedium), 0);
+  AMedium := Default(TStgMedium);
 
   if (FormatEtcIn.cfFormat <> FFormatEtc.cfFormat) or
     (FormatEtcIn.dwAspect <> FFormatEtc.dwAspect) or
@@ -1944,7 +1944,7 @@ end;
 procedure TRawClipboardFormat.ClearData;
 begin
   ReleaseStgMedium(FMedium);
-  FillChar(FMedium, SizeOf(FMedium), 0);
+  FMedium := Default(TStgMedium);
 end;
 
 function TRawClipboardFormat.HasData: boolean;

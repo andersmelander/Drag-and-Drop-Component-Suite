@@ -298,7 +298,7 @@ begin
       Inc(InfoSize, sizeof(TRGBQuad) * (1 shl BitmapInfo^.bmiHeader.biBitCount));
     Stream.SetSize(FileSize);
     // Initialize file header
-    FillChar(BitmapFileHeader, sizeof(TBitmapFileHeader), 0);
+    BitmapFileHeader := Default(TBitmapFileHeader);
     with BitmapFileHeader do
     begin
       bfType := $4D42; // 'BM' = Windows BMP signature
@@ -561,7 +561,7 @@ begin
 
       Stream.SetSize(FileSize);
       // Initialize file header
-      FillChar(BitmapFileHeader, sizeof(TBitmapFileHeader), 0);
+      BitmapFileHeader := Default(TBitmapFileHeader);
       with BitmapFileHeader do
       begin
         bfType := $4D42; // 'BM' = Windows BMP signature

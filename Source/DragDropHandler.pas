@@ -112,7 +112,7 @@ implementation
 
 uses
   Win.Registry,
-  WinApi.ComObj,
+  Win.ComObj,
   System.SysUtils,
   DragDropFile,
   DragDropPIDL;
