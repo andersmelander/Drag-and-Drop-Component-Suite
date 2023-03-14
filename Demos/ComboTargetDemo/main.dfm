@@ -1,6 +1,7 @@
 object FormMain: TFormMain
   Left = 250
   Top = 194
+  BorderIcons = [biSystemMenu]
   Caption = 'ComboTarget Demo'
   ClientHeight = 371
   ClientWidth = 489
