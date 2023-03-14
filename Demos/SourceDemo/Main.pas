@@ -35,7 +35,9 @@ implementation
 {$R *.DFM}
 
 uses
-  ActiveX, CommCtrl;
+  ActiveX,
+  CommCtrl,
+  IOUtils;
 
 procedure TForm1.ButtonCloseClick(Sender: TObject);
 begin
@@ -53,28 +55,17 @@ end;
 
 procedure TForm1.FormCreate(Sender: TObject);
 var
-  Path: string;
-  SearchRec: TSearchRec;
-  Res: integer;
+  Path, Filename: string;
   NewItem: TListItem;
 begin
   (*
   ** Fill listview with list of files from current directory...
   *)
   Path := ExtractFilePath(Application.ExeName);
-  Res := FindFirst(path+'*.*', 0, SearchRec);
-  try
-    while (Res = 0) do
-    begin
-      if (SearchRec.Name <> '.') and (SearchRec.Name <> '..') then
-      begin
-        NewItem := Listview1.Items.Add;
-        NewItem.Caption := Path+SearchRec.Name;
-      end;
-      Res := FindNext(SearchRec);
-    end;
-  finally
-    FindClose(SearchRec);
+  for Filename in TDirectory.GetFiles(Path, '*.*') do
+  begin
+    NewItem := Listview1.Items.Add;
+    NewItem.Caption := Filename;
   end;
 end;
 

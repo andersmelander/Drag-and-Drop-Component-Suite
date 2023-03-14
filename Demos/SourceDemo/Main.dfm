@@ -1,6 +1,7 @@
 object Form1: TForm1
   Left = 236
   Top = 162
+  BorderIcons = [biSystemMenu]
   Caption = 'Simple Source Demo'
   ClientHeight = 258
   ClientWidth = 387
