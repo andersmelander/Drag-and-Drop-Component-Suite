@@ -5,12 +5,13 @@ interface
 {$include dragdrop.inc} // Disables .NET warnings
 
 uses
-  ActiveX,//!!!
-
+  System.SysUtils, System.Classes, System.Actions, System.ImageList,
+  WinApi.ActiveX,//!!!
+  WinApi.Windows, WinApi.Messages,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls,
+  Vcl.ComCtrls, Vcl.StdCtrls, Vcl.ImgList, Vcl.Menus, Vcl.ActnList,
   MapiDefs,
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  ExtCtrls, ComCtrls, StdCtrls, DragDrop, DropTarget, DragDropText, ImgList,
-  Menus, ActnList;
+  DragDrop, DropTarget, DragDropText;
 
 type
   TMessage = class(TObject)
@@ -129,12 +130,13 @@ implementation
 {$R *.DFM}
 
 uses
+  System.Types,
+  Win.ComObj,
+//!!!  ActiveX,
+  WinApi.ShellAPI,
+  System.Contnrs,
   MapiUtil,
   MapiTags,
-  ComObj,
-//!!!  ActiveX,
-  ShellAPI,
-  Contnrs,
   DragDropFormats,
   // Note: In order to get the Outlook data format support linked into the
   // application, we have to include the appropriate units in the uses clause.
@@ -349,21 +351,6 @@ procedure TFormOutlookTarget.FormCreate(Sender: TObject);
 var
   SHFileInfo: TSHFileInfo;
 begin
-  LoadMAPI32;
-
-  try
-    // It appears that for for Win XP and later it is OK to let MAPI call
-    // coInitialize.
-    // V5.1 = WinXP.
-//    if ((Win32MajorVersion shl 16) or Win32MinorVersion < $00050001) then
-//      MapiInit.Flags := MapiInit.Flags or MAPI_NO_COINIT;
-
-    OleCheck(MAPIInitialize(@MapiInit));
-  except
-    on E: Exception do
-      ShowMessage(Format('Failed to initialize MAPI: %s', [E.Message]));
-  end;
-
   // FCleanUpList contains a list of temporary files that should be deleted
   // before the application exits.
   FCleanUpList := TStringList.Create;
@@ -382,6 +369,21 @@ begin
     SHGFI_SYSICONINDEX or SHGFI_SMALLICON);
   ImageListBig.Handle := SHGetFileInfo('', 0, SHFileInfo, sizeOf(SHFileInfo),
     SHGFI_SYSICONINDEX or SHGFI_LARGEICON);
+
+  LoadMAPI;
+
+  try
+    // It appears that for for Win XP and later it is OK to let MAPI call
+    // coInitialize.
+    // V5.1 = WinXP.
+//    if ((Win32MajorVersion shl 16) or Win32MinorVersion < $00050001) then
+//      MapiInit.Flags := MapiInit.Flags or MAPI_NO_COINIT;
+
+    OleCheck(MAPIInitialize(@MapiInit));
+  except
+    on E: Exception do
+      ShowMessage(Format('Failed to initialize MAPI: %s', [E.Message]));
+  end;
 
   ListViewBrowser.Visible := False;
   SplitterBrowser.Visible := False;
@@ -409,7 +411,7 @@ begin
 
   for i := 0 to FCleanUpList.Count-1 do
     try
-      DeleteFile(FCleanUpList[i]);
+      System.SysUtils.DeleteFile(FCleanUpList[i]);
     except
       // Ignore errors - nothing we can do about it anyway.
     end;
