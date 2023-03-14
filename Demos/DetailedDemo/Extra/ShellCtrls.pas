@@ -842,17 +842,19 @@ var
 begin
   case StrRet.uType of
     STRRET_CSTR:
-      Result := StrRet.cStr;
+      Result := string(StrRet.cStr);
+
     STRRET_OFFSET:
       begin
         P := PAnsiChar(@PIDL.mkid.abID[StrRet.uOffset - SizeOf(PIDL.mkid.cb)]);
         SetString(Result, P, PIDL.mkid.cb - StrRet.uOffset);
       end;
+
     STRRET_WSTR:
       if Assigned(StrRet.pOleStr) then
         Result := StrRet.pOleStr
       else
-        Result := '';  
+        Result := '';
   end;
   { This is a hack bug fix to get around Windows Shell Controls returning
     spurious "?"s in date/time detail fields } 
@@ -926,12 +928,12 @@ begin
     begin
       ICmd := LongInt(Command) - 1;
       HR := CM.GetCommandString(ICmd, GCS_VERBA, nil, ZVerb, SizeOf(ZVerb));
-      Verb := StrPas(ZVerb);
+      Verb := PAnsiChar(@ZVerb[0]);
       Handled := False;
       if Supports(Owner, IShellCommandVerb, SCV) then
       begin
         HR := 0;
-        SCV.ExecuteCommand(Verb, Handled);
+        SCV.ExecuteCommand(string(Verb), Handled);
       end;
 
       if not Handled then
@@ -948,7 +950,7 @@ begin
       end;
 
       if Assigned(SCV) then
-        SCV.CommandCompleted(Verb, HR = S_OK);
+        SCV.CommandCompleted(string(Verb), HR = S_OK);
     end;
   finally
     DestroyMenu(Menu);
@@ -1492,7 +1494,7 @@ begin
     FThread := TShellChangeThread.Create(FOnChange);
     FThread.SetDirectoryOptions(FRoot,
       LongBool(FWatchSubTree), NotifyOptionFlags);
-    FThread.Resume;
+    FThread.Start;
   end;
 end;
 

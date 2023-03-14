@@ -147,6 +147,7 @@ object FormText: TFormText
     Font.Height = -16
     Font.Name = 'MS Shell Dlg 2'
     Font.Style = [fsBold]
+    ParentBackground = False
     ParentFont = False
     TabOrder = 7
   end

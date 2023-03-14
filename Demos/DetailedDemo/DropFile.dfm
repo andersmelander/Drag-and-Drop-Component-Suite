@@ -18,6 +18,9 @@ object FormFile: TFormFile
   ShowHint = True
   OnClose = FormClose
   OnCreate = FormCreate
+  DesignSize = (
+    372
+    373)
   PixelsPerInch = 96
   TextHeight = 13
   object Memo1: TMemo
@@ -77,6 +80,7 @@ object FormFile: TFormFile
     Font.Height = -16
     Font.Name = 'MS Shell Dlg 2'
     Font.Style = [fsBold]
+    ParentBackground = False
     ParentFont = False
     TabOrder = 3
   end

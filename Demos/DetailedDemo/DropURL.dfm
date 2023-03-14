@@ -40,6 +40,7 @@ object FormURL: TFormURL
     Font.Height = -16
     Font.Name = 'MS Shell Dlg 2'
     Font.Style = [fsBold]
+    ParentBackground = False
     ParentFont = False
     TabOrder = 0
   end
@@ -124,6 +125,7 @@ object FormURL: TFormURL
     Font.Height = -16
     Font.Name = 'MS Shell Dlg 2'
     Font.Style = [fsBold]
+    ParentBackground = False
     ParentFont = False
     TabOrder = 5
   end

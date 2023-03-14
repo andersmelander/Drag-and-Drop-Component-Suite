@@ -34,8 +34,6 @@ object FormDemo: TFormDemo
       Width = 161
       Height = 57
       Caption = 'Drag && Drop &Text'
-      TabOrder = 0
-      OnClick = ButtonTextClick
       Glyph.Data = {
         96010000424D9601000000000000760000002800000018000000180000000100
         0400000000002001000000000000000000001000000000000000000000000000
@@ -51,6 +49,8 @@ object FormDemo: TFormDemo
         FFFFFFFFFFFFF087777778FFFFFFFFFFFFFFF077777778888888888888888877
         7777777777777777777777777777777777777777777777777777}
       Layout = blGlyphTop
+      TabOrder = 0
+      OnClick = ButtonTextClick
     end
     object ButtonExit: TBitBtn
       Left = 63
@@ -68,8 +68,6 @@ object FormDemo: TFormDemo
       Width = 161
       Height = 57
       Caption = 'Drag && Drop &Files'
-      TabOrder = 1
-      OnClick = ButtonFileClick
       Glyph.Data = {
         96010000424D9601000000000000760000002800000018000000180000000100
         0400000000002001000000000000000000001000000000000000000000000000
@@ -85,6 +83,8 @@ object FormDemo: TFormDemo
         B7B7B888888888777777778B7B7B877777777777777777788888777777777777
         7777777777777777777777777777777777777777777777777777}
       Layout = blGlyphTop
+      TabOrder = 1
+      OnClick = ButtonFileClick
     end
     object Panel2: TPanel
       Left = 8
@@ -95,6 +95,7 @@ object FormDemo: TFormDemo
       BevelOuter = bvNone
       BorderStyle = bsSingle
       Color = clGray
+      ParentBackground = False
       TabOrder = 4
       object Label2: TLabel
         Left = 79
@@ -145,7 +146,7 @@ object FormDemo: TFormDemo
       object Label7: TLabel
         Left = 127
         Top = 35
-        Width = 85
+        Width = 84
         Height = 14
         Cursor = crHandPoint
         Caption = 'http://melander.dk'
@@ -176,6 +177,7 @@ object FormDemo: TFormDemo
       Font.Height = -16
       Font.Name = 'Arial'
       Font.Style = [fsBold]
+      ParentBackground = False
       ParentFont = False
       TabOrder = 5
     end
@@ -185,8 +187,6 @@ object FormDemo: TFormDemo
       Width = 161
       Height = 57
       Caption = '&URLs && Bitmaps'
-      TabOrder = 2
-      OnClick = ButtonURLClick
       Glyph.Data = {
         96010000424D9601000000000000760000002800000018000000180000000100
         0400000000002001000000000000000000001000000010000000000000000000
@@ -202,6 +202,8 @@ object FormDemo: TFormDemo
         EEEEEEEEEEEEEEEE077778EEEEEEEEEEEEEEEEEE077778888888888888888888
         8777777777777777777777777777777777777777777777777777}
       Layout = blGlyphTop
+      TabOrder = 2
+      OnClick = ButtonURLClick
     end
   end
 end
