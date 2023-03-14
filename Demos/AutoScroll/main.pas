@@ -5,7 +5,10 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   ComCtrls, StdCtrls, Grids, ExtCtrls,
-  DropSource, DragDropText, DragDrop, DropTarget;
+  DropSource,
+  DragDropText,
+  DragDrop,
+  DropTarget;
 
 type
   TFormAutoScroll = class(TForm)
@@ -41,6 +44,7 @@ implementation
 {$R *.DFM}
 
 uses
+  Types,
   ActiveX;
 
 procedure TFormAutoScroll.FormCreate(Sender: TObject);
