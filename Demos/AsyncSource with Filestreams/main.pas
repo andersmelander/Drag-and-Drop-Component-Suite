@@ -3,34 +3,22 @@ unit main;
 interface
 
 uses
-  RingbufferStream,
-  DragDrop, DropSource, DragDropFile,
+  System.Classes, System.Actions, System.ImageList,
+  WinApi.Messages,
+  WinApi.ActiveX, WinApi.Windows,
+  Vcl.Dialogs, Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls,
+  Vcl.Buttons, Vcl.ImgList, Vcl.ToolWin, Vcl.ActnList,
   // Indy 10 required
   IdBaseComponent, IdComponent, IdTCPConnection, IdTCPClient,
   IdExplicitTLSClientServerBase, IdFTP,
-  Messages, Dialogs,
-  ActiveX, Windows, Classes, Controls, Forms, StdCtrls, ComCtrls, ExtCtrls,
-  Buttons, ImgList, ToolWin, ActnList;
+  RingbufferStream,
+  DragDrop, DropSource, DragDropFile;
 
 {$include DragDrop.inc}
 
-{$ifdef VER20_PLUS}
-// Work around for interface breaking changes between different Indy 10 releases... Pffft!
 type
+  // Work around for interface breaking changes between different Indy 10 releases... Pffft!
   TIndyWorkCountInt = int64;
-{$else}
-type
-  TIndyWorkCountInt = integer;
-
-  // Hack to make it possible to load new indy FTP component with old indy version
-  TIPVersion = (Id_IPv4, Id_IPv6);
-  TIdFTP = class(IdFTP.TIdFTP)
-  private
-    FDummyVersion: TIPVersion;
-  published
-    property IPVersion: TIPVersion write FDummyVersion;
-  end;
-{$endif}
 
 const
   MSG_PROGRESS = WM_USER;
@@ -157,14 +145,16 @@ implementation
 {$R Throbber.res}
 
 uses
-  DragDropFormats,
+  System.Types,
+  System.SysUtils,
+  System.StrUtils,
+  WinApi.ShlObj,
+  WinApi.ShellApi,
+  Vcl.Graphics,
   IdURI,
   IdFTPList,
   IdAllFTPListParsers,
-  ShlObj,
-  ShellApi,
-  Graphics,
-  SysUtils, StrUtils;
+  DragDropFormats;
 
 const
   sAddressHome = 'ftp://ftp.microsoft.com/';

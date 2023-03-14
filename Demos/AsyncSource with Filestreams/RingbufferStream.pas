@@ -1,5 +1,7 @@
 unit RingbufferStream;
 
+{$WARN SYMBOL_PLATFORM OFF}
+
 interface
 
 uses

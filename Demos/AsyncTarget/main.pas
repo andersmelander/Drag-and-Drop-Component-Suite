@@ -14,9 +14,10 @@ interface
 {$include dragdrop.inc} // Disables .NET warnings
 
 uses
-  DragDrop, DropTarget,
-  Messages,
-  ActiveX, Windows, Classes, Controls, Forms, StdCtrls, ComCtrls, ExtCtrls;
+  System.Classes,
+  WinAPi.Messages, WinAPi.ActiveX, WinAPi.Windows,
+  Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls,
+  DragDrop, DropTarget;
 
 const
   MSG_DROPPROGRESS = WM_USER;
@@ -70,9 +71,10 @@ implementation
 {$R *.DFM}
 
 uses
-  DragDropFile,
-  ShlObj,
-  Graphics;
+  System.Types,
+  WinApi.ShlObj,
+  Vcl.Graphics,
+  DragDropFile;
 
 procedure TFormMain.FormCreate(Sender: TObject);
 var

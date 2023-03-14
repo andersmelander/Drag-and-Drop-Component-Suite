@@ -8,7 +8,7 @@ uses
   DragDrop, DropSource, DragDropFile,
   Messages,
   ActiveX, Windows, Classes, Controls, Forms, StdCtrls, ComCtrls, ExtCtrls,
-  Buttons, ActnList, ToolWin, ImgList;
+  Buttons, ActnList, ToolWin, ImgList, System.Actions, System.ImageList;
 
 const
   MSG_PROGRESS = WM_USER;
@@ -84,9 +84,10 @@ implementation
 {$R *.DFM}
 
 uses
-  DragDropFormats,
+  Types,
   ShlObj,
-  Graphics;
+  Graphics,
+  DragDropFormats;
 
 const
   TestFileSize = 1024*1024*100; // 100Mb
