@@ -2,17 +2,14 @@ object FormMain: TFormMain
   Left = 571
   Top = 240
   ActiveControl = ListViewDataFormats
+  BorderIcons = [biSystemMenu]
   Caption = 'Drop Source Analyzer'
   ClientHeight = 597
   ClientWidth = 591
   Color = clBtnFace
   Constraints.MinWidth = 565
-  Font.Charset = DEFAULT_CHARSET
-  Font.Color = clWindowText
-  Font.Height = -11
-  Font.Name = 'Tahoma'
-  Font.Style = []
-  OldCreateOrder = False
+  ParentFont = True
+  OldCreateOrder = True
   ShowHint = True
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -40,8 +37,6 @@ object FormMain: TFormMain
     Caption = ' '
     Constraints.MinHeight = 100
     TabOrder = 0
-    ExplicitTop = 226
-    ExplicitHeight = 352
     object EditHexView: TRichEdit
       Left = 0
       Top = 65
@@ -63,8 +58,7 @@ object FormMain: TFormMain
       Visible = False
       WantReturns = False
       WordWrap = False
-      ExplicitTop = 0
-      ExplicitHeight = 352
+      Zoom = 100
     end
     object IntroView: TRichEdit
       Left = 0
@@ -78,8 +72,7 @@ object FormMain: TFormMain
       TabOrder = 1
       WantReturns = False
       WordWrap = False
-      ExplicitTop = 56
-      ExplicitHeight = 292
+      Zoom = 100
     end
     object PanelError: TPanel
       Left = 0
@@ -278,7 +271,6 @@ object FormMain: TFormMain
     OnAdvancedCustomDrawSubItem = ListViewDataFormatsAdvancedCustomDrawSubItem
     OnDeletion = ListViewDataFormatsDeletion
     OnSelectItem = ListViewDataFormatsSelectItem
-    ExplicitTop = 26
   end
   object ToolBar1: TToolBar
     Left = 0
@@ -702,7 +694,7 @@ object FormMain: TFormMain
     Left = 248
     Top = 136
     Bitmap = {
-      494C01010100050004000E000E00FFFFFFFFFF00FFFFFFFFFFFFFFFF424D3600
+      494C01010100050004000E000E00FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000380000000E0000000100200000000000400C
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -807,6 +799,7 @@ object FormMain: TFormMain
       000000000000000000000000FFFFFF00FFFC000000000000FFFC000000000000
       E01C000000000000C00C000000000000C00C000000000000E01C000000000000
       E01C000000000000F03C000000000000F03C000000000000F87C000000000000
-      F87C000000000000FCFC000000000000FFFC000000000000FFFC000000000000}
+      F87C000000000000FCFC000000000000FFFC000000000000FFFC000000000000
+      00000000000000000000000000000000000000000000}
   end
 end

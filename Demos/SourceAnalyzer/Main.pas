@@ -5,10 +5,11 @@ interface
 {$include dragdrop.inc} // Disables .NET warnings
 
 uses
-  DragDrop, DropTarget,
-  ActiveX,
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, ComCtrls, StdCtrls, ToolWin, ImgList, ActnList, Menus;
+  System.SysUtils, System.ImageList, System.Actions, System.Classes,
+  WinApi.ActiveX, WinApi.Windows, WinApi.Messages,
+  Vcl.ActnList, Vcl.ComCtrls, Vcl.ToolWin, Vcl.Graphics, Vcl.ExtCtrls, Vcl.StdCtrls,
+  Vcl.Menus, Vcl.Dialogs, Vcl.ImgList, Vcl.Controls, Vcl.Forms,
+  DragDrop, DropTarget;
 
 const
   MAX_DATA = 32768; // Max bytes to render in preview
@@ -114,8 +115,8 @@ implementation
 {$R *.dfm}
 
 uses
-  DragDropFormats,
-  CommCtrl;
+  WinApi.CommCtrl,
+  DragDropFormats;
 
 resourcestring
   sIntro = '{\rtf1\ansi\ansicpg1252\deff0\deflang1030{\fonttbl{\f0\fswiss\fcharset0 Arial;}{\f1\fnil\fcharset2 Symbol;}}'+#13+
@@ -153,9 +154,6 @@ begin
   FDropTarget.OnDragOver := Self.OnDragOver;
   FDropTarget.OnLeave := Self.OnDragLeave;
   FDropTarget.OnGetDropEffect := Self.OnDragOver;
-{$ifdef VER18_PLUS}
-  ToolBar1.DrawingStyle := dsGradient;
-{$endif}
   LoadRTF(sIntro);
   Init;
 end;
@@ -503,7 +501,7 @@ begin
   begin
     Hex := Hex+IntToHex(ord(Data[i+1]), 2)+' ';
     if (Data[i+1] in [' '..#$7F]) then
-      ASCII := ASCII+Data[i+1]
+      ASCII := ASCII+Char(Data[i+1])
     else
       ASCII := ASCII+'.';
     inc(LineLength);
