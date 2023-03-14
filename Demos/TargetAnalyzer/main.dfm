@@ -1,16 +1,13 @@
 object FormTarget: TFormTarget
   Left = 441
   Top = 226
+  BorderIcons = [biSystemMenu]
   Caption = 'Drop Target analyzer'
   ClientHeight = 322
   ClientWidth = 682
   Color = clBtnFace
-  Font.Charset = DEFAULT_CHARSET
-  Font.Color = clWindowText
-  Font.Height = -11
-  Font.Name = 'Tahoma'
-  Font.Style = []
-  OldCreateOrder = False
+  ParentFont = True
+  OldCreateOrder = True
   Position = poScreenCenter
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -101,7 +98,7 @@ object FormTarget: TFormTarget
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -11
-      Font.Name = 'Tahoma'
+      Font.Name = 'Segoe UI'
       Font.Style = [fsBold]
       ParentFont = False
       PopupMenu = PopupMenu1

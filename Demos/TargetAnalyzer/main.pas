@@ -3,10 +3,12 @@ unit main;
 interface
 
 uses
-  ActiveX,
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, ComCtrls, DragDrop, DropSource, ImgList, StdCtrls, Menus,
-  Buttons;
+  System.SysUtils, System.Variants, System.Classes, System.ImageList,
+  WinApi.ActiveX, WinApi.Windows, WinApi.Messages,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls,
+  Vcl.ImgList, Vcl.StdCtrls, Vcl.Menus,
+  Vcl.Buttons,
+  DragDrop, DropSource;
 
 type
   TRequestedFormat = record
