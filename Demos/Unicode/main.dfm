@@ -1,23 +1,20 @@
 object Form1: TForm1
   Left = 453
   Top = 158
-  Width = 375
-  Height = 472
+  BorderIcons = [biSystemMenu]
   Caption = 'Drag and Drop Unicode Demo'
+  ClientHeight = 434
+  ClientWidth = 359
   Color = clBtnFace
-  Font.Charset = DEFAULT_CHARSET
-  Font.Color = clWindowText
-  Font.Height = -11
-  Font.Name = 'Tahoma'
-  Font.Style = []
-  OldCreateOrder = False
+  ParentFont = True
+  OldCreateOrder = True
   PixelsPerInch = 96
   TextHeight = 13
   object PageControl1: TPageControl
     Left = 0
     Top = 0
-    Width = 367
-    Height = 438
+    Width = 359
+    Height = 434
     ActivePage = TabSheet1
     Align = alClient
     TabOrder = 0
@@ -26,31 +23,27 @@ object Form1: TForm1
       object GroupBox1: TGroupBox
         Left = 0
         Top = 114
-        Width = 359
-        Height = 296
+        Width = 351
+        Height = 292
         Align = alClient
         Caption = ' Filenames '
         TabOrder = 0
         object PaintBoxFiles: TPaintBox
           Left = 2
           Top = 15
-          Width = 355
-          Height = 279
+          Width = 347
+          Height = 275
           Align = alClient
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = clWindowText
-          Font.Height = -11
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          ParentFont = False
           PopupMenu = PopupMenuFileTarget
           OnPaint = PaintBoxFilesPaint
+          ExplicitWidth = 355
+          ExplicitHeight = 279
         end
       end
       object GroupBox2: TGroupBox
         Left = 0
         Top = 0
-        Width = 359
+        Width = 351
         Height = 57
         Align = alTop
         Caption = ' Drop source '
@@ -58,12 +51,13 @@ object Form1: TForm1
         object PanelFileSource: TPanel
           Left = 2
           Top = 15
-          Width = 355
+          Width = 347
           Height = 40
           Cursor = crHandPoint
           Align = alClient
           BevelOuter = bvNone
           Caption = 'Drag files with Unicode names from here'
+          ParentColor = True
           PopupMenu = PopupMenuFileSource
           TabOrder = 0
           OnMouseDown = PanelFileSourceMouseDown
@@ -72,7 +66,7 @@ object Form1: TForm1
       object GroupBox3: TGroupBox
         Left = 0
         Top = 57
-        Width = 359
+        Width = 351
         Height = 57
         Align = alTop
         Caption = ' Drop target '
@@ -80,11 +74,12 @@ object Form1: TForm1
         object PanelFileTarget: TPanel
           Left = 2
           Top = 15
-          Width = 355
+          Width = 347
           Height = 40
           Align = alClient
           BevelOuter = bvNone
           Caption = 'Drop files with Unicode names here'
+          ParentColor = True
           PopupMenu = PopupMenuFileTarget
           TabOrder = 0
         end
@@ -96,7 +91,7 @@ object Form1: TForm1
       object GroupBox4: TGroupBox
         Left = 0
         Top = 0
-        Width = 359
+        Width = 351
         Height = 57
         Align = alTop
         Caption = ' Drop source '
@@ -104,12 +99,13 @@ object Form1: TForm1
         object PanelTextSource: TPanel
           Left = 2
           Top = 15
-          Width = 355
+          Width = 347
           Height = 40
           Cursor = crHandPoint
           Align = alClient
           BevelOuter = bvNone
           Caption = 'Drag Unicode text from here'
+          ParentColor = True
           PopupMenu = PopupMenuTextSource
           TabOrder = 0
           OnMouseDown = PanelTextSourceMouseDown
@@ -118,7 +114,7 @@ object Form1: TForm1
       object GroupBox5: TGroupBox
         Left = 0
         Top = 57
-        Width = 359
+        Width = 351
         Height = 57
         Align = alTop
         Caption = ' Drop target '
@@ -126,11 +122,12 @@ object Form1: TForm1
         object PanelTextTarget: TPanel
           Left = 2
           Top = 15
-          Width = 355
+          Width = 347
           Height = 40
           Align = alClient
           BevelOuter = bvNone
           Caption = 'Drop Unicode text here'
+          ParentColor = True
           PopupMenu = PopupMenuTextTarget
           TabOrder = 0
         end
@@ -138,25 +135,21 @@ object Form1: TForm1
       object GroupBox6: TGroupBox
         Left = 0
         Top = 114
-        Width = 359
-        Height = 296
+        Width = 351
+        Height = 292
         Align = alClient
         Caption = ' Text '
         TabOrder = 2
         object PaintBoxText: TPaintBox
           Left = 2
           Top = 15
-          Width = 355
-          Height = 279
+          Width = 347
+          Height = 275
           Align = alClient
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = clWindowText
-          Font.Height = -11
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          ParentFont = False
           PopupMenu = PopupMenuTextTarget
           OnPaint = PaintBoxTextPaint
+          ExplicitWidth = 355
+          ExplicitHeight = 279
         end
       end
     end

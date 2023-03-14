@@ -3,9 +3,11 @@ unit main;
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ComCtrls, DropSource, DragDropFile, DragDrop, DropTarget,
-  ExtCtrls, DragDropText, ActnList, Menus;
+  System.SysUtils, System.Classes, System.Actions,
+  WinApi.Windows, WinApi.Messages,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls,
+  Vcl.ComCtrls, Vcl.ExtCtrls, Vcl.ActnList, Vcl.Menus,
+  DropSource, DragDropFile, DragDrop, DropTarget, DragDropText;
 
 type
   TForm1 = class(TForm)
