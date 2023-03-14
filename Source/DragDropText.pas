@@ -16,13 +16,13 @@ unit DragDropText;
 interface
 
 uses
+  System.Classes,
+  WinApi.ActiveX,
+  WinApi.Windows,
   DragDrop,
   DropTarget,
   DropSource,
-  DragDropFormats,
-  ActiveX,
-  Windows,
-  Classes;
+  DragDropFormats;
 
 {$include DragDrop.inc}
 
@@ -262,8 +262,8 @@ function MakeRTF(const s: string): AnsiString;
 implementation
 
 uses
-  ShlObj,
-  SysUtils;
+  System.SysUtils,
+  WinApi.ShlObj;
 
 ////////////////////////////////////////////////////////////////////////////////
 //

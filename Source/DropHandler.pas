@@ -14,13 +14,13 @@ unit DropHandler;
 interface
 
 uses
+  System.Classes,
+  WinApi.ActiveX,
+  WinApi.Windows,
   DragDrop,
   DropTarget,
   DragDropFile,
   DragDropComObj,
-  ActiveX,
-  Windows,
-  Classes;
 
 {$include DragDrop.inc}
 
@@ -98,14 +98,14 @@ type
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 //
-//              	IMPLEMENTATION
+//              IMPLEMENTATION
 //
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 implementation
 
 uses
-  ComObj;
+  WinApi.ComObj;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -121,33 +121,33 @@ uses
 ////////////////////////////////////////////////////////////////////////////////
 function TDropHandler.GetClassID(out classID: TCLSID): HResult;
 begin
-  result := E_NOTIMPL;
+  Result := E_NOTIMPL;
 end;
 
 function TDropHandler.GetCurFile(out pszFileName: POleStr): HResult;
 begin
-  result := E_NOTIMPL;
+  Result := E_NOTIMPL;
 end;
 
 function TDropHandler.IsDirty: HResult;
 begin
-  result := S_FALSE;
+  Result := S_FALSE;
 end;
 
 function TDropHandler.Load(pszFileName: POleStr; dwMode: Integer): HResult;
 begin
   FTargetFile := WideCharToString(pszFileName);
-  result := S_OK;
+  Result := S_OK;
 end;
 
 function TDropHandler.Save(pszFileName: POleStr; fRemember: BOOL): HResult;
 begin
-  result := E_NOTIMPL;
+  Result := E_NOTIMPL;
 end;
 
 function TDropHandler.SaveCompleted(pszFileName: POleStr): HResult;
 begin
-  result := E_NOTIMPL;
+  Result := E_NOTIMPL;
 end;
 
 

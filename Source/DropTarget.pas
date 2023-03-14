@@ -16,10 +16,13 @@ unit DropTarget;
 interface
 
 uses
-  DragDrop,
-  Windows, ActiveX, Classes, Controls, CommCtrl, ExtCtrls, Forms;
+  System.Classes,
+  WinApi.Windows, WinApi.ActiveX, WinApi.CommCtrl,
+  Vcl.Controls, Vcl.ExtCtrls, Vcl.Forms,
+  DragDrop;
 
 {$include DragDrop.inc}
+
 // shldisp.h only exists in C++Builder 5 and later.
 {$HPPEMIT '#include <shldisp.h>'}
 
@@ -277,15 +280,17 @@ procedure UnblockDropFilesMessages(Handle: HWND);
 implementation
 
 uses
-  DragDropFormats,
-  ComObj,
-  SysUtils,
-  Graphics,
-  Messages,
-  ShlObj,
-  ClipBrd,
-  Dialogs,
-  ComCtrls;
+  System.SysUtils,
+  System.Types,
+  System.UITypes,
+  Win.ComObj,
+  WinApi.ShlObj,
+  WinApi.Messages,
+  Vcl.Graphics,
+  Vcl.ClipBrd,
+  Vcl.Dialogs,
+  Vcl.ComCtrls,
+  DragDropFormats;
 
 resourcestring
   sTargetAsyncBusy = 'Can''t clear data while async data transfer is in progress';

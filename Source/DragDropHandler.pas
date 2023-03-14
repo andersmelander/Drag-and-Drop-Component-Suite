@@ -15,14 +15,14 @@ unit DragDropHandler;
 interface
 
 uses
+  System.Classes,
+  WinApi.ShlObj,
+  WinApi.ActiveX,
+  WinApi.Windows,
+  Vcl.Menus,
   DragDrop,
   DragDropComObj,
-  DragDropContext,
-  Menus,
-  ShlObj,
-  ActiveX,
-  Windows,
-  Classes;
+  DragDropContext;
 
 {$include DragDrop.inc}
 
@@ -111,11 +111,11 @@ type
 implementation
 
 uses
+  Win.Registry,
+  WinApi.ComObj,
+  System.SysUtils,
   DragDropFile,
-  DragDropPIDL,
-  Registry,
-  ComObj,
-  SysUtils;
+  DragDropPIDL;
 
 ////////////////////////////////////////////////////////////////////////////////
 //

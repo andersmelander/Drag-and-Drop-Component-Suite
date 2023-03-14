@@ -17,10 +17,10 @@ interface
 {$include DragDrop.inc}
 
 uses
-  Classes,
-  Controls,
-  Windows,
-  ActiveX;
+  System.Classes,
+  WinApi.Windows,
+  WinApi.ActiveX,
+  Vcl.Controls;
 
 
 // shldisp.h only exists in C++Builder 5 and later.
@@ -59,11 +59,11 @@ const
   {$EXTERNALSYM DROPEFFECT_MOVE}
   {$EXTERNALSYM DROPEFFECT_LINK}
   {$EXTERNALSYM DROPEFFECT_SCROLL}
-  DROPEFFECT_NONE   = ActiveX.DROPEFFECT_NONE;
-  DROPEFFECT_COPY   = ActiveX.DROPEFFECT_COPY;
-  DROPEFFECT_MOVE   = ActiveX.DROPEFFECT_MOVE;
-  DROPEFFECT_LINK   = ActiveX.DROPEFFECT_LINK;
-  DROPEFFECT_SCROLL = ActiveX.DROPEFFECT_SCROLL;
+  DROPEFFECT_NONE   = WinApi.ActiveX.DROPEFFECT_NONE;
+  DROPEFFECT_COPY   = WinApi.ActiveX.DROPEFFECT_COPY;
+  DROPEFFECT_MOVE   = WinApi.ActiveX.DROPEFFECT_MOVE;
+  DROPEFFECT_LINK   = WinApi.ActiveX.DROPEFFECT_LINK;
+  DROPEFFECT_SCROLL = WinApi.ActiveX.DROPEFFECT_SCROLL;
 
 type
   (*
@@ -725,16 +725,17 @@ const
 implementation
 
 uses
+  System.SysUtils,
+  System.Types,
 {$ifdef DEBUG}
-  ComObj,
+  Win.ComObj,
 {$endif}
+  WinApi.Messages,
+  WinApi.ShlObj,
+  WinApi.MMSystem,
   DragDropFormats, // Used by TRawClipboardFormat
   DropSource,
-  DropTarget,
-  Messages,
-  ShlObj,
-  MMSystem,
-  SysUtils;
+  DropTarget;
 
 resourcestring
   sImplementationRequired = 'Internal error: %s.%s needs implementation';
@@ -783,7 +784,7 @@ function TInterfacedComponent.QueryInterface(const IID: TGuid; out Obj): HRESULT
   var
     GUID: string;
   begin
-    GUID := ComObj.GUIDToString(IID);
+    GUID := Win.ComObj.GUIDToString(IID);
     Result := GetRegStringValue('Interface\'+GUID, '');
     if (Result = '') then
       Result := GUID;
@@ -1093,7 +1094,7 @@ var
   Len: integer;
 begin
   SetLength(Result, 255); // 255 is just an artificial limit.
-  Len := Windows.GetClipboardFormatName(GetClipboardFormat, PChar(Result), 255);
+  Len := WinApi.Windows.GetClipboardFormatName(GetClipboardFormat, PChar(Result), 255);
   SetLength(Result, Len);
 end;
 

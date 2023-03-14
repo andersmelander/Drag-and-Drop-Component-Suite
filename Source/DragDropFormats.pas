@@ -14,10 +14,10 @@ unit DragDropFormats;
 interface
 
 uses
-  DragDrop,
-  Windows,
-  Classes,
-  ActiveX;
+  System.Classes,
+  WinApi.Windows,
+  WinApi.ActiveX,
+  DragDrop;
 
 {$include DragDrop.inc}
 
@@ -523,12 +523,12 @@ function GetMediumDataSize(Medium: TStgMedium): integer;
 implementation
 
 uses
+  System.SysUtils,
+  WinApi.ShlObj,
+  Win.ComObj,
+  Vcl.AxCtrls,
   DropSource,
-  DropTarget,
-  ComObj,
-  ShlObj,
-  AxCtrls,
-  SysUtils;
+  DropTarget;
 
 ////////////////////////////////////////////////////////////////////////////////
 //

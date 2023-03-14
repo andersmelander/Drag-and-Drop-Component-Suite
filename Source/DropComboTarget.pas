@@ -14,16 +14,16 @@ unit DropComboTarget;
 interface
 
 uses
+  Classes,
+  Graphics,
+  ActiveX,
   DragDrop,
   DropTarget,
   DragDropFormats,
   DragDropInternet,
   DragDropGraphics,
   DragDropFile,
-  DragDropText,
-  Classes,
-  Graphics,
-  ActiveX;
+  DragDropText;
 
 type
   // Note: mfCustom is used to support DataFormatAdapters.

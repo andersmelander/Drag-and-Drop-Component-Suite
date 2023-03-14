@@ -14,15 +14,15 @@ unit DragDropContext;
 interface
 
 uses
-  Windows,
-  Graphics,
+  System.Classes,
+  WinApi.Windows,
+  WinApi.ShlObj,
+  WinApi.ActiveX,
+  WinApi.Messages,
+  Vcl.Graphics,
+  Vcl.Menus,
   DragDrop,
-  DragDropComObj,
-  Menus,
-  ShlObj,
-  ActiveX,
-  Messages,
-  Classes;
+  DragDropComObj;
 
 {$include DragDrop.inc}
 
@@ -152,17 +152,17 @@ type
 implementation
 
 uses
-  Dialogs,
+  System.SysUtils,
+{$if RTLVersion >= 25} // XE4
+  System.AnsiStrings,
+{$ifend}
+  Win.ComObj,
+  Vcl.Dialogs,
+  Vcl.ImgList,
+  Vcl.Controls, // TControlCanvas
+  Vcl.Forms, // Screen
   DragDropFile,
   DragDropPIDL,
-  ComObj,
-  SysUtils,
-{$if RTLVersion >= 25} // XE4
-  AnsiStrings,
-{$ifend}
-  ImgList,
-  Controls, // TControlCanvas
-  Forms; // Screen
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -218,7 +218,7 @@ begin
         // return ANSI help string for menu item.
         begin
           sAnsi := AnsiString(MenuItem.Hint);
-          {$if RTLVersion >= 25}AnsiStrings.{$ifend}StrPLCopy(pszName, sAnsi, cchMax);
+          {$if RTLVersion >= 25}System.AnsiStrings.{$ifend}StrPLCopy(pszName, sAnsi, cchMax);
         end;
 
       GCS_HELPTEXTW:

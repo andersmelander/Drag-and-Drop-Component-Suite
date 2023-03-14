@@ -14,15 +14,15 @@ unit DragDropFile;
 interface
 
 uses
+  WinApi.ShlObj,
+  WinApi.ActiveX,
+  WinApi.Windows,
+  System.Classes,
   DragDrop,
   DropTarget,
   DropSource,
   DragDropFormats,
-  DragDropText,
-  ShlObj,
-  ActiveX,
-  Windows,
-  Classes;
+  DragDropText;
 
 {$include DragDrop.inc}
 
@@ -241,8 +241,6 @@ type
     property Filename: UnicodeString read GetText write SetText;
   end;
 
-  TFilenameWClipboardFormat = TUnicodeFilenameClipboardFormat {$ifdef VER17_PLUS}deprecated {$IFDEF VER20_PLUS}'Use TUnicodeFilenameClipboardFormat instead'{$ENDIF}{$endif};
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 //              TFilenameClipboardFormat
@@ -291,8 +289,6 @@ type
     function HasData: boolean; override;
     property FileMaps: TUnicodeStrings read FFileMaps;
   end;
-
-  TFilenameMapWClipboardFormat = TUnicodeFilenameMapClipboardFormat {$ifdef VER17_PLUS}deprecated {$IFDEF VER20_PLUS}'Use TUnicodeFilenameMapClipboardFormat instead'{$ENDIF}{$endif};
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -431,8 +427,6 @@ type
     property FileDescriptors[Index: integer]: PFileDescriptorW read GetFileDescriptor;
     property Filenames[Index: integer]: UnicodeString read GetUnicodeFilename write SetUnicodeFilename;
   end;
-
-  TFileGroupDescriptorWClipboardFormat = TUnicodeFileGroupDescriptorClipboardFormat {$ifdef VER17_PLUS}deprecated {$IFDEF VER20_PLUS}'Use TUnicodeFileGroupDescriptorClipboardFormat instead'{$ENDIF}{$endif};
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -648,10 +642,13 @@ function WriteFilesToZeroList(Data: pointer; Size: integer;
 implementation
 
 uses
-  RTLConsts,
-  DragDropPIDL,
-  ComObj,
-  SysUtils;
+  System.RTLConsts,
+  System.SysUtils,
+{$if RTLVersion >= 25} // XE4
+  System.AnsiStrings,
+{$ifend}
+  Win.ComObj,
+  DragDropPIDL;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -1101,7 +1098,7 @@ end;
 function TUnicodeStrings.GetTextStr: UnicodeString;
 var
   Size: integer;
-  i, j: integer;
+  i: integer;
   p: PWideChar;
   s: UnicodeString;
 begin
@@ -1113,16 +1110,10 @@ begin
   for i := 0 to Count-1 do
   begin
     if (i > 0) then
-      (* What we would like to do:
+    begin
       StrPLCopy(p, sLineBreak, Length(sLineBreak));
       inc(p, Length(sLineBreak));
-      What we have to do to maintain backward compatibility with pre-D2009:
-      *)
-      for j := 1 to Length(sLineBreak) do
-      begin
-        p^ := WideChar(sLineBreak[j]);
-        inc(p);
-      end;
+    end;
     s := Strings[i];
     Size := Length(s);
     System.Move(PWideChar(s)^, p^, Size*SizeOf(WideChar));
@@ -1554,7 +1545,7 @@ begin
       end else
       begin
         s := Files[i];
-        StrPLCopy(p, AnsiString(s), Size);
+        {$if RTLVersion >= 25}System.AnsiStrings.{$ifend}StrPLCopy(p, AnsiString(s), Size);
         StringSize := Length(s)+1;
       end;
       inc(p, StringSize);
@@ -2030,7 +2021,7 @@ begin
   if (Index >= Count) then
     raise Exception.CreateFmt('Filename index out of bounds (%d)', [Index]);
   SetLength(s, MAX_PATH);
-  StrLCopy(PAnsiChar(s), @FileGroupDescriptor^.fgd[Index].cFileName[0], MAX_PATH);
+  {$if RTLVersion >= 25}System.AnsiStrings.{$ifend}StrLCopy(PAnsiChar(s), @FileGroupDescriptor^.fgd[Index].cFileName[0], MAX_PATH);
   Result := PAnsiChar(s);
 end;
 {$IFDEF R_PLUS}
@@ -2053,7 +2044,7 @@ procedure TAnsiFileGroupDescriptorClipboardFormat.SetAnsiFilename(Index: integer
 begin
   if (Index >= Count) then
     raise Exception.CreateFmt('Filename index out of bounds (%d)', [Index]);
-  StrPLCopy(@FileGroupDescriptor^.fgd[Index].cFileName[0], Value, MAX_PATH);
+  {$if RTLVersion >= 25}System.AnsiStrings.{$ifend}StrPLCopy(@FileGroupDescriptor^.fgd[Index].cFileName[0], Value, MAX_PATH);
 end;
 {$IFDEF R_PLUS}
   {$RANGECHECKS ON}

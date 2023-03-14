@@ -23,6 +23,9 @@ procedure Register;
 implementation
 
 uses
+  DesignIntf,
+  DesignEditors,
+  System.Classes;
   DragDrop,
   DropSource,
   DropTarget,
@@ -34,14 +37,7 @@ uses
   DragDropInternet,
   DragDropPIDL,
   DragDropText,
-  DropComboTarget,
-{$ifndef VER14_PLUS}
-  DsgnIntf,
-{$else}
-  DesignIntf,
-  DesignEditors,
-{$endif}
-  Classes;
+  DropComboTarget;
 
 type
   TDataFormatNameEditor = class(TStringProperty)

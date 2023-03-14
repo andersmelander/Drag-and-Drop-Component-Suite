@@ -23,14 +23,15 @@ unit DropSource;
 interface
 
 uses
+  System.Classes,
+  WinApi.ActiveX,
+  WinApi.Windows,
+  Vcl.Controls,
   DragDrop,
-  DragDropFormats,
-  ActiveX,
-  Controls,
-  Windows,
-  Classes;
+  DragDropFormats;
 
 {$include DragDrop.inc}
+
 // shldisp.h only exists in C++Builder 5 and later.
 {$HPPEMIT '#include <shldisp.h>'}
 
@@ -308,11 +309,12 @@ type
 implementation
 
 uses
-  Messages,
-  CommCtrl,
-  ComObj,
-  Graphics,
-  SysUtils;
+  WinApi.Messages,
+  WinApi.CommCtrl,
+  Win.ComObj,
+  Vcl.Graphics,
+  System.Types,
+  System.SysUtils;
 
 resourcestring
   sDropSourceBusy = 'A drag and drop operation is already in progress';
@@ -448,7 +450,7 @@ begin
   FreeOnTerminate := True;
   FDropSource := ADropSource;
   FDragResult := drAsync;
-  FStarted := Windows.CreateEvent(nil, False, False, nil);
+  FStarted := CreateEvent(nil, False, False, nil);
 
   // Marshall interfaces to thread for use by DoDragDrop API function.
   OleCheck(CoMarshalInterThreadInterfaceInStream(IDataObject, FDropSource,
@@ -881,7 +883,7 @@ begin
       CloseHandle(FAsyncTargetEvent);
       FAsyncTargetEvent := 0;
     end;
-    FAsyncTargetEvent := Windows.CreateEvent(nil, False, False, nil);
+    FAsyncTargetEvent := CreateEvent(nil, False, False, nil);
     FAsyncTargetTransfer := True;
     Result := S_OK;
   end else

@@ -14,15 +14,15 @@ unit DragDropPIDL;
 interface
 
 uses
+  WinApi.Windows,
+  WinApi.ActiveX,
+  WinApi.ShlObj,
+  System.Classes,
   DragDrop,
   DropTarget,
   DropSource,
   DragDropFormats,
-  DragDropFile,
-  Windows,
-  ActiveX,
-  Classes,
-  ShlObj;
+  DragDropFile;
 
 {$include DragDrop.inc}
 
@@ -292,8 +292,8 @@ function GetSubPIDL(Folder: IShellFolder; const Sub: UnicodeString): pItemIDList
 implementation
 
 uses
-  ShellAPI,
-  SysUtils;
+  System.SysUtils,
+  WinApi.ShellAPI;
 
 resourcestring
   sNoFolderPIDL = 'Folder PIDL must be added first';
