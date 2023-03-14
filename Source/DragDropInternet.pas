@@ -393,9 +393,9 @@ var
   CloseIMsgSession: TCloseIMsgSession = nil;
 
 var
-  MAPI32: HMODULE = 0;
+  MAPIMODULE: HMODULE = 0;
 
-procedure LoadMAPI32;
+procedure LoadMAPI;
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -407,9 +407,13 @@ procedure LoadMAPI32;
 implementation
 
 uses
-  SysUtils,
-  ShlObj,
-  ComObj,
+{$if RTLVersion >= 25} // XE4
+  System.AnsiStrings,
+{$ifend}
+  System.SysUtils,
+  WinApi.ShlObj,
+  Win.ComObj,
+  Vcl.Dialogs,
   DragDropFile;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1426,36 +1430,48 @@ end;
 //
 ////////////////////////////////////////////////////////////////////////////////
 const
-  MAPI32DLL = 'mapi32.dll';
+{$if defined(WIN32)}
+  MAPI_DLL = 'mapi32.dll';
+{$elseif defined(WIN64)}
+  MAPI_DLL = 'mapi64.dll';
+{$ifend}
 
-procedure LoadMAPI32;
+procedure LoadMAPI;
 // TODO : See also: finding the lcoation os MSMAPI
 // http://www.tech-archive.net/Archive/Development/microsoft.public.win32.programmer.messaging/2005-10/msg00127.html
 // http://support.microsoft.com/kb/229700
 
   procedure GetProc(const Name: AnsiString; var Func: pointer);
   begin
-    Func := GetProcAddress(MAPI32, PAnsiChar(Name));
+    Func := GetProcAddress(MAPIMODULE, PAnsiChar(Name));
     if (Func = nil) then
-      raise Exception.CreateFmt('Failed to get %s entry point for %s: %s',
-        [MAPI32DLL, Name, SysErrorMessage(GetLastError)]);
+      raise Exception.CreateFmt('Failed to get %s entry point for %s: %s', [MAPI_DLL, Name, SysErrorMessage(GetLastError)]);
   end;
 
 begin
-  if (MAPI32 = 0) then
+  if (MAPIMODULE = 0) then
   begin
-    MAPI32 := SafeLoadLibrary(MAPI32DLL);
-    if (MAPI32 <= HINSTANCE_ERROR) then
-      raise Exception.CreateFmt('%s: %s', [SysErrorMessage(GetLastError), MAPI32DLL]);
-    GetProc('MAPIGetDefaultMalloc@0', pointer(@MAPIGetDefaultMalloc));
+    MAPIMODULE := SafeLoadLibrary(MAPI_DLL);
+    if (MAPIMODULE <= HINSTANCE_ERROR) then
+      raise Exception.CreateFmt('%s: %s', [SysErrorMessage(GetLastError), MAPI_DLL]);
+
     GetProc('MAPIInitialize', pointer(@MAPIInitialize));
     GetProc('MAPIUninitialize', pointer(@MAPIUninitialize));
     GetProc('MAPIAllocateBuffer', pointer(@MAPIAllocateBuffer));
     GetProc('MAPIAllocateMore', pointer(@MAPIAllocateMore));
     GetProc('MAPIFreeBuffer', pointer(@MAPIFreeBuffer));
+
+{$if defined(WIN32)}
+    GetProc('MAPIGetDefaultMalloc@0', pointer(@MAPIGetDefaultMalloc));
     GetProc('OpenIMsgOnIStg@44', pointer(@OpenIMsgOnIStg));
     GetProc('OpenIMsgSession@12', pointer(@OpenIMsgSession));
     GetProc('CloseIMsgSession@4', pointer(@CloseIMsgSession));
+{$elseif defined(WIN64)}
+    GetProc('MAPIGetDefaultMalloc', pointer(@MAPIGetDefaultMalloc));
+    GetProc('OpenIMsgOnIStg', pointer(@OpenIMsgOnIStg));
+    GetProc('OpenIMsgSession', pointer(@OpenIMsgSession));
+    GetProc('CloseIMsgSession', pointer(@CloseIMsgSession));
+{$ifend}
   end;
 end;
 
@@ -1472,7 +1488,7 @@ begin
 
   if (FSessionCount = 0) then
   begin
-    LoadMAPI32;
+    LoadMAPI;
     Malloc := IMalloc(MAPIGetDefaultMalloc);
     OleCheck(OpenIMsgSession(Malloc, 0, FSession));
     inc(FSessionCount);
@@ -1548,7 +1564,7 @@ begin
 
   if (FMessages[Index] = nil) then
   begin
-    LoadMAPI32;
+    LoadMAPI;
     BeginSession;
 
     // Get IMessage from IStorage
@@ -1699,6 +1715,17 @@ end;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+function DummyMAPIInitialize(lpMapiInit: pointer): HResult; stdcall;
+begin
+  ShowMessage('MAPIInitialize: MAPI has not been loaded!');
+  Result := E_UNEXPECTED;
+end;
+
+procedure DummyMAPIUninitialize; stdcall;
+begin
+  ShowMessage('MAPIUninitialize: MAPI has not been loaded!');
+end;
+
 initialization
   // Data format registration
   TURLDataFormat.RegisterDataFormat;
@@ -1709,6 +1736,9 @@ initialization
   TAnsiURLClipboardFormat.RegisterFormat;
   THTMLClipboardFormat.RegisterFormat;
   TRFC822ClipboardFormat.RegisterFormat;
+
+  pointer(@MAPIInitialize) := @DummyMAPIInitialize;
+  pointer(@MAPIUninitialize) := @DummyMAPIUninitialize;
 
 finalization
 end.
