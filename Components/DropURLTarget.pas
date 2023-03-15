@@ -6,8 +6,8 @@ unit DropURLTarget;
 // Module:          DropURLTarget
 // Description:     Implements Dragging & Dropping of URLs
 //                  TO your application from another.
-// Version:	       3.5
-// Date:            30-MAR-1999
+// Version:	       3.6
+// Date:            21-APR-1999
 // Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
@@ -49,8 +49,8 @@ procedure Register;
 begin
   RegisterComponents('DragDrop', [TDropURLTarget]);
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function GetURLFromFile(const Filename: string; var URL: string): boolean;
 var
   URLfile: textfile;
@@ -84,7 +84,6 @@ end;
 //			TDropURLTarget
 // -----------------------------------------------------------------------------
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 constructor TDropURLTarget.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
@@ -115,9 +114,9 @@ begin
     tymed := TYMED_HGLOBAL;
   end;
 end;
+// ----------------------------------------------------------------------------- 
 
 //This demonstrates how to enumerate all DataObject formats.
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropURLTarget.HasValidFormats: boolean;
 var
   GetNum, GotNum: longint;
@@ -126,7 +125,7 @@ var
 begin
   result := false;
   //Enumerate available DataObject formats
-  //to see if any one of the wanted format is available...
+  //to see if any one of the wanted formats is available...
   if (DataObject.EnumFormatEtc(DATADIR_GET,FormatEnumerator) <> S_OK) or
      (FormatEnumerator.Reset <> S_OK) then
     exit;
@@ -143,14 +142,14 @@ begin
         break;
       end;
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropURLTarget.ClearData;
 begin
   fURL := '';
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropURLTarget.DoGetData: boolean;
 var
   medium: TStgMedium;
@@ -240,8 +239,7 @@ begin
   end
   else if fTitle = '' then fTitle := fURL;
 end;
-
-//initialization
-//  CF_URL, CF_FILEGROUPDESCRIPTOR and CF_FILECONTENTS are 'registered' in DropSource
+// ----------------------------------------------------------------------------- 
+// ----------------------------------------------------------------------------- 
 
 end.

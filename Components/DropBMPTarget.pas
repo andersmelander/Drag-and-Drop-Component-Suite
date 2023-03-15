@@ -6,8 +6,8 @@ unit DropBMPTarget;
 // Module:          DropBMPSource
 // Description:     Implements Dragging & Dropping of Bitmaps
 //                  FROM your application to another.
-// Version:         3.5
-// Date:            30-MAR-1999
+// Version:	       3.6
+// Date:            21-APR-1999
 // Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
@@ -65,7 +65,6 @@ end;
 //  (Modified from Graphics.pas - © Inprise Corporation.)
 // -----------------------------------------------------------------------------
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 procedure ByteSwapColors(var Colors; Count: Integer);
 // convert RGB to BGR and vice-versa.  TRGBQuad <-> TPaletteEntry
 // Note: Intel 386s processors not supported.
@@ -84,8 +83,8 @@ begin
   @@END:
   end;
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function PaletteFromDIBColorTable(ColorTable: pointer; ColorCount: Integer): HPalette;
 var
   Pal: TMaxLogPalette;
@@ -113,8 +112,8 @@ begin
   end;
   Result := CreatePalette(PLogPalette(@Pal)^);
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 procedure CopyDIBToBitmap(Bitmap:TBitmap; ImagePtr: pointer);
 var
   BitmapInfoHeader: PBitmapInfoHeader;
@@ -168,34 +167,33 @@ end;
 //			TDropBMPTarget
 // -----------------------------------------------------------------------------
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 constructor TDropBMPTarget.Create( AOwner: TComponent );
 begin
    inherited Create( AOwner );
    fBitmap := TBitmap.Create;
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 destructor TDropBMPTarget.Destroy;
 begin
   fBitmap.Free;
   inherited Destroy;
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TDropBMPTarget.HasValidFormats: boolean;
 begin
   result := (DataObject.QueryGetData(DIBFormatEtc) = S_OK) or
                 (DataObject.QueryGetData(BMPFormatEtc) = S_OK);
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 procedure TDropBMPTarget.ClearData;
 begin
   fBitmap.handle := 0;
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TDropBMPTarget.DoGetData: boolean;
 var
   medium, medium2: TStgMedium;
@@ -241,5 +239,7 @@ begin
   else
     result := false;
 end;
+// ----------------------------------------------------------------------------- 
+// ----------------------------------------------------------------------------- 
 
 end.

@@ -6,8 +6,8 @@ unit DropPIDLTarget;
 // Module:          DropPIDLTarget
 // Description:     Implements Dragging & Dropping of PIDLs
 //                  TO your application from another.
-// Version:	       3.5
-// Date:            30-MAR-1999
+// Version:	       3.6
+// Date:            21-APR-1999
 // Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
@@ -22,15 +22,17 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  DropSource, DropTarget, ActiveX, ShlObj, ClipBrd, DropPIDLSource;
+  DropSource, DropTarget, ActiveX, ShlObj, ClipBrd, DropPIDLSource, ShellApi;
 
 type
   TDropPIDLTarget = class(TDropTarget)
   private
-    PIDLFormatEtc: TFormatEtc;
-    fShellMalloc: IMalloc;
+    PIDLFormatEtc,
+    fFileNameMapFormatEtc,
+    fFileNameMapWFormatEtc: TFormatEtc;
     fPIDLs: TStrings; //Used internally to store PIDLs. I use strings to simplify cleanup.
     fFiles: TStrings; //List of filenames (paths)
+    fMappedNames: TStrings;
     function GetPidlCount: integer;
   protected
     procedure ClearData; override;
@@ -47,6 +49,9 @@ type
     property PidlCount: integer read GetPidlCount; //includes folder pidl in count
     //If you just want the filenames (not PIDLs) then use ...
     property Filenames: TStrings read fFiles;
+    //MappedNames is only needed if files need to be renamed after a drag op
+    //eg dragging from 'Recycle Bin'.
+    property MappedNames: TStrings read fMappedNames;
   end;
 
 procedure Register;
@@ -62,7 +67,6 @@ end;
 //			Miscellaneous Functions...
 // -----------------------------------------------------------------------------
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function GetPidlsFromHGlobal(const HGlob: HGlobal; var Pidls: TStrings): boolean;
 var
   i: integer;
@@ -104,45 +108,57 @@ type
     procedure Insert(Index: Integer; const S: string); override;
   end;
 
+// -----------------------------------------------------------------------------
 
-function TPIDLTargetStrings.Get(Index: Integer): string; 
+function TPIDLTargetStrings.Get(Index: Integer): string;
 var
   PidlStr: string;
   buff: array [0..MAX_PATH] of char;
 begin
   with DropPIDLTarget do
   begin
+    if (Index < 0) or (Index > fPIDLs.count-2) then
+      raise Exception.create('Filename index out of range');
     PidlStr := JoinPidlStrings(fPIDLs[0], fPIDLs[Index+1]);
-    SHGetPathFromIDList(PItemIDList(pChar(PidlStr)),buff);
-    result := buff;
+    if SHGetPathFromIDList(PItemIDList(pChar(PidlStr)),buff) then
+      result := buff else
+      result := '';
   end;
 end;
+// -----------------------------------------------------------------------------
 
-function TPIDLTargetStrings.GetCount: Integer; 
+function TPIDLTargetStrings.GetCount: Integer;
 begin
   with DropPIDLTarget do
     if fPIDLs.count < 2 then
       result := 0 else
       result := fPIDLs.count-1;
 end;
+// -----------------------------------------------------------------------------
 
-procedure TPIDLTargetStrings.Put(Index: Integer; const S: string); 
+//Overriden abstract methods which do not need implementation...
+
+procedure TPIDLTargetStrings.Put(Index: Integer; const S: string);
 begin
 end;
+// -----------------------------------------------------------------------------
 
-procedure TPIDLTargetStrings.PutObject(Index: Integer; AObject: TObject); 
+procedure TPIDLTargetStrings.PutObject(Index: Integer; AObject: TObject);
 begin
 end;
+// -----------------------------------------------------------------------------
 
 procedure TPIDLTargetStrings.Clear;
 begin
 end;
+// -----------------------------------------------------------------------------
 
-procedure TPIDLTargetStrings.Delete(Index: Integer); 
+procedure TPIDLTargetStrings.Delete(Index: Integer);
 begin
 end;
+// -----------------------------------------------------------------------------
 
-procedure TPIDLTargetStrings.Insert(Index: Integer; const S: string); 
+procedure TPIDLTargetStrings.Insert(Index: Integer; const S: string);
 begin
 end;
 
@@ -150,14 +166,14 @@ end;
 //			TDropPIDLTarget
 // -----------------------------------------------------------------------------
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 constructor TDropPIDLTarget.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   fPIDLs := TStringList.create;
   fFiles := TPIDLTargetStrings.create;
   TPIDLTargetStrings(fFiles).DropPIDLTarget := self;
-  SHGetMalloc(fShellMalloc);
+  fMappedNames := TStringList.Create;
+  //SHGetMalloc(fShellMalloc);
   with PIDLFormatEtc do
   begin
     cfFormat := CF_IDLIST;
@@ -166,36 +182,58 @@ begin
     lindex := -1;
     tymed := TYMED_HGLOBAL;
   end;
+  with fFileNameMapFormatEtc do
+  begin
+    cfFormat := CF_FILENAMEMAP;
+    ptd := nil;
+    dwAspect := DVASPECT_CONTENT;
+    lindex := -1;
+    tymed := TYMED_HGLOBAL;
+  end;
+  with fFileNameMapWFormatEtc do
+  begin
+    cfFormat := CF_FILENAMEMAPW;
+    ptd := nil;
+    dwAspect := DVASPECT_CONTENT;
+    lindex := -1;
+    tymed := TYMED_HGLOBAL;
+  end;
 end;
+// -----------------------------------------------------------------------------
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 destructor TDropPIDLTarget.Destroy;
 begin
   fPIDLs.free;
   fFiles.free;
-  //fShellMalloc := nil;
+  fMappedNames.free;
   inherited Destroy;
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.HasValidFormats: boolean;
 begin
   result := (DataObject.QueryGetData(PIDLFormatEtc) = S_OK);
 end;
+// -----------------------------------------------------------------------------
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropPIDLTarget.ClearData;
 begin
   fPIDLs.clear;
+  fMappedNames.clear;
 end;
+// -----------------------------------------------------------------------------
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.DoGetData: boolean;
 var
   medium: TStgMedium;
+  pFilename: pChar;
+  pFilenameW: PWideChar;
+  sFilename: String;
 begin
-  fPIDLs.clear;
+  ClearData;
   result := false;
+
+  //--------------------------------------------------------------------------
   if (DataObject.GetData(PIDLFormatEtc, medium) = S_OK) then
   begin
     try
@@ -204,34 +242,85 @@ begin
     finally
       ReleaseStgMedium(medium);
     end;
+
+    if not result then exit;
+    //Now check for FileNameMapping as well ...
+    //--------------------------------------------------------------------------
+    if (DataObject.GetData(fFileNameMapFormatEtc, medium) = S_OK) then
+    begin
+      try
+        if (medium.tymed = TYMED_HGLOBAL) then
+        begin
+          pFilename := GlobalLock(medium.HGlobal);
+          try
+            while true do
+            begin
+              sFilename := pFilename;
+              if sFilename = '' then break;
+              fMappedNames.add(sFilename);
+              inc(pFilename, length(sFilename)+1);
+            end;
+            if Filenames.count <> fMappedNames.count then
+              fMappedNames.clear;
+          finally
+            GlobalUnlock(medium.HGlobal);
+          end;
+        end;
+      finally
+        ReleaseStgMedium(medium);
+      end;
+    end
+    //WideChar support for WinNT...
+    else if (DataObject.GetData(fFileNameMapWFormatEtc, medium) = S_OK) then
+    try
+      if (medium.tymed = TYMED_HGLOBAL) then
+      begin
+        pFilenameW := GlobalLock(medium.HGlobal);
+        try
+          while true do
+          begin
+            sFilename := WideCharToString(pFilenameW);
+            if sFilename = '' then break;
+            fMappedNames.add(sFilename);
+            inc(pFilenameW, length(sFilename)+1);
+          end;
+          if fFiles.count <> fMappedNames.count then
+            fMappedNames.clear;
+        finally
+          GlobalUnlock(medium.HGlobal);
+        end;
+      end;
+    finally
+      ReleaseStgMedium(medium);
+    end;
+
   end;
 end;
+// -----------------------------------------------------------------------------
 
-//Note: It is the component user's responsibility to cleanup 
-//the returned PIDLs from the following 3 methods. 
+//Note: It is the component user's responsibility to cleanup
+//the returned PIDLs from the following 3 methods.
 //Use - CoTaskMemFree() - to free the PIDLs.
-
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.GetFolderPidl: pItemIdList;
 begin
   result :=nil;
   if fPIDLs.count = 0 then exit;
-  result := fShellMalloc.alloc(length(fPIDLs[0]));
+  result := ShellMalloc.alloc(length(fPIDLs[0]));
   if result <> nil then
     move(pChar(fPIDLs[0])^,result^,length(fPIDLs[0]));
 end;
+// -----------------------------------------------------------------------------
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.GetRelativeFilePidl(index: integer): pItemIdList;
 begin
   result :=nil;
   if (index < 1) or (index >= fPIDLs.count) then exit;
-  result := fShellMalloc.alloc(length(fPIDLs[index]));
+  result := ShellMalloc.alloc(length(fPIDLs[index]));
   if result <> nil then
     move(pChar(fPIDLs[index])^,result^,length(fPIDLs[index]));
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.GetAbsoluteFilePidl(index: integer): pItemIdList;
 var
   s: string;
@@ -239,12 +328,12 @@ begin
   result :=nil;
   if (index < 1) or (index >= fPIDLs.count) then exit;
   s := JoinPidlStrings(fPIDLs[0], fPIDLs[index]);
-  result := fShellMalloc.alloc(length(s));
+  result := ShellMalloc.alloc(length(s));
   if result <> nil then
     move(pChar(s)^,result^,length(s));
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.PasteFromClipboard: longint;
 var
   Global: HGlobal;
@@ -261,17 +350,13 @@ begin
     result := DROPEFFECT_COPY else
     result := Preferred;
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.GetPidlCount: integer;
 begin
   result := fPidls.count; //Note: includes folder pidl in count!
 end;
-
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-
-//initialization
-//  CF_IDLIST is 'registered' in DropSource
 
 end.

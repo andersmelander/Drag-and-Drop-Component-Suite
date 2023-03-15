@@ -16,7 +16,7 @@ package DragDropD4;
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
-{$LOCALSYMBOLS ON}
+{$LOCALSYMBOLS OFF}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
 {$OPTIMIZATION ON}
@@ -46,4 +46,5 @@ contains
   DropURLTarget in 'DropURLTarget.pas',
   DropPIDLSource in 'DropPIDLSource.pas',
   DropPIDLTarget in 'DropPIDLTarget.pas';
+
 end.

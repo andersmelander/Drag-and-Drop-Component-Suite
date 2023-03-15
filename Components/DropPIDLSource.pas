@@ -6,8 +6,8 @@ unit DropPIDLSource;
 // Module:          DropPIDLSource
 // Description:     Implements Dragging & Dropping of PIDLs
 //                  FROM your application to another.
-// Version:	       3.5
-// Date:            30-MAR-1999
+// Version:	       3.6
+// Date:            21-APR-1999
 // Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
@@ -27,25 +27,26 @@ type
   TDropPIDLSource = class(TDropSource)
   private
     fPIDLs: TStrings; //NOTE: contains folder PIDL as well as file PIDLs
+    fMappedNames: TStrings;
     function GetFilename(index: integer): string; //used internally
+    procedure SetMappedNames(names: TStrings);
   protected
-    function DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
+    function DoGetData(const FormatEtcIn: TFormatEtc;
+      OUT Medium: TStgMedium):HRESULT; Override;
     function CutOrCopyToClipboard: boolean; Override;
   public
     constructor Create(aOwner: TComponent); Override;
     destructor Destroy; Override;
     procedure CopyFolderPidlToList(pidl: PItemIDList);
     procedure CopyFilePidlToList(pidl: PItemIDList);
+    property MappedNames: TStrings read fMappedNames write SetMappedNames;
   end;
 
 procedure Register;
 
-//Exported as also used by DropPIDLTarget...
+//Exposed as also used by DropPIDLTarget...
 function PidlToString(pidl: PItemIDList): String;
 function JoinPidlStrings(pidl1,pidl2: string): String;
-
-var
-  CF_FILENAMEMAP: UINT;
 
 implementation
 
@@ -69,6 +70,7 @@ begin
     inc(longint(pidl),i);
   until i = 0;
 end;
+// -----------------------------------------------------------------------------
 
 function PidlToString(pidl: PItemIDList): String;
 var
@@ -78,6 +80,7 @@ begin
   setlength(result,PidlLength);
   Move(pidl^,pchar(result)^,PidlLength);
 end;
+// -----------------------------------------------------------------------------
 
 function JoinPidlStrings(pidl1,pidl2: string): String;
 var
@@ -93,26 +96,29 @@ end;
 // -----------------------------------------------------------------------------
 //			TDropPIDLSource
 // -----------------------------------------------------------------------------
-
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
+ 
 constructor TDropPIDLSource.Create(aOwner: TComponent);
 begin
   inherited Create(aOwner);
   fPIDLs := TStringList.create;
+  fMappedNames := TStringList.Create;
   AddFormatEtc(CF_HDROP, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
   AddFormatEtc(CF_IDLIST, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
   AddFormatEtc(CF_PREFERREDDROPEFFECT, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
+  AddFormatEtc(CF_FILENAMEMAP, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
+  AddFormatEtc(CF_FILENAMEMAPW, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
 end;
+// -----------------------------------------------------------------------------
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 destructor TDropPIDLSource.Destroy;
 begin
   fPIDLs.free;
+  fMappedNames.free;
   inherited Destroy;
 end;
+// -----------------------------------------------------------------------------
 
 //this function is used internally by DoGetData()...
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLSource.GetFilename(index: integer): string;
 var
   PidlStr: string;
@@ -126,24 +132,31 @@ begin
     result := buff;
   end;
 end;
+// ----------------------------------------------------------------------------- 
 
 //Note: Once the PIDL has been copied into the list it can be 'freed'.
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropPIDLSource.CopyFolderPidlToList(pidl: PItemIDList);
 begin
   fPIDLs.clear;
+  fMappedNames.clear;
   fPIDLs.add(PidlToString(pidl));
 end;
+// ----------------------------------------------------------------------------- 
 
 //Note: Once the PIDL has been copied into the list it can be 'freed'.
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropPIDLSource.CopyFilePidlToList(pidl: PItemIDList);
 begin
   if fPIDLs.count < 1 then exit; //no folder pidl has been added!
   fPIDLs.add(PidlToString(pidl));
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
+procedure TDropPIDLSource.SetMappedNames(names: TStrings);
+begin
+  fMappedNames.assign(names);
+end;
+// -----------------------------------------------------------------------------
+
 function TDropPIDLSource.CutOrCopyToClipboard: boolean;
 var
   FormatEtcIn: TFormatEtc;
@@ -159,11 +172,12 @@ begin
     result := true;
   end else result := false;
 end;
+// ----------------------------------------------------------------------------- 
 
-{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
-function TDropPIDLSource.DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT;
+function TDropPIDLSource.DoGetData(const FormatEtcIn: TFormatEtc;
+  OUT Medium: TStgMedium):HRESULT;
 var
-  i, MemSpace, CidaSize, Offset: integer;
+  i, MemSpace, CidaSize, Offset, StrLength: integer;
   pCIDA: PIDA;
   pInt: ^UINT;
   pOffset: PChar;
@@ -171,6 +185,7 @@ var
   dropfiles: pDropFiles;
   fFiles: string;
   pFileList: PChar;
+  pFileW: PWideChar;
 begin
   Medium.tymed := 0;
   Medium.UnkForRelease := NIL;
@@ -186,8 +201,8 @@ begin
       appendstr(fFiles,GetFilename(i)+#0);
     appendstr(fFiles,#0);
 
-    Medium.hGlobal :=
-      GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, SizeOf(TDropFiles)+length(fFiles));
+    Medium.hGlobal := GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT,
+        SizeOf(TDropFiles)+length(fFiles));
     if (Medium.hGlobal = 0) then
       result:=E_OUTOFMEMORY
     else
@@ -199,6 +214,70 @@ begin
         dropfiles^.fwide := False;
         longint(pFileList) := longint(dropfiles)+SizeOf(TDropFiles);
         move(fFiles[1],pFileList^,length(fFiles));
+      finally
+        GlobalUnlock(Medium.hGlobal);
+      end;
+      result := S_OK;
+    end;
+  end
+  //--------------------------------------------------------------------------
+  else if (FormatEtcIn.cfFormat = CF_FILENAMEMAP) and
+    (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
+    (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) and
+    //make sure there is a Mapped Name for each filename...
+    (fMappedNames.Count = fPidls.Count-1) then
+  begin
+    strlength := 0;
+    for i := 0 to fMappedNames.Count-1 do
+      Inc(strlength, Length(fMappedNames[i])+1);
+
+    Medium.hGlobal :=
+      GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, strlength+1);
+    if (Medium.hGlobal = 0) then
+      result:=E_OUTOFMEMORY
+    else
+    begin
+      Medium.tymed := TYMED_HGLOBAL;
+      pFileList := GlobalLock(Medium.hGlobal);
+      try
+        for i := 0 to fMappedNames.Count-1 do
+        begin
+          StrPCopy(pFileList,fMappedNames[i]);
+          Inc(pFileList, Length(fMappedNames[i])+1);
+        end;
+        pFileList^ := #0;
+      finally
+        GlobalUnlock(Medium.hGlobal);
+      end;
+      result := S_OK;
+    end;
+  end
+  //--------------------------------------------------------------------------
+  else if (FormatEtcIn.cfFormat = CF_FILENAMEMAPW) and
+    (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
+    (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) and
+    //make sure there is a Mapped Name for each filename...
+    (fMappedNames.Count = fPidls.Count-1) then
+  begin
+    strlength := 2;
+    for i := 0 to fMappedNames.Count-1 do
+      Inc(strlength, (Length(fMappedNames[i])+1)*2);
+
+    Medium.hGlobal := GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, strlength);
+    if (Medium.hGlobal = 0) then
+      result:=E_OUTOFMEMORY
+    else
+    begin
+      Medium.tymed := TYMED_HGLOBAL;
+      pFileW := GlobalLock(Medium.hGlobal);
+      try
+        for i := 0 to fMappedNames.Count-1 do
+        begin
+          StringToWideChar(fMappedNames[i],
+              pFileW, (length(fMappedNames[i])+1)*2);
+          Inc(pFileW, Length(fMappedNames[i])+1);
+        end;
+      pFileW^ := #0;
       finally
         GlobalUnlock(Medium.hGlobal);
       end;
@@ -226,15 +305,19 @@ begin
         pCIDA^.cidl := fPIDLs.count-1; //don't count folder
         pInt := @(pCIDA^.aoffset); //points to aoffset[0];
         pOffset := pChar(pCIDA);
-        inc(pOffset,CidaSize); //pOffset now points to where the Folder PIDL will be stored
+        //move pOffset to point to the Folder PIDL location
+        inc(pOffset,CidaSize);
         offset := CidaSize;
         for i := 0 to fPIDLs.Count-1 do
         begin
-          pInt^ := offset; //put offset into aoffset[i]
-          Move(pointer(fPIDLs[i])^,pOffset^,length(fPIDLs[i])); //put the PIDL into pOffset
-          inc(offset,length(fPIDLs[i])); //increase the offset by the size of the last pidl
+          pInt^ := offset; //store 'offset' into aoffset[i]
+          //copy the PIDL into pOffset
+          Move(pointer(fPIDLs[i])^,pOffset^,length(fPIDLs[i]));
+          //increase 'offset' by the size of the last pidl
+          inc(offset,length(fPIDLs[i]));
           inc(pInt); //increment the aoffset pointer
-          inc(pOffset,length(fPIDLs[i])); //move pOffset ready for the next PIDL
+          //move pOffset ready for the next PIDL
+          inc(pOffset,length(fPIDLs[i]));
         end;
       finally
         GlobalUnlock(Medium.hGlobal);
