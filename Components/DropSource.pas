@@ -22,6 +22,7 @@ UNIT dropsource;
   // History:
   // dd/mm/yy  Version  Changes
   // --------  -------  ----------------------------------------
+  // 20.09.98  2.1      * Shortcuts (links) now enabled.
   // 08.09.98  2.0      * No significant changes to this module
   //                      but the version was updated to coincide with the
   //                      new DropTarget module included with this demo.
@@ -55,8 +56,7 @@ UNIT dropsource;
   // -----------------------------------------------------------------------------
 
   // Future Plans -
-  // 1. Implement drag and drop of Links and Scrap Files.
-  //    (So far I've drawn a blank. Any hints VERY welcome!)
+  // 1. Implement drag and drop of Scrap Files.
   // -----------------------------------------------------------------------------
 
   // TDropTextSource -
@@ -121,7 +121,7 @@ INTERFACE
        PROPERTY RefCount: Integer Read fRefCount;
     END;
 
-    TDragType = (dtCopy, dtMove, dtLink); //dtLink doesn't work (yet)!
+    TDragType = (dtCopy, dtMove, dtLink);
     TDragTypes = SET OF TDragType;
 
     TDragResult = (drDropCopy, drDropMove, drDropLink, drCancel, drOutMemory, drUnknown);
@@ -189,6 +189,7 @@ INTERFACE
   TDropFileSource = CLASS(TDropSource)
   Private
     fFiles: TStrings;
+    filedataformats: ARRAY[0..1] OF TFormatEtc;
   Protected
     FUNCTION DoGetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
     FUNCTION DoGetDataHere(CONST FormatEtc: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
@@ -205,7 +206,10 @@ INTERFACE
 
 IMPLEMENTATION
 
-  //******************* Local Declarations *************************
+  // -----------------------------------------------------------------------------
+  //			Miscellaneous declarations and functions.
+  // -----------------------------------------------------------------------------
+
   TYPE
     TMyDropFiles = PACKED RECORD
       dropfiles: TDropFiles;
@@ -213,11 +217,156 @@ IMPLEMENTATION
     END;
     pMyDropFiles = ^TMyDropFiles;
 
+
+  //******************* GetFullPIDLFromPath *************************
+  function GetFullPIDLFromPath(Path: TFileName): pItemIDList;
+  var
+     DeskTopFolder: IShellFolder;
+     OlePath: Array[0..MAX_PATH] of WideChar;
+     dummy1,dummy2: Longint;
+  begin
+    result := nil;
+    StringToWideChar( Path, OlePath, MAX_PATH );
+    try
+      If (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then
+        DesktopFolder.ParseDisplayName(0,nil,OlePath,dummy1,result,dummy2);
+    except
+    end;
+  end;
+
+  //******************* FreePidl *************************
+  procedure FreePidl(pidl: pItemIDList);
+  var
+    ShellMalloc: IMalloc;
+  begin
+    SHGetMalloc(ShellMalloc);
+    ShellMalloc.free(pidl);
+  end;
+
+  //******************* GetShellFolderOfPath *************************
+  function GetShellFolderOfPath(FolderPath: TFileName): IShellFolder;
+  var
+    DeskTopFolder: IShellFolder;
+    PathPidl: pItemIDList;
+    OlePath: Array[0..MAX_PATH] of WideChar;
+    dummy,pdwAttributes: Longint;
+  begin
+    result := nil;
+    StringToWideChar( FolderPath, OlePath, MAX_PATH );
+    try
+      If not (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then exit;
+      if (DesktopFolder.ParseDisplayName(0,
+            nil,OlePath,dummy,PathPidl,pdwAttributes) = NOERROR) and
+            (pdwAttributes and SFGAO_FOLDER <> 0) then
+        DesktopFolder.BindToObject(PathPidl,nil,IID_IShellFolder,pointer(result));
+      FreePidl(PathPidl);
+    except
+    end;
+  end;
+
+  //******************* GetSubPidl *************************
+  function GetSubPidl(Folder: IShellFolder; Sub: TFilename): pItemIDList;
+  var
+    dummy1,dummy2: Longint;
+    OleFile: Array[0..MAX_PATH] of WideChar;
+  begin
+    StringToWideChar( Sub, OleFile, MAX_PATH );
+    Folder.ParseDisplayName(0,nil,OleFile,dummy1,result,dummy2);
+  end;
+
+
+  //******************* GetSizeOfPidl *************************
+  function GetSizeOfPidl(pidl: pItemIDList): integer;
+  var
+    ptr: PByte;
+    pSHIt: pSHItemID;
+    i: integer;
+  begin
+    result := 2;
+    ptr := pointer(pidl);
+    repeat
+      pSHIt := pointer(ptr);
+      i := pSHIt^.cb;
+      inc(result,i);
+      inc(ptr,i);
+    until i = 0;
+  end;
+
+
+  //******************* ConvertFilesToShellIDList *************************
+  type
+    POffsets = ^TOffsets;
+    TOffsets = array[0..$FFFF] of UINT; 
+
+  function ConvertFilesToShellIDList(path: string; files: TStrings): HGlobal;
+  var
+    shf: IShellFolder;
+    PathPidl, pidl: pItemIDList;
+    Ida: PIDA;
+    pOffset: POffsets;
+    ptrByte: ^Byte;
+    i, PathPidlSize, IdaSize, PreviousPidlSize: integer;
+  begin
+    result := 0;
+    shf := GetShellFolderOfPath(path);
+    if shf = nil then exit;
+    //Calculate size of IDA structure ...
+    IdaSize := (files.count + 2) * sizeof(UINT) + 2;
+
+    //Add to IdaSize space for ALL pidls...
+    PathPidl := GetFullPIDLFromPath(path);
+    PathPidlSize := GetSizeOfPidl(PathPidl);
+    IdaSize := IdaSize + PathPidlSize;
+    for i := 0 to files.count-1 do
+    begin
+      pidl := GetSubPidl(shf,files[i]);
+      IdaSize := IdaSize + GetSizeOfPidl(Pidl);
+      FreePidl(pidl);
+    end;
+
+    //Allocate memory...
+    Result := GlobalAlloc(GMEM_SHARE OR GMEM_ZEROINIT, IdaSize);
+    IF (Result = 0) THEN
+    BEGIN
+      FreePidl(PathPidl);
+      Exit;
+    END;
+    Ida := GlobalLock(Result);
+    FillChar(Ida^,IdaSize,0);
+
+    //Fill in offset and pidl data...
+    Ida^.cidl := files.count; //cidl = file count
+    pOffset := @(Ida^.aoffset); //otherwise I would have to turn off range checking.
+    pOffset^[0] := (files.count+2)*sizeof(UINT); //offset of Path pidl
+
+    ptrByte := pointer(Ida);
+    inc(ptrByte,pOffset^[0]); //ptrByte now points to Path pidl
+    move(PathPidl^, ptrByte^, PathPidlSize); //copy path pidl
+    FreePidl(PathPidl);
+
+    PreviousPidlSize := PathPidlSize;
+    for i := 1 to files.count do
+    begin
+      pidl := GetSubPidl(shf,files[i-1]);
+      pOffset^[i] := pOffset^[i-1] + PreviousPidlSize; //offset of pidl
+      PreviousPidlSize := GetSizeOfPidl(Pidl);
+
+      ptrByte := pointer(Ida);
+      inc(ptrByte,pOffset^[i]); //ptrByte now points to current file pidl
+      move(Pidl^, ptrByte^, PreviousPidlSize); //copy file pidl
+                            //PreviousPidlSize = current pidl size here
+      FreePidl(pidl);
+    end;
+    GlobalUnLock(Result);
+  end;
+
+
   //******************* Register *************************
   PROCEDURE Register;
   BEGIN
     RegisterComponents('Samples', [TDropFileSource,TDropTextSource]);
   END;
+
 
   // -----------------------------------------------------------------------------
   //			TInterfacedComponent
@@ -607,12 +756,27 @@ IMPLEMENTATION
   // -----------------------------------------------------------------------------
   //			TDropFileSource
   // -----------------------------------------------------------------------------
+  var
+    CF_IDLIST: UINT;
 
   //******************* TDropFileSource.Create *************************
   CONSTRUCTOR TDropFileSource.Create(aOwner: TComponent);
   BEGIN
     INHERITED Create(aOwner);
     fFiles := TStringList.Create;
+    CF_IDLIST := RegisterClipboardFormat(CFSTR_SHELLIDLIST);
+
+    filedataformats[0].cfFormat := CF_HDROP;
+    filedataformats[0].ptd      := NIL;
+    filedataformats[0].dwAspect := DVASPECT_CONTENT;
+    filedataformats[0].lIndex   := -1;
+    filedataformats[0].tymed    := TYMED_HGLOBAL;
+
+    filedataformats[1].cfFormat := CF_IDLIST;
+    filedataformats[1].ptd      := NIL;
+    filedataformats[1].dwAspect := DVASPECT_CONTENT;
+    filedataformats[1].lIndex   := -1;
+    filedataformats[1].tymed    := TYMED_HGLOBAL;
   END;
 
   //******************* TDropFileSource.Destroy *************************
@@ -683,12 +847,14 @@ IMPLEMENTATION
   VAR
     i: Integer;
     strlength: Integer;
+    tmpFilenames: TStringList;
   BEGIN
     Medium.tymed := 0;
     Medium.UnkForRelease := NIL;
     Medium.hGlobal := 0;
 
-    IF (FormatEtcIn.cfFormat = CF_HDROP) AND
+    IF fFiles.count = 0 then result := E_UNEXPECTED
+    ELSE IF (FormatEtcIn.cfFormat = CF_HDROP) AND
       ((FormatEtcIn.dwAspect = DVASPECT_CONTENT) OR (FormatEtcIn.dwAspect = DVASPECT_ICON)) AND
       (FormatEtcIn.tymed AND TYMED_HGLOBAL <> 0) THEN
     BEGIN
@@ -703,6 +869,21 @@ IMPLEMENTATION
       END;
       Medium.tymed := TYMED_HGLOBAL;
       result := DoGetDataHere(FormatEtcIn, Medium);
+      END
+    ELSE IF (FormatEtcIn.cfFormat = CF_IDLIST) AND
+      ((FormatEtcIn.dwAspect = DVASPECT_CONTENT) OR (FormatEtcIn.dwAspect = DVASPECT_ICON)) AND
+      (FormatEtcIn.tymed AND TYMED_HGLOBAL <> 0) THEN
+    BEGIN
+      tmpFilenames := TStringList.create;
+      Medium.tymed := TYMED_HGLOBAL;
+      for i := 0 to fFiles.count-1 do
+        tmpFilenames.add(extractfilename(fFiles[i]));
+      Medium.hGlobal :=
+          ConvertFilesToShellIDList(extractfilepath(fFiles[0]),tmpFilenames);
+      if Medium.hGlobal = 0 then
+        result:=E_OUTOFMEMORY else
+        result := S_OK;
+      tmpFilenames.free;
     END ELSE
       result := DV_E_FORMATETC;
   END;
@@ -718,11 +899,6 @@ IMPLEMENTATION
   END;
 
   //******************* TDropFileSource.DoEnumFormatEtc *************************
-
-  CONST
-    filedataformats: ARRAY[0..0] OF TFormatEtc =
-     ((cfFormat: CF_HDROP; ptd: NIL;
-                 dwAspect: DVASPECT_CONTENT; lIndex: -1; tymed: TYMED_HGLOBAL));
 
   FUNCTION TDropFileSource.DoEnumFormatEtc(dwDirection: LongInt;
            OUT EnumFormatEtc:ienumformatetc): HRESULT;
