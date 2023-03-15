@@ -2,41 +2,58 @@ unit DropTarget;
 
   // -----------------------------------------------------------------------------
   // Project:         Drag and Drop Target Component
-  // Component Names: TDropFileTarget, TDropTextTarget
+  // Component Names: TDropFileTarget, TDropTextTarget, TDropURLTarget
   // Module:          DropTarget
-  // Description:     Implements Dragging & Dropping of text and files
+  // Description:     Implements Dragging & Dropping of text, files and URLs
   //                  INTO your application FROM another.
-  // Version:	        3.0
-  // Date:            22-SEP-1998
+  // Version:	        3.1
+  // Date:            01-OCT-1998
   // Target:          Win32, Delphi 3 & 4
-  // Author:          Angus Johnson, ajohnson@rpi.net.au
-  // Copyright        ©1998 Angus Johnson
+  // Authors:         Angus Johnson,   ajohnson@rpi.net.au
+  //                  Anders Melander, anders@melander.dk
+  //                                   http://www.melander.dk
+  //                  Graham Wideman,  graham@sdsu.edu
+  //                                   http://www.wideman-one.com
+  // Copyright        ©1998 Angus Johnson, Anders Melander & Graham Wideman
 
   // -----------------------------------------------------------------------------
-  // You are free to use this source but please give me credit for my work.
+  // You are free to use this source but please give us credit for our work.
   // If you make improvements or derive new components from this code,
-  // I would very much like to see your improvements. FEEDBACK IS WELCOME.
+  // we would very much like to see your improvements. FEEDBACK IS WELCOME.
   // -----------------------------------------------------------------------------
 
-  // -----------------------------------------------------------------------------
-  // NOTE 1:
-  // This component implements the IDropTarget COM interface instead of using the
-  // Windows API message WM_DROPFILES and DragAcceptFiles(). The latter approach only
-  // displays a COPY drag operation (not drag MOVE) when dragging to the target window.
-  // In other words the small plus symbol will always be present in the drag image
-  // when over the target window irrespective of Ctrl & Shift keyboard states when
-  // implementing WM_DROPFILES and DragAcceptFiles().
-  // This component however by implementing the IDropTarget COM interface allows
-  // either copy OR move feedback options during a drag op. (See demo.)
-  // -----------------------------------------------------------------------------
-  // NOTE 2:
-  // This component uses my DropSource.pas unit for the declaration of the
+  // NOTE:
+  // These components use the DropSource.pas unit for the declaration of the
   // TInterfacedComponent class.
   // -----------------------------------------------------------------------------
 
   // History:
   // dd/mm/yy  Version  Changes
   // --------  -------  ----------------------------------------
+  // 01.10.98  3.1      * Major design changes including changes to published properties and events.
+  //                      (The previous version attempted to unregister the drop target window
+  //                      in TDropTarget.Notification method. However, the target TWinControl handle is 
+  //                      destroyed prior to this method being called so this was never going to work
+  //                      if the target TWinControl was destroyed before TDropTarget. One avenue we 
+  //                      investigated was hooking the target TWinControl message handler using its
+  //                      WindowProc method. Although this works, if any other component hooks the 
+  //                      same TWinControl the order of hooking and unhooking becomes critical. As this 
+  //                      is not under the controll of our component this approach has been abandoned.
+  //                      The only really safe approach appears to be getting the component user to
+  //                      manually unregister the target window prior to the deletion of the target   
+  //                      TWinControl. As a design issue, I decided to get the user to manually 
+  //                      register the target TWinControl as well as I thought this would be the
+  //                      best was to remind of the need to unregister. This small inconvenience
+  //                      is far outweighed by the added reliability of the component. It is a simple
+  //                      step to register and unregister in the FormCreate and FormDestroy methods
+  //                      respectively. If for some reason the component user wishes to temporarily
+  //                      disable the TDropTarget capability then the unregister / register methods
+  //                      can again be used. The Enabled property has been removed as a consequence.
+  //                      The TargetWindow property has also been removed as the Target TWinControl
+  //                      is now assigned when passed as a parameter in the register method.)
+  //                    * Other design changes now make it MUCH easier to create descendant classes 
+  //                      of TDropTarget.
+  //                    * TDropURLTarget added.
   // 22.09.98  3.0      * Shortcuts (links) for TDropFileTarget now enabled.
   //                    * TDropSource.DoEnumFormatEtc() no longer declared abstract.
   //                    * Bug fix where StgMediums weren't released. (oops!)
@@ -47,31 +64,16 @@ unit DropTarget;
   // xx.08.97  1.0      * Delphi 2 version - using WM_DROPFILES and DragAcceptFiles().
   // -----------------------------------------------------------------------------
 
-  // PUBLISHED PROPERTIES:
-  //   DragTypes: TDragTypes;  // [dtCopy, dtMove,dtLink]
-  //   Enabled: boolean;
-  //   Target: TWinControl
-  //   GetDataOnEnter: boolean; // usually set to false -> so gets data on drop
-  // EVENTS:
-  //   OnEnter: TTargetEnterEvent - optional
-  //   OnDragOver: TNotifyEvent - optional
-  //   OnLeave: TNotifyEvent - optional
-  //   OnDrop: TTargetDropEvent - essential
-  //   OnGetDropEffect: TGetDropEffectEvent - optional
-
-  // USAGE:
+  // BASIC USAGE: (See demo for more detailed examples)
   // 1. Add this non-visual component to the form you wish to drag TO.
-  // 2. Select the Target Component (eg: ListView, Listbox etc.). This
-  //    is the component which will register the Drop Event (ie: the
-  //    cursor changes to a valid drop cursor over this component.)
-  //    Note: It doesn't HAVE to be the component which will display the
-  //    dropped files although it does makes more visual sense if it is.
-  // 3. Set enabled to true. (Under some situations it is desirable to
-  //    temporarily turn this off. (See demo.)
-  // 4. Assign an OnDrop event (ie: what to do when files or text are
-  //    "dropped" on your component).
+  // 2. In the FormCreate method add ... TDropFileTarget1.register(Listview1);
+  // 3. In the FormDestroy method add ... TDropFileTarget1.unregister;
+  // 4. In the DropTarget OnDrop event handler process the dropped data. Eg ...
+  //     procedure TFormURL.DropURLTarget1Drop(Sender: TObject; DragType: TDragType; Point: TPoint);
+  //     begin
+  //       edit1.text := DropURLTarget1.URL;
+  //     end;
   // -----------------------------------------------------------------------------
-
 
 interface
 
@@ -84,16 +86,24 @@ interface
   TGetDropEffectEvent = procedure(Sender: TObject;
     const grfKeyState: Longint; var dwEffect: LongInt) of Object;
 
+  TTargetOnEnterEvent = procedure(Sender: TObject; pt: TPoint) of Object;
+
+  TTargetOnDropEvent = procedure(Sender: TObject;
+                           DragType: TDragType; Point: TPoint) of Object;
+
   //Note: TInterfacedComponent declared in DropSource.pas
   TDropTarget = class(TInterfacedComponent, IDropTarget)
   private
     fDataObj: IDataObject;
     fDragTypes: TDragTypes;
-    fEnabled: boolean;
+    fRegistered: boolean;
     fTarget: TWinControl;
     fGetDataOnEnter: boolean;
+    fOnEnter: TTargetOnEnterEvent;
+    fOnDragOver: TTargetOnEnterEvent;
+    fOnLeave: TNotifyEvent;
+    fOnDrop: TTargetOnDropEvent;
     fGetDropEffectEvent: TGetDropEffectEvent;
-    procedure GetData; Virtual; Abstract;
   protected
 
     // IDropTarget methods...
@@ -105,90 +115,66 @@ interface
     function Drop(const dataObj: IDataObject; grfKeyState: Longint; pt: TPoint;
       var dwEffect: Longint): HRESULT; StdCall;
 
-    //New methods...
-    function DoDragEnter(grfKeyState: Longint; pt: TPoint;
-             var dwEffect: Longint): HRESULT; Virtual; Abstract;
-    function DoDragOver(grfKeyState: Longint; pt: TPoint;
-             var dwEffect: Longint): HRESULT; Virtual; Abstract;
-    procedure DoDragLeave; Virtual; Abstract;
-    function DoDrop(grfKeyState: Longint; pt: TPoint;
-             var dwEffect: Longint): HRESULT; Virtual; Abstract;
-
-    procedure SetEnabled(Enabl: boolean);
-    procedure SetTarget(targ: TWinControl);
-    procedure Notification(comp: TComponent; Operation: TOperation); override;
+    function DoGetData: boolean; Virtual; Abstract;
+    procedure ClearData; Virtual; Abstract;
+    function HasValidFormats: boolean; Virtual; Abstract;
     function GetValidDropEffect(grfKeyState: Longint): LongInt; Virtual;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure Register(Target:TWinControl);
+    procedure Unregister;
   published
     property Dragtypes: TDragTypes read fDragTypes write fDragTypes;
-    property Enabled: Boolean read fEnabled write SetEnabled;
     property GetDataOnEnter: Boolean read fGetDataOnEnter write fGetDataOnEnter;
-    property Target: TWinControl read fTarget write SetTarget;
+    property OnEnter: TTargetOnEnterEvent read fOnEnter write fOnEnter;
+    property OnDragOver: TTargetOnEnterEvent read fOnDragOver write fOnDragOver;
+    property OnLeave: TNotifyEvent read fOnLeave write fOnLeave;
+    property OnDrop: TTargetOnDropEvent read fOnDrop write fOnDrop;
     property OnGetDropEffect: TGetDropEffectEvent
       read fGetDropEffectEvent write fGetDropEffectEvent;
   end;
 
-  TTargetFileEnterEvent = procedure(Sender: TObject;
-    Files: TStrings) of Object;
-
-  TTargetFileDropEvent = procedure(Sender: TObject;
-    DragType: TDragType; Files: TStrings; Point: TPoint) of Object;
 
   TDropFileTarget = class(TDropTarget)
   private
     fFiles: TStrings;
-    fEnter: TTargetFileEnterEvent;
-    fDragOver: TNotifyEvent;
-    fLeave: TNotifyEvent;
-    fDrop: TTargetFileDropEvent;
-    procedure GetData; override;
   protected
-    function DoDragEnter(grfKeyState: Longint; pt: TPoint;
-             var dwEffect: Longint): HRESULT; override;
-    function DoDragOver(grfKeyState: Longint; pt: TPoint;
-             var dwEffect: Longint): HRESULT; override;
-    procedure DoDragLeave; override;
-    function DoDrop(grfKeyState: Longint; pt: TPoint;
-             var dwEffect: Longint): HRESULT; override;
+    procedure ClearData; override;
+    function DoGetData: boolean; override;
+    function HasValidFormats: boolean; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-  published
-    property OnEnter: TTargetFileEnterEvent read fEnter write fEnter;
-    property OnDragOver: TNotifyEvent read fDragOver write fDragOver;
-    property OnLeave: TNotifyEvent read fLeave write fLeave;
-    property OnDrop: TTargetFileDropEvent read fDrop write fDrop;
+    property Files: TStrings Read fFiles;
   end;
-
-  TTargetTextEnterEvent = procedure(Sender: TObject;
-    Text: String) of Object;
-
-  TTargetTextDropEvent = procedure(Sender: TObject;
-    DragType: TDragType; Text: String; Point: TPoint) of Object;
 
   TDropTextTarget = class(TDropTarget)
   private
     fText: String;
-    fEnter: TTargetTextEnterEvent;
-    fDragOver: TNotifyEvent;
-    fLeave: TNotifyEvent;
-    fDrop: TTargetTextDropEvent;
-    procedure GetData; override;
   protected
-    function DoDragEnter(grfKeyState: Longint; pt: TPoint;
-             var dwEffect: Longint): HRESULT; override;
-    function DoDragOver(grfKeyState: Longint; pt: TPoint;
-             var dwEffect: Longint): HRESULT; override;
-    procedure DoDragLeave; override;
-    function DoDrop(grfKeyState: Longint; pt: TPoint;
-             var dwEffect: Longint): HRESULT; override;
+    procedure ClearData; override;
+    function DoGetData: boolean; override;
+    function HasValidFormats: boolean; override;
+  public
+    property Text: String Read fText Write fText;
+  end;
+
+  TDropURLTarget = class(TDropTarget)
+  private
+    URLFormatEtc,
+    FileContentsFormatEtc: TFormatEtc;
+    fURL: String;
+  protected
+    procedure ClearData; override;
+    function DoGetData: boolean; override;
+    function HasValidFormats: boolean; override;
   published
-    property OnEnter: TTargetTextEnterEvent read fEnter write fEnter;
-    property OnDragOver: TNotifyEvent read fDragOver write fDragOver;
-    property OnLeave: TNotifyEvent read fLeave write fLeave;
-    property OnDrop: TTargetTextDropEvent read fDrop write fDrop;
+    property Dragtypes: TDragTypes read fDragTypes; //ReadOnly - only dtLink allowed.
+    property GetDataOnEnter: Boolean read fGetDataOnEnter; //ReadOnly - always true.
+  public
+    constructor Create(AOwner: TComponent); override;
+    property URL: String Read fURL Write fURL;
   end;
 
 procedure Register;
@@ -197,8 +183,67 @@ implementation
 
 procedure Register;
 begin
-  RegisterComponents('Samples', [TDropFileTarget, TDropTextTarget]);
+  RegisterComponents('Samples', [TDropFileTarget, TDropTextTarget, TDropURLTarget]);
 end;
+
+// -----------------------------------------------------------------------------
+//			Miscellaneous functions ...
+// -----------------------------------------------------------------------------
+
+//******************* GetFilesFromHGlobal *************************
+function GetFilesFromHGlobal(const HGlob: HGlobal; var Files: TStrings): boolean;
+var
+  DropFiles		: PDropFiles;
+  Filename		: PChar;
+  s			: string;
+begin
+  DropFiles := PDropFiles(GlobalLock(HGlob));
+  try
+    Filename := PChar(DropFiles) + DropFiles^.pFiles;
+    while (Filename^ <> #0) do
+    begin
+      if (DropFiles^.fWide) then // -> NT4 compatability
+      begin
+        s := WideCharToString(PWideChar(Filename));
+        inc(Filename, (Length(s) + 1) * 2);
+      end else
+      begin
+        s := StrPas(Filename);
+        inc(Filename, Length(s) + 1);
+      end;
+      Files.Add(s);
+    end;
+  finally
+    GlobalUnlock(HGlob);
+  end;
+  if Files.count > 0 then
+    result := true else
+    result := false;
+end;
+
+//******************* GetURLFromFile *************************
+function GetURLFromFile(const Filename: string; var URL: string): boolean;
+var
+  URLfile: textfile;
+  str: string;
+  i: integer;
+begin
+  result := false;
+  AssignFile(URLFile, Filename);
+  try
+    Reset(URLFile);
+    ReadLn(URLFile, str);
+    CloseFile(URLFile);
+    if (copy(str,1,18) <> '[InternetShortcut]') then
+      exit;
+    i := pos('=',str);
+    if (i <> 23) and (i <> 24) then exit; // Netscape and IE are different!
+    result := true;
+    URL := copy(str,i+1,250);
+  except
+  end;
+end;
+
 
 // -----------------------------------------------------------------------------
 //			TDropTarget
@@ -208,49 +253,78 @@ end;
 function TDropTarget.DragEnter(const dataObj: IDataObject; grfKeyState: Longint;
   pt: TPoint; var dwEffect: Longint): HRESULT;
 begin
+
+  ClearData;
   fDataObj := dataObj;
   fDataObj._AddRef;
   dwEffect := GetValidDropEffect(grfKeyState);
 
-  Result := DoDragEnter(grfKeyState,pt,dwEffect);
+  //enum formats here ...
+  if HasValidFormats then
+    result := S_OK else
+    result := E_FAIL;
 
-  if Result <> S_OK then dwEffect := DROPEFFECT_NONE;
+  if (result <> S_OK) then
+  begin
+    fDataObj._Release;
+    fDataObj := nil;
+    dwEffect := DROPEFFECT_NONE;
+    exit;
+  end;
+
+  //It's generally more efficient to get files only if a drop occurs
+  //rather than on entering a potential target window.
+  //However - sometimes there is a good reason to get them here - see Demo.
+  if fGetDataOnEnter and (not DoGetData) then
+    dwEffect := DROPEFFECT_NONE;
+
+  if Assigned(fOnEnter) then
+    fOnEnter(self, pt);
 end;
 
 //******************* TDropTarget.DragOver *************************
-function TDropTarget.DragOver(grfKeyState: Longint; pt: TPoint; var dwEffect: Longint): HResult;
+function TDropTarget.DragOver(grfKeyState: Longint; pt: TPoint;
+             var dwEffect: Longint): HResult;
 begin
-  if fDataObj = nil then dwEffect := DROPEFFECT_NONE
-  else dwEffect := GetValidDropEffect(grfKeyState);
-  Result := DoDragOver(grfKeyState,pt,dwEffect);
+  //Keep code in this event to a minimum as this is called very often.
+  dwEffect := GetValidDropEffect(grfKeyState);
+  if Assigned(fOnDragOver) then
+    fOnDragOver(self, pt);
+  RESULT := S_OK;
 end;
 
 //******************* TDropTarget.DragLeave *************************
 function TDropTarget.DragLeave: HResult;
 begin
-  Result := S_OK;
+  ClearData;
   if fDataObj <> nil then
   begin
     fDataObj._Release;
     fDataObj := nil;
   end;
-  DoDragLeave;
+  if Assigned(fOnLeave) then fOnLeave(self);
+  Result := S_OK;
 end;
 
 //******************* TDropTarget.Drop *************************
 function TDropTarget.Drop(const dataObj: IDataObject; grfKeyState: Longint;
   pt: TPoint; var dwEffect: Longint): HResult;
 begin
-  if fDataObj = nil then
-  begin
-    result := E_FAIL;
-    exit;
-  end;
+  RESULT := S_OK;
   dwEffect := GetValidDropEffect(grfKeyState);
 
-  Result :=  DoDrop(grfKeyState,pt,dwEffect);
+  if (not fGetDataOnEnter) and (not DoGetData) then
+    dwEffect := DROPEFFECT_NONE;
+
+  if Assigned(fOnDrop) then
+    case dwEffect of
+      DROPEFFECT_MOVE: fOnDrop(Self, dtMove, pt);
+      DROPEFFECT_COPY: fOnDrop(Self, dtCopy, pt);
+      DROPEFFECT_LINK: fOnDrop(Self, dtLink, pt);
+    end;
 
   // clean up!
+  ClearData;
   if fDataObj = nil then exit;
   fDataObj._Release;
   fDataObj := nil;
@@ -266,6 +340,7 @@ begin
        (dtMove in fDragTypes) then result := DROPEFFECT_MOVE
   else if (dtCopy in fDragTypes) then result := DROPEFFECT_COPY
   else if (dtMove in fDragTypes) then result := DROPEFFECT_MOVE
+  else if (dtLink in fDragTypes) then result := DROPEFFECT_LINK
   else result := DROPEFFECT_NONE;
   //Default behaviour can be overridden (see Demo).
   if Assigned(fGetDropEffectEvent) then fGetDropEffectEvent(self, grfKeyState, result);
@@ -277,8 +352,7 @@ constructor TDropTarget.Create( AOwner: TComponent );
 begin
    inherited Create( AOwner );
    _AddRef;
-   fEnabled := true;
-   DragTypes := [dtCopy, dtMove, dtLink]; //default - allows user choice.
+   DragTypes := [dtCopy, dtMove, dtLink];
    fGetDataOnEnter := false;
    fDataObj := nil;
 end;
@@ -286,43 +360,35 @@ end;
 //******************* TDropTarget.Destroy *************************
 destructor TDropTarget.Destroy;
 begin
-  SetEnabled(false);
+  Unregister;
   inherited Destroy;
 end;
 
-//******************* TDropTarget.SetTarget *************************
-procedure TDropTarget.SetTarget(Targ: TWinControl);
+//******************* TDropTarget.RegisterTarget *************************
+procedure TDropTarget.Register(Target: TWinControl);
 begin
-  if fTarget = Targ then exit;
+  if fTarget = Target then
+    exit;
+  if (fTarget <> nil) then
+    Unregister;
+  fTarget := target;
 
-  if assigned(fTarget) and fEnabled then
-    RevokeDragDrop(fTarget.handle);
-
-  fTarget := Targ;
-
-  if assigned(fTarget) and fEnabled then
-    RegisterDragDrop(fTarget.handle,self as IDroptarget);
+  CoLockObjectExternal(self as IUnknown,true,false);
+  if not RegisterDragDrop(fTarget.handle,self as IDroptarget) = S_OK then
+      raise Exception.create('Failed to Register '+ fTarget.name);
+  fRegistered := true;
 end;
 
-//******************* TDropTarget.Notification *************************
-procedure TDropTarget.Notification(comp: TComponent; Operation: TOperation);
+//******************* TDropTarget.UnregisterTarget *************************
+procedure TDropTarget.Unregister;
 begin
-  inherited Notification(comp, Operation);
-  if (comp = fTarget) and (Operation = opRemove) then
-  begin
-    if fEnabled and fTarget.HandleAllocated then
-      RevokeDragDrop(fTarget.handle);
-    fTarget := nil;
-  end;
-end;
-
-//******************* TDropTarget.SetEnabled *************************
-procedure TDropTarget.SetEnabled(Enabl: boolean);
-begin
-  fEnabled := Enabl;
-  if assigned(fTarget) then
-    if fEnabled then RegisterDragDrop(fTarget.handle,self as IDroptarget)
-    else RevokeDragDrop(fTarget.handle);
+  fRegistered := false;
+  if (fTarget = nil) then
+    exit;
+  if not RevokeDragDrop(fTarget.handle) = S_OK then
+      raise Exception.create('Failed to Unregister '+ fTarget.name);
+  CoLockObjectExternal(self as IUnknown,false,false);
+  fTarget := nil;
 end;
 
 // -----------------------------------------------------------------------------
@@ -332,7 +398,6 @@ end;
 const
   HDropFormatEtc: TFormatEtc = (cfFormat: CF_HDROP;
     ptd: nil; dwAspect: DVASPECT_CONTENT; lindex: -1; tymed: TYMED_HGLOBAL);
-// -----------------------------------------------------------------------------
 
 //******************* TDropFileTarget.Create *************************
 constructor TDropFileTarget.Create( AOwner: TComponent );
@@ -348,102 +413,40 @@ begin
   inherited Destroy;
 end;
 
-//******************* TDropFileTarget.DoDragEnter *************************
-function TDropFileTarget.DoDragEnter(grfKeyState: Longint;
-  pt: TPoint; var dwEffect: Longint): HResult;
+//******************* TDropFileTarget.HasValidFormats *************************
+function TDropFileTarget.HasValidFormats: boolean;
+begin
+  result := (fDataObj.QueryGetData(HDropFormatEtc) = S_OK);
+end;
+
+//******************* TDropFileTarget.ClearData *************************
+procedure TDropFileTarget.ClearData;
 begin
   fFiles.clear;
-  if not Assigned(fDataObj) then
-  begin
-    result := E_FAIL;
-    exit;
-  end;
-
-  result := fDataObj.QueryGetData(HDropFormatEtc);
-  if result <> S_OK then
-  begin
-    //I know - calling _Release isn't necessary (in Delphi 3&4) ..
-    //Delphi is supposed to do this when the interface goes out of scope.
-    //However, how can I test it? Should I act on blind faith?
-    fDataObj._Release;
-    fDataObj := nil;
-  end;
-
-  if Assigned(fEnter) and Assigned(fDataObj) then
-  begin
-    //It's generally more efficient to get files only if a drop occurs
-    //rather than on entering a potential target window.
-    //However - sometimes there is a good reason to get them here - see Demo.
-    if fGetDataOnEnter then GetData;
-    fEnter(self, fFiles);
-  end;
 end;
 
-//******************* TDropFileTarget.DoDragOver *************************
-function TDropFileTarget.DoDragOver(grfKeyState: Longint; pt: TPoint;
-             var dwEffect: Longint): HRESULT;
-begin
-  //Keep code in this event to a minimum as this is called very often.
-  if Assigned(fDragOver) and Assigned(fDataObj) then fDragOver(self);
-  RESULT := S_OK;
-end;
-
-//******************* TDropFileTarget.DoDragLeave *************************
-procedure TDropFileTarget.DoDragLeave;
-begin
-  fFiles.clear;
-  if Assigned(fLeave) then fLeave(self);
-end;
-
-//******************* TDropFileTarget.DoDrop *************************
-function TDropFileTarget.DoDrop(grfKeyState: Longint; pt: TPoint;
-         var dwEffect: Longint): HRESULT;
-begin
-  //If Filenames were collected on Entering target
-  //don't bother doing it again!
-  if fFiles.count = 0 then GetData;
-
-  if fFiles.count = 0 then
-  begin
-    RESULT := E_FAIL;
-    exit;
-  end;
-
-  RESULT := S_OK;
-  if Assigned(fDrop) then
-    if dwEffect = DROPEFFECT_MOVE then
-      fDrop(Self, dtMove, fFiles, pt)
-    else if dwEffect = DROPEFFECT_COPY then
-      fDrop(Self, dtCopy, fFiles, pt)
-    else
-      fDrop(Self, dtLink, fFiles, pt);
-end;
-
-//******************* TDropFileTarget.GetData *************************
-procedure TDropFileTarget.GetData;
+//******************* TDropFileTarget.DoGetData *************************
+function TDropFileTarget.DoGetData: boolean;
 var
   medium: TStgMedium;
-  pdf: PDropFiles;
-  dropfiles: pchar;
 begin
   fFiles.clear;
-  if (fDataObj.GetData(HDropFormatEtc, medium) <> S_OK) or
-                             (medium.tymed <> TYMED_HGLOBAL) then exit;
+  result := false;
+
+  if (fDataObj.GetData(HDropFormatEtc, medium) <> S_OK) then
+    exit;
+
   try
-    pdf := GlobalLock(medium.HGlobal);
-    dropfiles := PChar(pdf);
-    Inc(dropfiles,pdf^.pFiles);
-    while (dropfiles[0]<>#0) do
-    begin
-      fFiles.Add(strPas(dropfiles));
-      Inc(dropfiles,1+strlen(dropfiles));
-    end;
-    GlobalUnlock(medium.HGlobal);
-  except
+    if (medium.tymed = TYMED_HGLOBAL) and
+       GetFilesFromHGlobal(medium.HGlobal,fFiles) then
+      result := true else
+      result := false;
+  finally
+    //Don't forget to clean-up!
+    ReleaseStgMedium(medium);
   end;
-  //Don't forget to clean-up!
-  ReleaseStgMedium(medium);
 end;
+
 
 // -----------------------------------------------------------------------------
 //			TDropTextTarget
@@ -455,102 +458,192 @@ const
     ptd: nil; dwAspect: DVASPECT_CONTENT; lindex: -1; tymed: TYMED_HGLOBAL);
 // -----------------------------------------------------------------------------
 
-//******************* TDropTextTarget.DoDragEnter *************************
-function TDropTextTarget.DoDragEnter(grfKeyState: Longint;
-  pt: TPoint; var dwEffect: Longint): HResult;
+//******************* TDropTextTarget.HasValidFormats *************************
+function TDropTextTarget.HasValidFormats: boolean;
+begin
+  result := (fDataObj.QueryGetData(TextFormatEtc) = S_OK);
+end;
+
+//******************* TDropTextTarget.ClearData *************************
+procedure TDropTextTarget.ClearData;
 begin
   fText := '';
-  if not Assigned(fDataObj) then
-  begin
-    result := E_FAIL;
-    exit;
-  end;
-
-  result := fDataObj.QueryGetData(TextFormatEtc);
-  if result <> S_OK then
-  begin
-    //I know - calling _Release isn't necessary (in Delphi 3&4) ..
-    //Delphi is supposed to do this when the interface goes out of scope.
-    //However, how can I test it? Should I act on blind faith?
-    fDataObj._Release;
-    fDataObj := nil;
-  end;
-
-  if Assigned(fEnter) and Assigned(fDataObj) then
-  begin
-    //It's generally more efficient to get files only if a drop occurs
-    //rather than on entering a potential target window.
-    //However - sometimes there is a good reason to get them here - see Demo.
-    if fGetDataOnEnter then GetData;
-    fEnter(self, fText);
-  end;
 end;
 
-//******************* TDropTextTarget.DoDragOver *************************
-function TDropTextTarget.DoDragOver(grfKeyState: Longint; pt: TPoint;
-             var dwEffect: Longint): HRESULT;
-begin
-  //Keep code in this event to a minimum as this is called very often.
-  if Assigned(fDragOver) and Assigned(fDataObj) then fDragOver(self);
-  RESULT := S_OK;
-end;
-
-//******************* TDropTextTarget.DoDragLeave *************************
-procedure TDropTextTarget.DoDragLeave;
-begin
-  fText := '';
-  if Assigned(fLeave) then fLeave(self);
-end;
-
-//******************* TDropTextTarget.DoDrop *************************
-function TDropTextTarget.DoDrop(grfKeyState: Longint; pt: TPoint;
-         var dwEffect: Longint): HRESULT;
-begin
-  //If Filenames were collected on Entering target
-  //don't bother doing it again!
-  if fText = '' then GetData;
-
-  if fText = '' then
-  begin
-    RESULT := E_FAIL;
-    exit;
-  end;
-
-  RESULT := S_OK;
-  if Assigned(fDrop) then
-    if dwEffect = DROPEFFECT_MOVE then
-      fDrop(Self, dtMove, fText, pt)
-    else if dwEffect = DROPEFFECT_COPY then
-      fDrop(Self, dtCopy, fText, pt)
-    else
-      fDrop(Self, dtLink, fText, pt);
-end;
-
-//******************* TDropTextTarget.GetData *************************
-procedure TDropTextTarget.GetData;
+//******************* TDropTextTarget.DoGetData *************************
+function TDropTextTarget.DoGetData: boolean;
 var
   medium: TStgMedium;
   cText: pchar;
 begin
-  fText := '';
-  if (fDataObj.GetData(TextFormatEtc, medium) <> S_OK) or
-                             (medium.tymed <> TYMED_HGLOBAL) then exit;
-  try
-    cText := PChar(GlobalLock(medium.HGlobal));
-    fText := cText;
-    GlobalUnlock(medium.HGlobal);
-  except
-  end;
-  //Don't forget to clean-up!
-  ReleaseStgMedium(medium);
+  result := false;
+  if fText <> '' then
+    result := true // already got it!
+  else if (fDataObj.GetData(TextFormatEtc, medium) = S_OK) then
+  begin
+    try
+      if (medium.tymed <> TYMED_HGLOBAL) then exit;
+      cText := PChar(GlobalLock(medium.HGlobal));
+      fText := cText;
+      GlobalUnlock(medium.HGlobal);
+      result := true;
+    finally
+      ReleaseStgMedium(medium);
+    end;
+  end
+  else
+    result := false;
 end;
 
+
+// -----------------------------------------------------------------------------
+//			TDropURLTarget
+// -----------------------------------------------------------------------------
+
+{URLFormatEtc cannot be declared as a constant because CF_URL is not a constant.
+ URLFormatEtc is declared a private variable of TDropURLTarget.}
+// -----------------------------------------------------------------------------
+//const
+//  URLFormatEtc: TFormatEtc;
+// -----------------------------------------------------------------------------
+
+//******************* TDropURLTarget.Create *************************
+constructor TDropURLTarget.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  fDragTypes := [dtLink]; //Only allow links.
+  fGetDataOnEnter := true;
+  with URLFormatEtc do
+  begin
+    cfFormat := CF_URL;
+    ptd := nil;
+    dwAspect := DVASPECT_CONTENT;
+    lindex := -1;
+    tymed := TYMED_HGLOBAL;
+  end;
+  with FileContentsFormatEtc do
+  begin
+    cfFormat := CF_FILECONTENTS;
+    ptd := nil;
+    dwAspect := DVASPECT_CONTENT;
+    lindex := 0;
+    tymed := TYMED_HGLOBAL;
+  end;
+end;
+
+//This demonstrates how to enumerate all DataObject formats.
+//******************* TDropURLTarget.HasValidFormats *************************
+function TDropURLTarget.HasValidFormats: boolean;
+var
+  GetNum, GotNum: longint;
+  FormatEnumerator: IEnumFormatEtc;
+  tmpFormatEtc: TformatEtc;
+begin
+  result := false;
+  //Enumerate available DataObject formats
+  //to see if any one of the wanted format is available...
+  if (fDataObj.EnumFormatEtc(DATADIR_GET,FormatEnumerator) <> S_OK) or
+     (FormatEnumerator.Reset <> S_OK) then
+    exit;
+  GetNum := 1; //get one at a time...
+  while (FormatEnumerator.Next(GetNum, tmpFormatEtc, @GotNum) = S_OK) and
+        (GetNum = GotNum) do
+    with tmpFormatEtc do
+      if (ptd = nil) and (dwAspect = DVASPECT_CONTENT) and
+         {(lindex <> -1) or} (tymed and TYMED_HGLOBAL <> 0) and
+         ((cfFormat = CF_URL) or (cfFormat = CF_FILECONTENTS) or
+         (cfFormat = CF_HDROP) or (cfFormat = CF_TEXT)) then
+      begin
+        result := true;
+        break;
+      end;
+end;
+
+//******************* TDropURLTarget.ClearData *************************
+procedure TDropURLTarget.ClearData;
+begin
+  fURL := '';
+end;
+
+//******************* TDropURLTarget.DoGetData *************************
+function TDropURLTarget.DoGetData: boolean;
+var
+  medium: TStgMedium;
+  cText: pchar;
+  tmpFiles: TStringList;
+begin
+  fURL := '';
+  result := false;
+  //--------------------------------------------------------------------------
+  if (fDataObj.GetData(URLFormatEtc, medium) = S_OK) then
+  begin
+    try
+      if (medium.tymed <> TYMED_HGLOBAL) then
+        exit;
+      cText := PChar(GlobalLock(medium.HGlobal));
+      fURL := cText;
+      GlobalUnlock(medium.HGlobal);
+      result := true;
+    finally
+      ReleaseStgMedium(medium);
+    end;
+  end
+  //--------------------------------------------------------------------------
+  else if (fDataObj.GetData(TextFormatEtc, medium) = S_OK) then
+  begin
+    try
+      if (medium.tymed <> TYMED_HGLOBAL) then
+        exit;
+      cText := PChar(GlobalLock(medium.HGlobal));
+      fURL := cText;
+      GlobalUnlock(medium.HGlobal);
+      result := true;
+    finally
+      ReleaseStgMedium(medium);
+    end;
+  end
+  //--------------------------------------------------------------------------
+  else if (fDataObj.GetData(FileContentsFormatEtc, medium) = S_OK) then
+  begin
+    try
+      if (medium.tymed <> TYMED_HGLOBAL) then
+        exit;
+      cText := PChar(GlobalLock(medium.HGlobal));
+      fURL := cText;
+      fURL := copy(fURL,24,250);
+      GlobalUnlock(medium.HGlobal);
+      result := true;
+    finally
+      ReleaseStgMedium(medium);
+    end;
+  end
+  //--------------------------------------------------------------------------
+  else if (fDataObj.GetData(HDropFormatEtc, medium) = S_OK) then
+  begin
+    try
+      if (medium.tymed <> TYMED_HGLOBAL) then exit;
+      tmpFiles := TStringList.create;
+      try
+        if GetFilesFromHGlobal(medium.HGlobal,TStrings(tmpFiles)) then
+        begin
+          if (lowercase(ExtractFileExt(tmpFiles[0])) = '.url') and
+             GetURLFromFile(tmpFiles[0], fURL) then
+            result := true;
+        end;
+      finally
+        tmpFiles.free;
+      end;
+    finally
+      ReleaseStgMedium(medium);
+    end;
+  end;
+end;
+
+
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 
-{
-// Done in DropSource...
-
+{ // Done in DropSource...
 initialization
   OleInitialize(nil);
 finalization

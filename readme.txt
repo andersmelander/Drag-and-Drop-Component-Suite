@@ -3,10 +3,11 @@
 // Component Names: TDropTextSource, TDropFileSource
 //                  TDropTextTarget, TDropFileTarget.
 // Modules:         DropSource, DropTarget.
-// Description:     Implements Dragging & Dropping of text and files
+// Description:     Implements Dragging & Dropping of 
+//                  text, files and URLs
 //                  TO and FROM your application.
-// Version:	        3.0
-// Date:            22-SEP-1998
+// Version:	        3.1
+// Date:            01-OCT-1998
 // Target:          Win32, Delphi 3 & 4
 // Authors:         Angus Johnson, ajohnson@rpi.net.au
 //                  (TDropTextSource, TDropFileSource,
@@ -14,7 +15,13 @@
 //
 //                  Anders Melander, anders@melander.dk ::: http://www.melander.dk
 //                  (TDropTextSource, TDropFileSource, and Delphi 4 compatability.)
-// Copyright:       ©1998 Angus Johnson & Anders Melander
+//
+//                  Graham Wideman, graham@sdsu.edu ::: http://www.wideman-one.com
+//                  (Lots of help on stuff we didn't use - ie hooking WinControls
+//                  and a big thanks for GWDropDemo.exe which has really help with
+//                  debugging.)
+//
+// Copyright:       ©1998 Angus Johnson, Anders Melander & Graham Wideman.
 
 // -----------------------------------------------------------------------------
 // You are free to use this source but please give us credit for our work.
@@ -23,16 +30,12 @@
 // -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
-// History & Usage: Also see module headers.
+// History & Usage: See module headers - major changes to both modules.
 // -----------------------------------------------------------------------------
 
-// History:
-// dd/mm/yy  Version  Changes
-// --------  -------  ----------------------------------------
-// 22.09.98  3.0      * Shortcuts (links) now enabled.
-//                    * Scrap files now enabled.
-//                    * Demo modified - separate thread to monitor directory changes.
-//                    * TDropTarget bug fix where StgMediums not cleaned up.
-//                    * Some bugs still with NT4 :-)
-// 08.09.98  2.0      * DropTarget module included.
+// -----------------------------------------------------------------------------
+// Future plans: 
+//   1. Simpler demo. OK, we were trying to show off!
+//   2. Help file (if enough people ask for it).
+//   3. CF_BITMAP, CF_DIB formats etc.
 // -----------------------------------------------------------------------------

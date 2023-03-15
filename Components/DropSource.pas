@@ -2,30 +2,53 @@ UNIT dropsource;
   
   // -----------------------------------------------------------------------------
   // Project:         Drag and Drop Source Components
-  // Component Names: TDropTextSource, TDropFileSource
+  // Component Names: TDropTextSource, TDropFileSource, TDropURLSource 
   // Module:          DropSource
-  // Description:     Implements Dragging & Dropping of text and files
-  //                  FROM your application TO another.
-  // Version:	        3.0
-  // Date:            22-SEP-1998
+  // Description:     Implements Dragging & Dropping of text, files and URLs
+  //                  FROM your application to another.
+  // Version:	        3.1
+  // Date:            01-OCT-1998
   // Target:          Win32, Delphi 3 & 4
-  // Authors:         Angus Johnson, ajohnson@rpi.net.au
+  // Authors:         Angus Johnson,   ajohnson@rpi.net.au
   //                  Anders Melander, anders@melander.dk
   //                                   http://www.melander.dk
-  // Copyright        ©1998 Angus Johnson & Anders Melander
+  //                  Graham Wideman,  graham@sdsu.edu
+  //                                   http://www.wideman-one.com
+  // Copyright        ©1998 Angus Johnson, Anders Melander & Graham Wideman
   // -----------------------------------------------------------------------------
   // You are free to use this source but please give us credit for our work.
-  // If you make improvements or derive new components from this code,
+  // if you make improvements or derive new components from this code,
   // we would very much like to see your improvements. FEEDBACK IS WELCOME.
   // -----------------------------------------------------------------------------
-  
+
+  // Acknowledgements:
+  // 1. Thanks to Jim O'Brien for his tips on Shortcuts and Scrap files. We
+  //    were on the right path afterall.
+  // 2. Thanks to Zbysek Hlinka for sugestions on Copying to Clipboard.
+  // -----------------------------------------------------------------------------
+
   // History:
   // dd/mm/yy  Version  Changes
   // --------  -------  ----------------------------------------
+  // 01.10.98  3.1      * Removed the "AutoDrag" feature introduced in Version 3.0.
+  //                      This feature only seems possible if TDropSource hooks
+  //                      the Source TWinControl's message handler. Although
+  //                      it works it was potentially dangerous when hooking is implemented
+  //                      from within a component (see DropTarget module history).
+  //                      The component user is now responsible for calling the
+  //                      TDropSource descendant's Execute method by implementing
+  //                      a couple of lines of code in the Source TWinControl's 
+  //                      OnMouseDown and OnMouseMove events. (See demo.)
+  //                    * Added TDropURLSource component.
+  //                    * General code tidy up.
   // 22.09.98  3.0      * Shortcuts (links) for TDropFileSource now enabled.
   //                    * Scrap files for TDropTextSource now enabled.
+  //                    * DropSource property added to implement autodrag feature.
+  //                    * New events - OnStartDrag and OnEndDrag added (See demo).
+  //                      OnStartDrag is called automatically if DropSource
+  //                      Control is assigned otherwise use Execute function to
+  //                      manually initiate a drag op.
   //                    * TDropSource.DoEnumFormatEtc() no longer declared abstract.
-  //                    * Some bugs still with NT4 :-)
   // 08.09.98  2.0      * No significant changes to this module
   //                      but the version was updated to coincide with the
   //                      new DropTarget module included with this demo.
@@ -33,7 +56,7 @@ UNIT dropsource;
   //                      (I cut and pasted the wrong line!)
   //                    * Demo code now MUCH tidier and easier to read (I think).
   // 19.08.98  1.4      * CopyToClipboard method added.
-  //                    * Should now compile in Delphi 4. (see below)
+  //                    * Should now compile in Delphi 4. 
   //                    * Another tidy up of the code.
   // 21.07.98  1.3      * Fixed a bug in Ver 1.2 where OnDrop event was never called.
   //                    * Now able to drag text to WordPad.
@@ -55,154 +78,138 @@ UNIT dropsource;
   //                      as the springboard for my new Delphi 3 D'n'D components.
   //                      Thanks to Anders for the excellent start and
   //                      suggestions along the way!
-  //
   // -----------------------------------------------------------------------------
 
-  // TDropTextSource -
-  //   Public
-  //      ....
-  //      Text: string;
-  //      function Execute: TDragResult; //drDropCopy, drDropMove, drDropCancel ...
-  //      function CopyToClipboard: boolean;
-  //    published
-  //      property DragTypes: TDragTypes;  // [dtCopy, dtMove, dtLink]
-  //      property OnDrop: TDropEvent;
-  //      property OnFeedback: TFeedbackEvent;
-  //      ....
-
-  // TDropFileSource -
-  //   Public
-  //      ....
-  //      property Files: TStrings;
-  //      function Execute: TDragResult; //drDropCopy, drDropMove, drDropCancel ...
-  //      function CopyToClipboard: boolean;
-  //    published
-  //      property DragTypes: TDragTypes;  // [dtCopy, dtMove]
-  //      property OnDrop: TDropEvent;
-  //      property OnFeedback: TFeedbackEvent;
-  //      ....
-
-  //
-  // Very brief examples of usage (see included demo for more detailed examples):
-  //
-  // TDropTextSource -
-  // DropFileSource1.DragTypes := [dtCopy];
-  // DropTextSource1.text := edit1.text;
-  // if DropTextSource1.execute = drDropCopy then ShowMessage('It worked!');
-  //
-  // TDropFileSource -
-  // DropFileSource1.DragTypes := [dtCopy, dtMove];
-  // //  ie: let the user decide - Copy or Move.
-  // //      Hold Ctrl down during drag -> Copy
-  // //      Hold Shift down during drag -> Move
-  // DropFileSource1.files.clear;
-  // DropFileSource1.files.add('c:\autoexec.bat');
-  // DropFileSource1.files.add('c:\config.sys');
-  // res := DropFileSource1.execute;
-  // if res = drDropCopy then ShowMessage('Files Copied!')
-  // else if res = drDropMove then ShowMessage('Files Moved!');
+  // BASIC USAGE: (See demo for more detailed examples)
+  // 1. Add this non-visual component to the form you wish to drag FROM.
+  // 2. Add DragPoint (TPoint) variable to the Form declaration;
+  // 3. In the Source TWinControl MouseDown method add ...
+  //      DragPoint := Point(X,Y);
+  // 4. In the Source TWinControl MouseMove method add ...
+  //      if ((Shift <> [ssLeft]) and (Shift <> [ssRight])) or
+  //      ((abs(DragPoint.X - X) <10) and (abs(DragPoint.Y - Y) <10)) then exit;
+  //      //Add data to TDropSource descendant (eg:) ...
+  //      DropURLSource1.URL := Edit1.text;
+  //      //Initiate drag (eg:) ...
+  //      DropURLSource1.Execute;
   // -----------------------------------------------------------------------------
 
 INTERFACE
   USES
-    Windows, ActiveX, Classes, ShlObj, SysUtils, ClipBrd;
+    Controls, Windows, ActiveX, Classes, ShlObj, SysUtils, ClipBrd;
 
-  CONST
+  const
     MaxFormats = 20;
 
-  TYPE
-
-    TInterfacedComponent = CLASS(TComponent, IUnknown)
-    Private
-      fRefCount: Integer;
-    Protected
-      FUNCTION QueryInterface(CONST IID: TGuid; OUT Obj): HRESULT;
-                 {$ifdef VER110} reintroduce; {$endif} StdCall;
-      FUNCTION _AddRef: Integer; StdCall;
-      FUNCTION _Release: Integer; StdCall;
-    Public
-       PROPERTY RefCount: Integer Read fRefCount;
-    END;
-
-    TDragType = (dtCopy, dtMove, dtLink);
-    TDragTypes = SET OF TDragType;
-
-    TDragResult = (drDropCopy, drDropMove, drDropLink, drCancel, drOutMemory, drUnknown);
-
-    TDropEvent = PROCEDURE(Sender: TObject; DragType: TDragType;
-                 VAR ContinueDrop: Boolean) OF Object;
-    TFeedbackEvent = PROCEDURE(Sender: TObject; Effect: LongInt) OF Object;
-
-  TDropSource = CLASS(TInterfacedComponent, IDropSource, IDataObject)
+  type
+    
+  TInterfacedComponent = class(TComponent, IUnknown)
   Private
-    fDragTypes: TDragTypes;
-    FeedbackEffect: LongInt;
-    fDropEvent: TDropEvent;
-    fFBEvent: TFeedBackEvent;
-    fDataFormats: array[0..MaxFormats-1] of TFormatEtc;
+    fRefCount: Integer;
+  Protected
+    function QueryInterface(const IID: TGuid; OUT Obj): HRESULT;
+               {$ifdef VER120} reintroduce; {$endif} StdCall;
+    function _AddRef: Integer; StdCall;
+    function _Release: Integer; StdCall;
+  Public
+     property RefCount: Integer Read fRefCount;
+  end;
+
+  TDragType = (dtCopy, dtMove, dtLink);
+  TDragTypes = SET of TDragType;
+
+  TDragResult = (drDropCopy, drDropMove, drDropLink, drCancel, drOutMemory, drUnknown);
+
+  TDropEvent = procedure(Sender: TObject; DragType: TDragType;
+               var ContinueDrop: Boolean) of Object;
+  TFeedbackEvent = procedure(Sender: TObject; Effect: LongInt) of Object;
+
+  TDropSource = class(TInterfacedComponent, IDropSource, IDataObject)
+  Private
+    fDragTypes      : TDragTypes;
+    FeedbackEffect  : LongInt;
+    fDropEvent      : TDropEvent;
+    fFBEvent        : TFeedBackEvent;
+    fDataFormats    : array[0..MaxFormats-1] of TFormatEtc;
     DataFormatsCount: integer;
   Protected
     // IDropSource implementation
 
-    FUNCTION QueryContinueDrag(fEscapePressed: bool; grfKeyState: LongInt): HRESULT; StdCall;
-    FUNCTION GiveFeedback(dwEffect: LongInt): HRESULT; StdCall;
+    function QueryContinueDrag(fEscapePressed: bool; grfKeyState: LongInt): HRESULT; StdCall;
+    function GiveFeedback(dwEffect: LongInt): HRESULT; StdCall;
 
     // IDataObject implementation
-    FUNCTION GetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; StdCall;
-    FUNCTION GetDataHere(CONST FormatEtc: TFormatEtc; OUT Medium: TStgMedium):HRESULT; StdCall;
-    FUNCTION QueryGetData(CONST FormatEtc: TFormatEtc): HRESULT; StdCall;
-    FUNCTION GetCanonicalFormatEtc(CONST FormatEtc: TFormatEtc;
+    function GetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; StdCall;
+    function GetDataHere(const FormatEtc: TFormatEtc; OUT Medium: TStgMedium):HRESULT; StdCall;
+    function QueryGetData(const FormatEtc: TFormatEtc): HRESULT; StdCall;
+    function GetCanonicalFormatEtc(const FormatEtc: TFormatEtc;
              OUT FormatEtcOut: TFormatEtc): HRESULT; StdCall;
-    FUNCTION SetData(CONST FormatEtc: TFormatEtc; VAR Medium: TStgMedium;
+    function SetData(const FormatEtc: TFormatEtc; var Medium: TStgMedium;
              fRelease: Bool): HRESULT; StdCall;
-    FUNCTION EnumFormatEtc(dwDirection: LongInt; OUT EnumFormatEtc: IEnumFormatEtc): HRESULT; StdCall;
-    FUNCTION dAdvise(CONST FormatEtc: TFormatEtc; advf: LongInt;
-             CONST advsink: IAdviseSink; OUT dwConnection: LongInt): HRESULT; StdCall;
-    FUNCTION dUnadvise(dwConnection: LongInt): HRESULT; StdCall;
-    FUNCTION EnumdAdvise(OUT EnumAdvise: IEnumStatData): HRESULT; StdCall;
+    function EnumFormatEtc(dwDirection: LongInt; OUT EnumFormatEtc: IEnumFormatEtc): HRESULT; StdCall;
+    function dAdvise(const FormatEtc: TFormatEtc; advf: LongInt;
+             const advsink: IAdviseSink; OUT dwConnection: LongInt): HRESULT; StdCall;
+    function dUnadvise(dwConnection: LongInt): HRESULT; StdCall;
+    function EnumdAdvise(OUT EnumAdvise: IEnumStatData): HRESULT; StdCall;
 
     //New functions...
-    FUNCTION DoGetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Virtual;
-    FUNCTION DoGetDataHere(CONST FormatEtc: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Virtual;
-    FUNCTION DoQueryGetData(CONST FormatEtc: TFormatEtc): HRESULT; Virtual;
-    FUNCTION DoEnumFormatEtc(dwDirection: LongInt; OUT EnumFormatEtc: IEnumFormatEtc): HRESULT; Virtual;
-
+    function DoGetData(const FormatEtcIn: TFormatEtc;
+             OUT Medium: TStgMedium):HRESULT; Virtual; Abstract;
   Public
-    CONSTRUCTOR Create(aowner: TComponent); Override;
-    FUNCTION Execute: TDragResult;
-    FUNCTION CopyToClipboard: boolean; Virtual;
+    constructor Create(aowner: TComponent); Override;
+    destructor Destroy; override;
+    function Execute: TDragResult;
+    function CopyToClipboard: boolean; Virtual;
   Published
-     PROPERTY Dragtypes: TDragTypes Read fDragTypes Write fDragTypes;
-     PROPERTY OnDrop: TDropEvent Read fDropEvent Write fDropEvent;
-     PROPERTY OnFeedback: TFeedbackEvent Read fFBEvent Write fFBEvent;
-  END;
+    property Dragtypes: TDragTypes read fDragTypes write fDragTypes;
+    property OnFeedback: TFeedbackEvent Read fFBEvent Write fFBEvent;
+    property OnDrop: TDropEvent Read fDropEvent Write fDropEvent;
+  end;
 
-  TDropTextSource = CLASS(TDropSource)
+  TDropTextSource = class(TDropSource)
   Private
     fText: String;
   Protected
-    FUNCTION DoGetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
-    FUNCTION DoGetDataHere(CONST FormatEtc: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
+    function DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
   Public
-    CONSTRUCTOR Create(aOwner: TComponent); Override;
-    FUNCTION CopyToClipboard: boolean; Override;
-    PROPERTY Text: String Read fText Write fText;
-  END;
+    constructor Create(aOwner: TComponent); Override;
+    function CopyToClipboard: boolean; Override;
+  published
+    property Text: String Read fText Write fText;
+  end;
 
-  TDropFileSource = CLASS(TDropSource)
+  TDropFileSource = class(TDropSource)
   Private
     fFiles: TStrings;
   Protected
-    FUNCTION DoGetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
-    FUNCTION DoGetDataHere(CONST FormatEtc: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
+    function DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
   Public
-    CONSTRUCTOR Create(aOwner: TComponent); Override;
-    DESTRUCTOR Destroy; Override;
-    FUNCTION CopyToClipboard: boolean; Override;
-    PROPERTY Files: TStrings Read fFiles;
-  END;
+    constructor Create(aOwner: TComponent); Override;
+    destructor Destroy; Override;
+    function CopyToClipboard: boolean; Override;
+  published
+    property Files: TStrings Read fFiles write fFiles;
+  end;
 
-  PROCEDURE Register;
+  TDropURLSource = class(TDropSource)
+  Private
+    fURL: String;
+    //procedure SetURL(url: string);
+  Protected
+    function DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
+  Public
+    constructor Create(aOwner: TComponent); Override;
+    function CopyToClipboard: boolean; Override;
+  Published
+    property Dragtypes: TDragTypes read fDragTypes; //ReadOnly as only dtLink allowed
+    property URL: String Read fURL Write fURL;
+  end;
+
+  procedure Register;
+
+  var
+    CF_FILEGROUPDESCRIPTOR, CF_FILECONTENTS,
+    CF_IDLIST, CF_PREFERREDDROPEFFECT, CF_URL: UINT; //see initialization.
 
 IMPLEMENTATION
 
@@ -213,35 +220,50 @@ IMPLEMENTATION
   TYPE
     TMyDropFiles = PACKED RECORD
       dropfiles: TDropFiles;
-      filenames: ARRAY[1..1] OF Char;
-    END;
+      filenames: ARRAY[1..1] of Char;
+    end;
     pMyDropFiles = ^TMyDropFiles;
 
+  //******************* ConvertURLToFilename *************************
+  function ConvertURLToFilename(url: string): string;
+  const
+    Invalids = '\/:?*<>,|''" ';
+  var
+    i: integer;
+  begin
+    if lowercase(copy(url,1,7)) = 'http://' then
+      url := copy(url,8,128) // limit to 120 chars.
+    else if lowercase(copy(url,1,6)) = 'ftp://' then
+      url := copy(url,7,127)
+    else if lowercase(copy(url,1,7)) = 'mailto:' then
+      url := copy(url,8,128)
+    else if lowercase(copy(url,1,5)) = 'file:' then
+      url := copy(url,6,126);
+
+    if url = '' then url := 'untitled';
+    result := url;
+    for i := 1 to length(result) do
+      if result[i] = '/'then
+      begin
+        result := copy(result,1,i-1);
+        break;
+      end
+      else if pos(result[i],Invalids) <> 0 then
+        result[i] := '_';
+     appendstr(result,'.url');
+  end;
 
   //******************* GetSizeOfPidl *************************
   function GetSizeOfPidl(pidl: pItemIDList): integer;
   var
-    ptr: PByte;
-    pSHIt: pSHItemID;
     i: integer;
   begin
-    result := 2;
-    ptr := pointer(pidl);
+    result := SizeOf(Word);
     repeat
-      pSHIt := pointer(ptr);
-      i := pSHIt^.cb;
+      i := pSHItemID(pidl)^.cb;
       inc(result,i);
-      inc(ptr,i);
+      inc(longint(pidl),i);
     until i = 0;
-  end;
-
-  //******************* FreePidl *************************
-  procedure FreePidl(pidl: pItemIDList);
-  var
-    ShellMalloc: IMalloc;
-  begin
-    SHGetMalloc(ShellMalloc);
-    ShellMalloc.free(pidl);
   end;
 
   //******************* GetShellFolderOfPath *************************
@@ -251,16 +273,18 @@ IMPLEMENTATION
     PathPidl: pItemIDList;
     OlePath: Array[0..MAX_PATH] of WideChar;
     dummy,pdwAttributes: ULONG;
+    ShellMalloc: IMalloc;
   begin
     result := nil;
     StringToWideChar( FolderPath, OlePath, MAX_PATH );
     try
-      If not (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then exit;
+      SHGetMalloc(ShellMalloc);
+      if not (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then exit;
       if (DesktopFolder.ParseDisplayName(0,
             nil,OlePath,dummy,PathPidl,pdwAttributes) = NOERROR) and
             (pdwAttributes and SFGAO_FOLDER <> 0) then
         DesktopFolder.BindToObject(PathPidl,nil,IID_IShellFolder,pointer(result));
-      FreePidl(PathPidl);
+      ShellMalloc.free(PathPidl);
     except
     end;
   end;
@@ -275,7 +299,7 @@ IMPLEMENTATION
     result := nil;
     StringToWideChar( Path, OlePath, MAX_PATH );
     try
-      If (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then
+      if (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then
         DesktopFolder.ParseDisplayName(0,nil,OlePath,dummy1,result,dummy2);
     except
     end;
@@ -306,6 +330,7 @@ IMPLEMENTATION
   function ConvertFilesToShellIDList(path: string; files: TStrings): HGlobal;
   var
     shf: IShellFolder;
+    ShellMalloc: IMalloc;
     PathPidl, pidl: pItemIDList;
     Ida: PIDA;
     pOffset: POffsets;
@@ -316,383 +341,353 @@ IMPLEMENTATION
     shf := GetShellFolderOfPath(path);
     if shf = nil then exit;
     //Calculate size of IDA structure ...
+    // cidl: UINT ; Directory pidl offset: UINT ; all file pidl offsets
     IdaSize := (files.count + 2) * sizeof(UINT);
 
-    //Add to IdaSize space for ALL pidls...
     PathPidl := GetFullPIDLFromPath(path);
+    if PathPidl = nil then exit;
     PathPidlSize := GetSizeOfPidl(PathPidl);
+    SHGetMalloc(ShellMalloc);
+
+    //Add to IdaSize space for ALL pidls...
     IdaSize := IdaSize + PathPidlSize;
     for i := 0 to files.count-1 do
     begin
       pidl := GetSubPidl(shf,files[i]);
       IdaSize := IdaSize + GetSizeOfPidl(Pidl);
-      FreePidl(pidl);
+      ShellMalloc.free(pidl);
     end;
 
     //Allocate memory...
-    Result := GlobalAlloc(GMEM_SHARE OR GMEM_ZEROINIT, IdaSize);
-    IF (Result = 0) THEN
-    BEGIN
-      FreePidl(PathPidl);
-      Exit;
-    END;
-    Ida := GlobalLock(Result);
-    FillChar(Ida^,IdaSize,0);
-
-    //Fill in offset and pidl data...
-    Ida^.cidl := files.count; //cidl = file count
-    pOffset := @(Ida^.aoffset); //otherwise I would have to turn off range checking.
-    pOffset^[0] := (files.count+2)*sizeof(UINT); //offset of Path pidl
-
-    ptrByte := pointer(Ida);
-    inc(ptrByte,pOffset^[0]); //ptrByte now points to Path pidl
-    move(PathPidl^, ptrByte^, PathPidlSize); //copy path pidl
-    FreePidl(PathPidl);
-
-    PreviousPidlSize := PathPidlSize;
-    for i := 1 to files.count do
+    Result := GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, IdaSize);
+    if (Result = 0) then
     begin
-      pidl := GetSubPidl(shf,files[i-1]);
-      pOffset^[i] := pOffset^[i-1] + UINT(PreviousPidlSize); //offset of pidl
-      PreviousPidlSize := GetSizeOfPidl(Pidl);
+      ShellMalloc.free(PathPidl);
+      Exit;
+    end;
+
+    Ida := GlobalLock(Result);
+    try
+      FillChar(Ida^,IdaSize,0);
+
+      //Fill in offset and pidl data...
+      Ida^.cidl := files.count; //cidl = file count
+      pOffset := @(Ida^.aoffset); //otherwise I would have to turn off range checking.
+      pOffset^[0] := (files.count+2) * sizeof(UINT); //offset of Path pidl
 
       ptrByte := pointer(Ida);
-      inc(ptrByte,pOffset^[i]); //ptrByte now points to current file pidl
-      move(Pidl^, ptrByte^, PreviousPidlSize); //copy file pidl
-                            //PreviousPidlSize = current pidl size here
-      FreePidl(pidl);
+      inc(ptrByte,pOffset^[0]); //ptrByte now points to Path pidl
+      move(PathPidl^, ptrByte^, PathPidlSize); //copy path pidl
+      ShellMalloc.free(PathPidl);
+
+      PreviousPidlSize := PathPidlSize;
+      for i := 1 to files.count do
+      begin
+        pidl := GetSubPidl(shf,files[i-1]);
+        pOffset^[i] := pOffset^[i-1] + UINT(PreviousPidlSize); //offset of pidl
+        PreviousPidlSize := GetSizeOfPidl(Pidl);
+
+        ptrByte := pointer(Ida);
+        inc(ptrByte,pOffset^[i]); //ptrByte now points to current file pidl
+        move(Pidl^, ptrByte^, PreviousPidlSize); //copy file pidl
+                              //PreviousPidlSize = current pidl size here
+        ShellMalloc.free(pidl);
+      end;
+    finally
+      GlobalUnLock(Result);
     end;
-    GlobalUnLock(Result);
   end;
 
-
   //******************* Register *************************
-  PROCEDURE Register;
-  BEGIN
-    RegisterComponents('Samples', [TDropFileSource,TDropTextSource]);
-  END;
+  procedure Register;
+  begin
+    RegisterComponents('Samples', [TDropFileSource, TDropTextSource, TDropURLSource]);
+  end;
 
 
   // -----------------------------------------------------------------------------
   //			TInterfacedComponent
   // -----------------------------------------------------------------------------
 
-  // QueryInterface now returns HRESULT so should now compile in Delphi 4
-  // as well. Thanks to 'Scotto the Unwise' - scottos@gtcom.net
+  // QueryInterface now returns HRESULT (needed for Delphi 4).
+  // Thanks to 'Scotto the Unwise' - scottos@gtcom.net
   //******************* TInterfacedComponent.QueryInterface *************************
-  FUNCTION TInterfacedComponent.QueryInterface(CONST IID: TGuid; OUT Obj): HRESULT;
-  BEGIN
-    IF GetInterface(IID, Obj) THEN result := 0 ELSE result := E_NOINTERFACE;
-  END;
+  function TInterfacedComponent.QueryInterface(const IID: TGuid; OUT Obj): HRESULT;
+  begin
+    if GetInterface(IID, Obj) then result := 0 else result := E_NOINTERFACE;
+  end;
 
   //******************* TInterfacedComponent._AddRef *************************
-  FUNCTION TInterfacedComponent._AddRef: Integer;
-  BEGIN
-    Inc(fRefCount);
-    result := fRefCount;
-  END;
+  function TInterfacedComponent._AddRef: Integer;
+  begin
+    result := InterlockedIncrement(fRefCount);
+  end;
 
   //******************* TInterfacedComponent._Release *************************
-  FUNCTION TInterfacedComponent._Release: Integer;
-  BEGIN
-    Dec(fRefCount);
-    IF fRefCount = 0 THEN
-    BEGIN
-      Destroy;
-      result := 0;
-      Exit;
-    END;
-    result := fRefCount;
-  END;
+  function TInterfacedComponent._Release: Integer;
+  begin
+    Result := InterlockedDecrement(fRefCount);
+    if (Result = 0) then
+      Free;
+  end;
 
   // -----------------------------------------------------------------------------
   //			TEnumFormatEtc
   // -----------------------------------------------------------------------------
-  { TEnumFormatEtc - format enumerator for TDataObject }
 
-  TYPE
-    pFormatList = ^TFormatList;
-    TFormatList = ARRAY[0..255] OF TFormatEtc;
+  type
 
-  TEnumFormatEtc = CLASS(TInterfacedObject, IEnumFormatEtc)
+  pFormatList = ^TFormatList;
+  TFormatList = ARRAY[0..255] of TFormatEtc;
+
+  TEnumFormatEtc = class(TInterfacedObject, IEnumFormatEtc)
   Private
     fFormatList: pFormatList;
     fFormatCount: Integer;
     fIndex: Integer;
   Public
-    CONSTRUCTOR Create(FormatList: pFormatList; FormatCount, Index: Integer);
+    constructor Create(FormatList: pFormatList; FormatCount, Index: Integer);
     { IEnumFormatEtc }
-    FUNCTION Next(Celt: LongInt; OUT Elt; pCeltFetched: pLongInt): HRESULT; StdCall;
-    FUNCTION Skip(Celt: LongInt): HRESULT; StdCall;
-    FUNCTION Reset: HRESULT; StdCall;
-    FUNCTION Clone(OUT Enum: IEnumFormatEtc): HRESULT; StdCall;
-  END;
+    function Next(Celt: LongInt; OUT Elt; pCeltFetched: pLongInt): HRESULT; StdCall;
+    function Skip(Celt: LongInt): HRESULT; StdCall;
+    function Reset: HRESULT; StdCall;
+    function Clone(OUT Enum: IEnumFormatEtc): HRESULT; StdCall;
+  end;
 
 //******************* TEnumFormatEtc.Create *************************
-  CONSTRUCTOR TEnumFormatEtc.Create(FormatList: pFormatList;
+  constructor TEnumFormatEtc.Create(FormatList: pFormatList;
               FormatCount, Index: Integer);
-  BEGIN
-    INHERITED Create;
+  begin
+    inherited Create;
     fFormatList := FormatList;
     fFormatCount := FormatCount;
     fIndex := Index;
-  END;
+  end;
 
   //******************* TEnumFormatEtc.Next *************************
-  FUNCTION TEnumFormatEtc.Next(Celt: LongInt; OUT Elt; pCeltFetched: pLongInt): HRESULT;
-  VAR
+  function TEnumFormatEtc.Next(Celt: LongInt; OUT Elt; pCeltFetched: pLongInt): HRESULT;
+  var
     i: Integer;
-  BEGIN
+  begin
     i := 0;
-    WHILE (i < Celt) AND (fIndex < fFormatCount) DO
-    BEGIN
+    WHILE (i < Celt) and (fIndex < fFormatCount) do
+    begin
       TFormatList(Elt)[i] := fFormatList[fIndex];
       Inc(fIndex);
       Inc(i);
-    END;
-    IF pCeltFetched <> NIL THEN pCeltFetched^ := i;
-    IF i = Celt THEN result := S_OK ELSE result := S_FALSE;
-  END;
+    end;
+    if pCeltFetched <> NIL then pCeltFetched^ := i;
+    if i = Celt then result := S_OK else result := S_FALSE;
+  end;
 
   //******************* TEnumFormatEtc.Skip *************************
-  FUNCTION TEnumFormatEtc.Skip(Celt: LongInt): HRESULT;
-  BEGIN
-    IF Celt <= fFormatCount - fIndex THEN
-    BEGIN
+  function TEnumFormatEtc.Skip(Celt: LongInt): HRESULT;
+  begin
+    if Celt <= fFormatCount - fIndex then
+    begin
       fIndex := fIndex + Celt;
       result := S_OK;
-    END ELSE
-    BEGIN
+    end else
+    begin
       fIndex := fFormatCount;
       result := S_FALSE;
-    END;
-  END;
+    end;
+  end;
 
   //******************* TEnumFormatEtc.Reset *************************
-  FUNCTION TEnumFormatEtc.ReSet: HRESULT;
-  BEGIN
+  function TEnumFormatEtc.ReSet: HRESULT;
+  begin
     fIndex := 0;
     result := S_OK;
-  END;
+  end;
 
   //******************* TEnumFormatEtc.Clone *************************
-  FUNCTION TEnumFormatEtc.Clone(OUT Enum: IEnumFormatEtc): HRESULT;
-  BEGIN
+  function TEnumFormatEtc.Clone(OUT Enum: IEnumFormatEtc): HRESULT;
+  begin
     enum := TEnumFormatEtc.Create(fFormatList, fFormatCount, fIndex);
     result := S_OK;
-  END;
+  end;
 
   // -----------------------------------------------------------------------------
   //			TDropSource
   // -----------------------------------------------------------------------------
 
   //******************* TDropSource.Create *************************
-  CONSTRUCTOR TDropSource.Create(aOwner: TComponent);
-  BEGIN
-    INHERITED Create(aOwner);
+  constructor TDropSource.Create(aOwner: TComponent);
+  begin
+    inherited Create(aOwner);
     DragTypes := [dtCopy]; //default to Copy.
-    //To avoid premature release ...
+    //to avoid premature release ...
     _AddRef;
     DataFormatsCount := 0;
-  END;
+  end;
 
-  //******************* TDropSource.Execute *************************
-  FUNCTION TDropSource.Execute: TDragResult;
-  VAR
-    res: HRESULT;
-    okeffect: LongInt;
-    effect: LongInt;
-  BEGIN
-    result := drUnknown;
-    okeffect := DROPEFFECT_NONE;
-    IF dtCopy IN fDragTypes THEN okeffect := okeffect + DROPEFFECT_COPY;
-    IF dtMove IN fDragTypes THEN okeffect := okeffect + DROPEFFECT_MOVE;
-    IF dtLink IN fDragTypes THEN okeffect := okeffect + DROPEFFECT_LINK;
-
-    res := DoDragDrop(Self AS IDataObject, Self AS IDropSource, okeffect, effect);
-    CASE res OF
-      DRAGDROP_S_DROP:   BEGIN
-                           IF (okeffect AND effect <> 0) THEN
-                           BEGIN
-                             IF (effect AND DROPEFFECT_COPY <> 0) THEN
-                               result := drDropCopy
-                             ELSE IF (effect AND DROPEFFECT_MOVE <> 0) THEN
-                               result := drDropMove
-                             ELSE result := drDropLink;
-                           END ELSE
-                             result := drCancel;
-                         END;
-      DRAGDROP_S_CANCEL: result := drCancel;
-      E_OUTOFMEMORY:     result := drOutMemory;
-    END;
-  END;
-
-  //******************* TDropSource.CopyToClipboard *************************
-  FUNCTION TDropSource.CopyToClipboard: boolean;
-  BEGIN
-    result := false;
-  END;
-
-  //******************* TDropSource.QueryContinueDrag *************************
-  FUNCTION TDropSource.QueryContinueDrag(fEscapePressed: bool;
-    grfKeyState: LongInt): HRESULT; StdCall;
-  VAR
-    ContinueDrop: Boolean;
-    dragtype: TDragType;
-  BEGIN
-    IF fEscapePressed THEN
-      result := DRAGDROP_S_CANCEL
-    // will now allow drag and drop with either mouse button.
-    ELSE IF (grfKeyState AND (MK_LBUTTON OR MK_RBUTTON) = 0) THEN
-    BEGIN
-      ContinueDrop := True;
-      dragtype := dtCopy;
-      IF (FeedbackEffect AND DROPEFFECT_COPY <> 0) THEN // DragType = dtCopy
-      ELSE IF (FeedbackEffect AND DROPEFFECT_MOVE <> 0) THEN dragtype := dtMove
-      ELSE IF (FeedbackEffect AND DROPEFFECT_LINK <> 0) THEN dragtype := dtLink
-      ELSE ContinueDrop := False;
-
-      //if a valid drop then do OnDrop event if assigned...
-      IF ContinueDrop AND
-        (((dragtype = dtCopy) AND (dtCopy IN dragtypes)) OR
-        ((dragtype = dtMove) AND (dtMove IN dragtypes)) OR
-        ((dragtype = dtLink) AND (dtLink IN dragtypes))) AND
-        Assigned(OnDrop) THEN OnDrop(Self, dragtype, ContinueDrop);
-
-      IF ContinueDrop THEN result := DRAGDROP_S_DROP
-      ELSE result := DRAGDROP_S_CANCEL;
-    END ELSE
-      result := NOERROR;
-  END;
+  //******************* TDropSource.Destroy *************************
+  destructor TDropSource.Destroy;
+  begin
+    inherited Destroy;
+  end;
 
   //******************* TDropSource.GiveFeedback *************************
-  FUNCTION TDropSource.GiveFeedback(dwEffect: LongInt): HRESULT; StdCall;
-  BEGIN
+  function TDropSource.GiveFeedback(dwEffect: LongInt): HRESULT; StdCall;
+  begin
     FeedbackEffect := dwEffect;
-
     //NB: Use the OnFeedback event sparingly as it will effect performance...
-    IF Assigned(OnFeedback) THEN OnFeedback(Self, dwEffect);
-
+    if Assigned(OnFeedback) then OnFeedback(Self, dwEffect);
     result:=DRAGDROP_S_USEDEFAULTCURSORS;
+  end;
 
-  END;
+  //******************* TDropSource.GetCanonicalFormatEtc *************************
+  function TDropSource.GetCanonicalFormatEtc(const FormatEtc: TFormatEtc;
+           OUT FormatEtcOut: TFormatEtc): HRESULT;
+  begin
+    result := DATA_S_SAMEFORMATETC;
+  end;
 
-  //******************* TDropSource.DoQueryGetData *************************
-  FUNCTION TDropSource.DoQueryGetData(CONST FormatEtc: TFormatEtc): HRESULT;
-  VAR
+  //******************* TDropSource.SetData *************************
+  function TDropSource.SetData(const FormatEtc: TFormatEtc; var Medium: TStgMedium;
+           fRelease: Bool): HRESULT;
+  begin
+    result := E_NOTIMPL;
+  end;
+
+  //******************* TDropSource.DAdvise *************************
+  function TDropSource.DAdvise(const FormatEtc: TFormatEtc; advf: LongInt;
+           const advSink: IAdviseSink; OUT dwConnection: LongInt): HRESULT;
+  begin
+    result := OLE_E_ADVISENOTSUPPORTED;
+  end;
+
+  //******************* TDropSource.DUnadvise *************************
+  function TDropSource.DUnadvise(dwConnection: LongInt): HRESULT;
+  begin
+    result := OLE_E_ADVISENOTSUPPORTED;
+  end;
+
+  //******************* TDropSource.EnumDAdvise *************************
+  function TDropSource.EnumDAdvise(OUT EnumAdvise: IEnumStatData): HRESULT;
+  begin
+    result := OLE_E_ADVISENOTSUPPORTED;
+  end;
+
+  //******************* TDropSource.GetData *************************
+  function TDropSource.GetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; StdCall;
+  begin
+    result := DoGetData(FormatEtcIn, Medium);
+  end;
+
+  //******************* TDropSource.GetDataHere *************************
+  function TDropSource.GetDataHere(const FormatEtc: TFormatEtc;
+           OUT Medium: TStgMedium):HRESULT; StdCall;
+  begin
+    result := E_NOTIMPL;
+  end;
+
+  //******************* TDropSource.QueryGetData *************************
+  function TDropSource.QueryGetData(const FormatEtc: TFormatEtc): HRESULT; StdCall;
+  var
     i: integer;
-  BEGIN
+  begin
     result:= S_OK;
     for i := 0 to DataFormatsCount-1 do
       with fDataFormats[i] do
       begin
-        IF (FormatEtc.cfFormat = cfFormat) and
+        if (FormatEtc.cfFormat = cfFormat) and
            (FormatEtc.dwAspect = dwAspect) and
-           (FormatEtc.tymed AND tymed <> 0) THEN exit;
+           (FormatEtc.tymed and tymed <> 0) then exit; //result:= S_OK;
       end;
-    result:= E_INVALIDARG;
-  END;
+    result:= E_FAIL;
+  end;
 
-  //******************* TDropSource.DoEnumFormatEtc *************************
-  FUNCTION TDropSource.DoEnumFormatEtc(dwDirection: LongInt;
-           OUT EnumFormatEtc:IEnumFormatEtc): HRESULT;
-  BEGIN
-    IF (dwDirection = DATADIR_GET) THEN
-    BEGIN
+  //******************* TDropSource.EnumFormatEtc *************************
+  function TDropSource.EnumFormatEtc(dwDirection: LongInt;
+           OUT EnumFormatEtc:IEnumFormatEtc): HRESULT; StdCall;
+  begin
+    if (dwDirection = DATADIR_GET) then
+    begin
       EnumFormatEtc :=
         TEnumFormatEtc.Create(@fDataFormats, DataFormatsCount, 0);
       result := S_OK;
-    END ELSE IF (dwDirection = DATADIR_SET) THEN
+    end else if (dwDirection = DATADIR_SET) then
       result := E_NOTIMPL
-    ELSE result := E_INVALIDARG;
-  END;
+    else result := E_INVALIDARG;
+  end;
 
-  //******************* TDropSource.GetCanonicalFormatEtc *************************
-  FUNCTION TDropSource.GetCanonicalFormatEtc(CONST FormatEtc: TFormatEtc;
-           OUT FormatEtcOut: TFormatEtc): HRESULT;
-  BEGIN
-    result := DATA_S_SAMEFORMATETC;
-  END;
+  //******************* TDropSource.QueryContinueDrag *************************
+  function TDropSource.QueryContinueDrag(fEscapePressed: bool;
+    grfKeyState: LongInt): HRESULT; StdCall;
+  var
+    ContinueDrop: Boolean;
+    dragtype: TDragType;
+  begin
+    if fEscapePressed then
+      result := DRAGDROP_S_CANCEL
+    // will now allow drag and drop with either mouse button.
+    else if (grfKeyState and (MK_LBUTTON or MK_RBUTTON) = 0) then
+    begin
+      ContinueDrop := True;
+      dragtype := dtCopy;
+      if (FeedbackEffect and DROPEFFECT_COPY <> 0) then DragType := dtCopy
+      else if (FeedbackEffect and DROPEFFECT_MOVE <> 0) then dragtype := dtMove
+      else if (FeedbackEffect and DROPEFFECT_LINK <> 0) then dragtype := dtLink
+      else ContinueDrop := False;
 
-  //******************* TDropSource.SetData *************************
-  FUNCTION TDropSource.SetData(CONST FormatEtc: TFormatEtc; VAR Medium: TStgMedium;
-           fRelease: Bool): HRESULT;
-  BEGIN
-    result := E_NOTIMPL;
-  END;
+      //if a valid drop then do OnDrop event if assigned...
+      if ContinueDrop and
+        (DragType in [dtCopy, dtMove, dtLink] * dragtypes) and
+        Assigned(OnDrop) then OnDrop(Self, dragtype, ContinueDrop);
 
-  //******************* TDropSource.DAdvise *************************
-  FUNCTION tdropsource.DAdvise(CONST FormatEtc: TFormatEtc; advf: LongInt;
-           CONST advSink: IAdviseSink; OUT dwConnection: LongInt): HRESULT;
-  BEGIN
-    result := OLE_E_ADVISENOTSUPPORTED;
-  END;
+      if ContinueDrop then result := DRAGDROP_S_DROP
+      else result := DRAGDROP_S_CANCEL;
+    end else
+      result := NOERROR;
+  end;
 
-  //******************* TDropSource.DUnadvise *************************
-  FUNCTION TDropSource.DUnadvise(dwConnection: LongInt): HRESULT;
-  BEGIN
-    result := OLE_E_ADVISENOTSUPPORTED;
-  END;
+  //******************* TDropSource.Execute *************************
+  function TDropSource.Execute: TDragResult;
+  var
+    res: HRESULT;
+    okeffect, effect: longint;
+  begin
+    result := drUnknown;
+    okeffect := DROPEFFECT_NONE;
+    if (dtCopy in fDragTypes) then okeffect := okeffect or DROPEFFECT_COPY;
+    if (dtMove in fDragTypes) then okeffect := okeffect or DROPEFFECT_MOVE;
+    if (dtLink in fDragTypes) then okeffect := okeffect or DROPEFFECT_LINK;
 
-  //******************* TDropSource.EnumDAdvise *************************
-  FUNCTION tdropsource.EnumDAdvise(OUT EnumAdvise: IEnumStatData): HRESULT;
-  BEGIN
-    result := OLE_E_ADVISENOTSUPPORTED;
-  END;
+    res := DoDragDrop(Self as IDataObject, Self as IDropSource, okeffect, effect);
+    case res of
+      DRAGDROP_S_DROP:   begin
+                           if (okeffect and effect <> 0) then
+                           begin
+                             if (effect and DROPEFFECT_COPY <> 0) then
+                               result := drDropCopy
+                             else if (effect and DROPEFFECT_MOVE <> 0) then
+                               result := drDropMove
+                             else result := drDropLink;
+                           end else
+                             result := drCancel;
+                         end;
+      DRAGDROP_S_CANCEL: result := drCancel;
+      E_OUTOFMEMORY:     result := drOutMemory;
+    end;
+  end;
 
-  //******************* TDropSource.GetData *************************
-  FUNCTION tdropsource.GetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; StdCall;
-  BEGIN
-    result := DoGetData(FormatEtcIn, Medium);
-  END;
-
-  //******************* TDropSource.GetDataHere *************************
-  FUNCTION TDropSource.GetDataHere(CONST FormatEtc: TFormatEtc;
-           OUT Medium: TStgMedium):HRESULT; StdCall;
-  BEGIN
-    result := DoGetDataHere(FormatEtc, Medium);
-  END;
-
-  //******************* TDropSource.QueryGetData *************************
-  FUNCTION TDropSource.QueryGetData(CONST FormatEtc: TFormatEtc): HRESULT; StdCall;
-  BEGIN
-    result := DoQueryGetData(FormatEtc);
-  END;
-
-  //******************* TDropSource.EnumFormatEtc *************************
-  FUNCTION TDropSource.EnumFormatEtc(dwDirection: LongInt;
-           OUT EnumFormatEtc:IEnumFormatEtc): HRESULT; StdCall;
-  BEGIN
-    result := DoEnumFormatEtc(dwDirection, EnumFormatEtc);
-  END;
-
-  //******************* TDropSource.DoGetData *************************
-  FUNCTION TDropSource.DoGetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT;
-  BEGIN
-    result := DV_E_FORMATETC;
-  END;
-
-  //******************* TDropSource.DoGetDataHere *************************
-  FUNCTION TDropSource.DoGetDataHere(CONST FormatEtc: TFormatEtc;
-           OUT Medium: TStgMedium):hresult;
-  BEGIN
-    result := DV_E_FORMATETC;
-  END;
+  //******************* TDropSource.CopyToClipboard *************************
+  function TDropSource.CopyToClipboard: boolean;
+  begin
+    result := false;
+  end;
 
   // -----------------------------------------------------------------------------
   //			TDropTextSource
   // -----------------------------------------------------------------------------
 
-  var
-    CF_FILEGROUPDESCRIPTOR, CF_FILECONTENTS: UINT;
-
   //******************* TDropTextSource.Create *************************
-  CONSTRUCTOR TDropTextSource.Create(aOwner: TComponent);
-  BEGIN
-    INHERITED Create(aOwner);
+  constructor TDropTextSource.Create(aOwner: TComponent);
+  begin
+    inherited Create(aOwner);
     fText := '';
-    CF_FILECONTENTS := RegisterClipboardFormat(CFSTR_FILECONTENTS);
-    CF_FILEGROUPDESCRIPTOR := RegisterClipboardFormat(CFSTR_FILEDESCRIPTOR);
 
     fDataFormats[0].cfFormat := CF_TEXT;
     fDataFormats[0].ptd := NIL;
@@ -713,137 +708,94 @@ IMPLEMENTATION
     fDataFormats[2].tymed := TYMED_HGLOBAL;
 
     DataFormatsCount := 3;
-  END;
+  end;
 
-  // Adapted from Zbysek Hlinka, zhlinka@login.cz.
   //******************* TDropTextSource.CopyToClipboard *************************
-  FUNCTION TDropTextSource.CopyToClipboard: boolean;
-  VAR
+  function TDropTextSource.CopyToClipboard: boolean;
+  var
     FormatEtcIn: TFormatEtc;
     Medium: TStgMedium;
-  BEGIN
+  begin
     FormatEtcIn.cfFormat := CF_TEXT;
     FormatEtcIn.dwAspect := DVASPECT_CONTENT;
     FormatEtcIn.tymed := TYMED_HGLOBAL;
-    IF fText = '' then result := false
-    ELSE IF GetData(formatetcIn,Medium) = S_OK THEN
-    BEGIN
+    if fText = '' then result := false
+    else if GetData(formatetcIn,Medium) = S_OK then
+    begin
       Clipboard.SetAsHandle(CF_TEXT,Medium.hGlobal);
       result := true;
-    END ELSE result := false;
-  END;
+    end else result := false;
+  end;
 
-  //******************* TDropTextSource.DoGetDataHere *************************
-  FUNCTION TDropTextSource.DoGetDataHere(CONST FormatEtc: TFormatEtc; OUT Medium: TStgMedium):HRESULT;
-  VAR
-    pText: PChar;
-  BEGIN
-    IF (FormatEtc.cfFormat = CF_TEXT) AND
-      (FormatEtc.dwAspect = DVASPECT_CONTENT) AND
-      (FormatEtc.tymed = TYMED_HGLOBAL) AND (Medium.tymed = TYMED_HGLOBAL) THEN
-    BEGIN
-      IF (Medium.hGlobal = 0) THEN
-      BEGIN
-        result := E_OUTOFMEMORY;
-        Exit;
-      END;
-      pText := PChar(GlobalLock(Medium.hGlobal));
-      TRY
-        StrCopy(pText, PChar(fText));
-      FINALLY
-        GlobalUnlock(Medium.hGlobal);
-      END;
-      Medium.UnkForRelease := NIL;
-      result := S_OK;
-    END ELSE
-      result := INHERITED DoGetDataHere(FormatEtc, Medium);
-  END;
-
-  // Adapted from stefc@fabula.com
   //******************* TDropTextSource.DoGetData *************************
-  FUNCTION TDropTextSource.DoGetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT;
+  function TDropTextSource.DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT;
   var
     pFGD: PFileGroupDescriptor;
     pText: PChar;
-  BEGIN
-    //result := E_FAIL;
+  begin
 
     Medium.tymed := 0;
     Medium.UnkForRelease := NIL;
     Medium.hGlobal := 0;
 
-    IF (FormatEtcIn.cfFormat = CF_TEXT) AND
-      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) AND
-      (FormatEtcIn.tymed AND TYMED_HGLOBAL <> 0) THEN
-    BEGIN
-      Medium.hGlobal := GlobalAlloc(GMEM_SHARE OR GHND, Length(fText)+1);
-      IF (Medium.hGlobal = 0) THEN
-      BEGIN
+    //--------------------------------------------------------------------------
+    if ((FormatEtcIn.cfFormat = CF_TEXT) or
+      (FormatEtcIn.cfFormat = CF_FILECONTENTS)) and
+      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
+      (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
+    begin
+      Medium.hGlobal := GlobalAlloc(GMEM_SHARE or GHND, Length(fText)+1);
+      if (Medium.hGlobal = 0) then
+        result := E_OUTOFMEMORY
+      else
+      begin
+        medium.tymed := TYMED_HGLOBAL;
+        pText := PChar(GlobalLock(Medium.hGlobal));
+        try
+          StrCopy(pText, PChar(fText));
+        finally
+          GlobalUnlock(Medium.hGlobal);
+        end;
+        result := S_OK;
+      end;
+    end
+    //--------------------------------------------------------------------------
+    else if (FormatEtcIn.cfFormat = CF_FILEGROUPDESCRIPTOR) and
+      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
+      (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
+    begin
+      Medium.hGlobal := GlobalAlloc(GMEM_SHARE or GHND, SizeOf(TFileGroupDescriptor));
+      if (Medium.hGlobal = 0) then
+      begin
         result := E_OUTOFMEMORY;
         Exit;
-      END;
-      medium.tymed := TYMED_HGLOBAL;
-
-      result := DoGetDataHere(FormatEtcIn, Medium);
-      //if RenderTextAsHGlobal(fText,Medium.hGlobal) then result := S_OK;
-    END
-    ELSE IF (FormatEtcIn.cfFormat = CF_FILEGROUPDESCRIPTOR) AND
-      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) AND
-      (FormatEtcIn.tymed AND TYMED_HGLOBAL <> 0) THEN
-    BEGIN
-      Medium.hGlobal := GlobalAlloc(GMEM_SHARE OR GHND, SizeOf(TFileGroupDescriptor));
-      IF (Medium.hGlobal = 0) THEN
-      BEGIN
-        result := E_OUTOFMEMORY;
-        Exit;
-      END;
+      end;
       medium.tymed := TYMED_HGLOBAL;
       pFGD := pointer(GlobalLock(Medium.hGlobal));
-      with pFGD^ do
-      begin
-        cItems := 1;
-        fgd[0].dwFlags := FD_LINKUI;
-        fgd[0].cFileName := 'Text Scrap File.txt';
+      try
+        with pFGD^ do
+        begin
+          cItems := 1;
+          fgd[0].dwFlags := FD_LINKUI;
+          fgd[0].cFileName := 'Text Scrap File.txt';
+        end;
+      finally
+        GlobalUnlock(Medium.hGlobal);
       end;
-      GlobalUnlock(Medium.hGlobal);
       result := S_OK;
-    END
-    ELSE IF (FormatEtcIn.cfFormat = CF_FILECONTENTS) AND
-      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) AND
-      (FormatEtcIn.tymed AND TYMED_HGLOBAL <> 0) THEN
-    BEGIN
-      Medium.hGlobal := GlobalAlloc(GMEM_SHARE OR GHND, Length(fText)+1);
-      IF (Medium.hGlobal = 0) THEN
-      BEGIN
-        result := E_OUTOFMEMORY;
-        Exit;
-      END;
-      medium.tymed := TYMED_HGLOBAL;
-
-      pText := PChar(GlobalLock(Medium.hGlobal));
-      StrCopy(pText, PChar(fText));
-      
-      //if RenderTextAsHGlobal(fText,Medium.hGlobal) then result := S_OK;
-
-      GlobalUnlock(Medium.hGlobal);
-      result := S_OK;
-    END ELSE
+    end else
       result := DV_E_FORMATETC;
-  END;
+  end;
 
   // -----------------------------------------------------------------------------
   //			TDropFileSource
   // -----------------------------------------------------------------------------
 
-  var
-    CF_IDLIST: UINT;
-
   //******************* TDropFileSource.Create *************************
-  CONSTRUCTOR TDropFileSource.Create(aOwner: TComponent);
-  BEGIN
-    INHERITED Create(aOwner);
+  constructor TDropFileSource.Create(aOwner: TComponent);
+  begin
+    inherited Create(aOwner);
     fFiles := TStringList.Create;
-    CF_IDLIST := RegisterClipboardFormat(CFSTR_SHELLIDLIST);
 
     fDataFormats[0].cfFormat := CF_HDROP;
     fDataFormats[0].ptd      := NIL;
@@ -857,124 +809,307 @@ IMPLEMENTATION
     fDataFormats[1].lIndex   := -1;
     fDataFormats[1].tymed    := TYMED_HGLOBAL;
 
+    fDataFormats[2].cfFormat := CF_PREFERREDDROPEFFECT;
+    fDataFormats[2].ptd      := NIL;
+    fDataFormats[2].dwAspect := DVASPECT_CONTENT;
+    fDataFormats[2].lIndex   := -1;
+    fDataFormats[2].tymed    := TYMED_HGLOBAL;
+
+    //DataFormatsCount := 3;
+    //Ignore CF_PREFERREDDROPEFFECT for the moment as still testing it.
     DataFormatsCount := 2;
-  END;
+  end;
 
   //******************* TDropFileSource.Destroy *************************
-  DESTRUCTOR TDropFileSource.destroy;
-  BEGIN
+  destructor TDropFileSource.destroy;
+  begin
     fFiles.Free;
-    INHERITED Destroy;
-  END;
+    inherited Destroy;
+  end;
 
-  // Adapted from Zbysek Hlinka, zhlinka@login.cz.
   //******************* TDropFileSource.CopyToClipboard *************************
-  FUNCTION TDropFileSource.CopyToClipboard: boolean;
-  VAR
+  function TDropFileSource.CopyToClipboard: boolean;
+  var
     FormatEtcIn: TFormatEtc;
     Medium: TStgMedium;
-  BEGIN
+  begin
     FormatEtcIn.cfFormat := CF_HDROP;
     FormatEtcIn.dwAspect := DVASPECT_CONTENT;
     FormatEtcIn.tymed := TYMED_HGLOBAL;
-    IF Files.count = 0 then result := false
-    ELSE IF GetData(formatetcIn,Medium) = S_OK THEN
-    BEGIN
+    if Files.count = 0 then result := false
+    else if GetData(formatetcIn,Medium) = S_OK then
+    begin
       Clipboard.SetAsHandle(CF_HDROP,Medium.hGlobal);
       result := true;
-    END ELSE result := false;
-  END;
+    end else result := false;
+  end;
 
-  //******************* TDropFileSource.DoGetDataHere *************************
-  FUNCTION TDropFileSource.DoGetDataHere(CONST FormatEtc: TFormatEtc;
+  //******************* TDropFileSource.DoGetData *************************
+  function TDropFileSource.DoGetData(const FormatEtcIn: TFormatEtc;
            OUT Medium: TStgMedium):HRESULT;
-  VAR
+  var
     i: Integer;
     dropfiles: pMyDropFiles;
     pText: PChar;
-  BEGIN
-    IF (FormatEtc.cfFormat = CF_HDROP) AND
-      ((FormatEtc.dwAspect = DVASPECT_CONTENT) OR (FormatEtc.dwAspect = DVASPECT_ICON)) AND
-      (FormatEtc.tymed = TYMED_HGLOBAL) AND (Medium.tymed = TYMED_HGLOBAL) THEN
-    BEGIN
-      IF (Medium.hGlobal = 0) THEN
-      BEGIN
-        result:=E_OUTOFMEMORY;
-        Exit;
-      END;
-      dropfiles := GlobalLock(Medium.hGlobal);
-      TRY
-        dropfiles^.dropfiles.pfiles := SizeOf(TDropFiles);
-        dropfiles^.dropfiles.fwide := False;
-        pText := @(dropfiles^.filenames);
-        FOR i := 0 TO fFiles.Count-1 DO
-        BEGIN
-          StrPCopy(pText, fFiles[i]);
-          Inc(pText, Length(fFiles[i])+1);
-        END;
-        pText^ := #0;
-      FINALLY
-        GlobalUnlock(Medium.hGlobal);
-      END;
-      Medium.UnkForRelease := NIL;
-      result := S_OK;
-    END ELSE
-      result := INHERITED DoGetDataHere(FormatEtc, Medium);
-  END;
-
-  //******************* TDropFileSource.DoGetData *************************
-  FUNCTION TDropFileSource.DoGetData(CONST FormatEtcIn: TFormatEtc;
-           OUT Medium: TStgMedium):HRESULT;
-  VAR
-    i: Integer;
+    DropEffect: ^DWORD;
     strlength: Integer;
     tmpFilenames: TStringList;
-  BEGIN
+  begin
     Medium.tymed := 0;
     Medium.UnkForRelease := NIL;
     Medium.hGlobal := 0;
 
-    IF fFiles.count = 0 then result := E_UNEXPECTED
-    ELSE IF (FormatEtcIn.cfFormat = CF_HDROP) AND
-      ((FormatEtcIn.dwAspect = DVASPECT_CONTENT) OR (FormatEtcIn.dwAspect = DVASPECT_ICON)) AND
-      (FormatEtcIn.tymed AND TYMED_HGLOBAL <> 0) THEN
-    BEGIN
+    if fFiles.count = 0 then result := E_UNEXPECTED
+    //--------------------------------------------------------------------------
+    else if (FormatEtcIn.cfFormat = CF_HDROP) and
+      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
+      (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
+    begin
       strlength := 0;
-      FOR i := 0 TO fFiles.Count-1 DO
+      for i := 0 to fFiles.Count-1 do
         Inc(strlength, Length(fFiles[i])+1);
-      Medium.hGlobal := GlobalAlloc(GMEM_SHARE OR GMEM_ZEROINIT, SizeOf(TDropFiles)+strlength+1);
-      IF (Medium.hGlobal = 0) THEN
-      BEGIN
-        result:=E_OUTOFMEMORY;
-        Exit;
-      END;
-      Medium.tymed := TYMED_HGLOBAL;
-      result := DoGetDataHere(FormatEtcIn, Medium);
-      END
-    ELSE IF (FormatEtcIn.cfFormat = CF_IDLIST) AND
-      ((FormatEtcIn.dwAspect = DVASPECT_CONTENT) OR (FormatEtcIn.dwAspect = DVASPECT_ICON)) AND
-      (FormatEtcIn.tymed AND TYMED_HGLOBAL <> 0) THEN
-    BEGIN
-      tmpFilenames := TStringList.create;
-      Medium.tymed := TYMED_HGLOBAL;
-      for i := 0 to fFiles.count-1 do
-        tmpFilenames.add(extractfilename(fFiles[i]));
       Medium.hGlobal :=
-          ConvertFilesToShellIDList(extractfilepath(fFiles[0]),tmpFilenames);
-      if Medium.hGlobal = 0 then
-        result:=E_OUTOFMEMORY else
+        GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, SizeOf(TDropFiles)+strlength+1);
+      if (Medium.hGlobal = 0) then
+        result:=E_OUTOFMEMORY
+      else
+      begin
+        Medium.tymed := TYMED_HGLOBAL;
+        dropfiles := GlobalLock(Medium.hGlobal);
+        try
+          dropfiles^.dropfiles.pfiles := SizeOf(TDropFiles);
+          dropfiles^.dropfiles.fwide := False;
+          pText := @(dropfiles^.filenames);
+          for i := 0 to fFiles.Count-1 do
+          begin
+            StrPCopy(pText, fFiles[i]);
+            Inc(pText, Length(fFiles[i])+1);
+          end;
+          pText^ := #0;
+        finally
+          GlobalUnlock(Medium.hGlobal);
+        end;
         result := S_OK;
-      tmpFilenames.free;
-    END ELSE
+      end;
+    end
+    //--------------------------------------------------------------------------
+    else if (FormatEtcIn.cfFormat = CF_IDLIST) and
+      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
+      (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
+    begin
+      tmpFilenames := TStringList.create;
+      try
+        Medium.tymed := TYMED_HGLOBAL;
+        for i := 0 to fFiles.count-1 do
+          tmpFilenames.add(extractfilename(fFiles[i]));
+        Medium.hGlobal :=
+            ConvertFilesToShellIDList(extractfilepath(fFiles[0]),tmpFilenames);
+        if Medium.hGlobal = 0 then
+          result:=E_OUTOFMEMORY else
+          result := S_OK;
+      finally
+        tmpFilenames.free;
+      end;
+    end
+    //--------------------------------------------------------------------------
+    //This next format does not work for Win95 but should for Win98, WinNT ...
+    //It stops the shell from prompting (with a popup menu) for the choice of
+    //Copy/Move/Shortcut when dropping a file shortcut onto Desktop or Explorer.
+    //*****************NOTE: STILL TESTING THIS**********************
+    else if (FormatEtcIn.cfFormat = CF_PREFERREDDROPEFFECT) and
+      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
+      (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
+    begin
+      Medium.tymed := TYMED_HGLOBAL;
+      Medium.hGlobal := GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, SizeOf(DWORD));
+      if Medium.hGlobal = 0 then
+        result:=E_OUTOFMEMORY
+      else
+      begin
+        DropEffect := GlobalLock(Medium.hGlobal);
+        try
+          DropEffect^ := FeedbackEffect;
+        finally
+          GlobalUnLock(Medium.hGlobal);
+        end;
+        result := S_OK;
+      end;
+    end
+    else
       result := DV_E_FORMATETC;
-  END;
+  end;
+
+
+  // -----------------------------------------------------------------------------
+  //			TDropURLSource
+  // -----------------------------------------------------------------------------
+
+  //******************* TDropURLSource.Create *************************
+  constructor TDropURLSource.Create(aOwner: TComponent);
+  begin
+    inherited Create(aOwner);
+    fURL := '';
+    fDragTypes := [dtLink]; // Only dtLink allowed
+
+    fDataFormats[0].cfFormat := CF_URL;
+    fDataFormats[0].ptd := NIL;
+    fDataFormats[0].dwAspect := DVASPECT_CONTENT;
+    fDataFormats[0].lIndex := -1;
+    fDataFormats[0].tymed := TYMED_HGLOBAL;
+
+    fDataFormats[1].cfFormat := CF_FILEGROUPDESCRIPTOR;
+    fDataFormats[1].ptd := NIL;
+    fDataFormats[1].dwAspect := DVASPECT_CONTENT;
+    fDataFormats[1].lIndex := -1;
+    fDataFormats[1].tymed := TYMED_HGLOBAL;
+
+    fDataFormats[2].cfFormat := CF_FILECONTENTS;
+    fDataFormats[2].ptd := NIL;
+    fDataFormats[2].dwAspect := DVASPECT_CONTENT;
+    fDataFormats[2].lIndex := 0;
+    fDataFormats[2].tymed := TYMED_HGLOBAL;
+
+    fDataFormats[3].cfFormat := CF_TEXT;
+    fDataFormats[3].ptd := NIL;
+    fDataFormats[3].dwAspect := DVASPECT_CONTENT;
+    fDataFormats[3].lIndex := -1;
+    fDataFormats[3].tymed := TYMED_HGLOBAL;
+
+    DataFormatsCount := 4;
+  end;
+
+(*
+
+//******************* TDropURLSource.SetURL *************************
+  procedure TDropURLSource.SetURL(url: string);
+  begin
+    if url = '' then fURL := ''
+    else if (copy(lowercase(url),1,7) = 'http://') or
+       (copy(lowercase(url),1,6) = 'ftp://') or
+       (copy(lowercase(url),1,5) = 'file:') or
+       (copy(lowercase(url),1,7) = 'mailto:')  then
+      fURL := url
+    else if (copy(lowercase(url),1,4) = 'www.') then
+      fURL := 'http://' + url
+    else if (pos('@',url) > 0) and (pos('@',url) < 20) and (pos(' ',url) = 0) then
+      fURL := 'mailto:' + url
+    else if (copy(url,2,2) = ':\') and
+      (lowercase(url[1]) >= 'a') and (lowercase(url[1]) <= 'z') then
+      fURL := 'file:' + url
+    else fURL := '';
+  end;
+*)
+
+  //******************* TDropURLSource.CopyToClipboard *************************
+  function TDropURLSource.CopyToClipboard: boolean;
+  var
+    FormatEtcIn: TFormatEtc;
+    Medium: TStgMedium;
+  begin
+    FormatEtcIn.cfFormat := CF_URL;
+    FormatEtcIn.dwAspect := DVASPECT_CONTENT;
+    FormatEtcIn.tymed := TYMED_HGLOBAL;
+    if fURL = '' then result := false
+    else if GetData(formatetcIn,Medium) = S_OK then
+    begin
+      Clipboard.SetAsHandle(CF_URL,Medium.hGlobal);
+      result := true;
+    end else result := false;
+  end;
+
+  //******************* TDropURLSource.DoGetData *************************
+  function TDropURLSource.DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT;
+  const
+    URLPrefix = '[InternetShortcut]'#10'URL=';
+  var
+    pFGD: PFileGroupDescriptor;
+    pText: PChar;
+  begin
+
+    Medium.tymed := 0;
+    Medium.UnkForRelease := NIL;
+    Medium.hGlobal := 0;
+
+    //--------------------------------------------------------------------------
+    if ((FormatEtcIn.cfFormat = CF_URL) or (FormatEtcIn.cfFormat = CF_TEXT)) and
+      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
+      (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
+    begin
+      Medium.hGlobal := GlobalAlloc(GMEM_SHARE or GHND, Length(fURL)+1);
+      if (Medium.hGlobal = 0) then
+        result := E_OUTOFMEMORY
+      else
+      begin
+        medium.tymed := TYMED_HGLOBAL;
+        pText := PChar(GlobalLock(Medium.hGlobal));
+        try
+          StrCopy(pText, PChar(fURL));
+        finally
+          GlobalUnlock(Medium.hGlobal);
+        end;
+        result := S_OK;
+      end;
+    end
+    //--------------------------------------------------------------------------
+    else if (FormatEtcIn.cfFormat = CF_FILECONTENTS) and
+      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
+      (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
+    begin
+      Medium.hGlobal := GlobalAlloc(GMEM_SHARE or GHND, Length(URLPrefix + fURL)+1);
+      if (Medium.hGlobal = 0) then
+        result := E_OUTOFMEMORY
+      else
+      begin
+        medium.tymed := TYMED_HGLOBAL;
+        pText := PChar(GlobalLock(Medium.hGlobal));
+        try
+          StrCopy(pText, PChar(URLPrefix + fURL));
+        finally
+          GlobalUnlock(Medium.hGlobal);
+        end;
+        result := S_OK;
+      end;
+    end
+    //--------------------------------------------------------------------------
+    else if (FormatEtcIn.cfFormat = CF_FILEGROUPDESCRIPTOR) and
+      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
+      (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
+    begin
+      Medium.hGlobal := GlobalAlloc(GMEM_SHARE or GHND, SizeOf(TFileGroupDescriptor));
+      if (Medium.hGlobal = 0) then
+      begin
+        result := E_OUTOFMEMORY;
+        Exit;
+      end;
+      medium.tymed := TYMED_HGLOBAL;
+      pFGD := pointer(GlobalLock(Medium.hGlobal));
+      try
+        with pFGD^ do
+        begin
+          cItems := 1;
+          fgd[0].dwFlags := FD_LINKUI;
+          StrPCopy(fgd[0].cFileName,ConvertURLToFilename(fURL));
+        end;
+      finally
+        GlobalUnlock(Medium.hGlobal);
+      end;
+      result := S_OK;
+    //--------------------------------------------------------------------------
+    end else
+      result := DV_E_FORMATETC;
+  end;
 
   //********************************************
   //********************************************
 
-INITIALIZATION
+initialization
   OleInitialize(NIL);
-FINALIZATION
+  CF_FILECONTENTS := RegisterClipboardFormat(CFSTR_FILECONTENTS);
+  CF_FILEGROUPDESCRIPTOR := RegisterClipboardFormat(CFSTR_FILEDESCRIPTOR);
+  CF_IDLIST := RegisterClipboardFormat(CFSTR_SHELLIDLIST);
+  CF_PREFERREDDROPEFFECT := RegisterClipboardFormat('Preferred DropEffect');
+  CF_URL := RegisterClipboardFormat('UniformResourceLocator');
+finalization
   OleUninitialize;
 
-END.
+end.
