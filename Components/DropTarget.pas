@@ -6,8 +6,8 @@ unit DropTarget;
   // Module:          DropTarget
   // Description:     Implements Dragging & Dropping of text and files
   //                  INTO your application FROM another.
-  // Version:	       2.0
-  // Date:            8-SEP-1998
+  // Version:	        3.0
+  // Date:            22-SEP-1998
   // Target:          Win32, Delphi 3 & 4
   // Author:          Angus Johnson, ajohnson@rpi.net.au
   // Copyright        ©1998 Angus Johnson
@@ -37,14 +37,18 @@ unit DropTarget;
   // History:
   // dd/mm/yy  Version  Changes
   // --------  -------  ----------------------------------------
-  // 20.09.98  2.1      * TDropTarget.GetValidDropEffect() moved to
-  //                      protected section and declared virtual abstract.
+  // 22.09.98  3.0      * Shortcuts (links) for TDropFileTarget now enabled.
+  //                    * TDropSource.DoEnumFormatEtc() no longer declared abstract.
+  //                    * Bug fix where StgMediums weren't released. (oops!)
+  //                    * TDropTarget.GetValidDropEffect() moved to
+  //                      protected section and declared virtual.
+  //                    * Some bugs still with NT4 :-)
   // 08.09.98  2.0      * Delphi 3 & 4 version - using IDropTarget COM interface.
   // xx.08.97  1.0      * Delphi 2 version - using WM_DROPFILES and DragAcceptFiles().
   // -----------------------------------------------------------------------------
 
   // PUBLISHED PROPERTIES:
-  //   DragTypes: TDragTypes;  // [dtCopy, dtMove]
+  //   DragTypes: TDragTypes;  // [dtCopy, dtMove,dtLink]
   //   Enabled: boolean;
   //   Target: TWinControl
   //   GetDataOnEnter: boolean; // usually set to false -> so gets data on drop
@@ -71,17 +75,17 @@ unit DropTarget;
 
 interface
 
-uses
+  uses
     Windows, ActiveX, Classes, Controls, ShlObj, ShellApi, SysUtils,
     ClipBrd, DropSource;
 
-  TYPE
+  type
 
-  TGetDropEffectEvent = PROCEDURE(Sender: TObject;
-    const grfKeyState: Longint; var dwEffect: LongInt) OF Object;
+  TGetDropEffectEvent = procedure(Sender: TObject;
+    const grfKeyState: Longint; var dwEffect: LongInt) of Object;
 
   //Note: TInterfacedComponent declared in DropSource.pas
-  TDropTarget = CLASS(TInterfacedComponent, IDropTarget)
+  TDropTarget = class(TInterfacedComponent, IDropTarget)
   private
     fDataObj: IDataObject;
     fDragTypes: TDragTypes;
@@ -113,12 +117,12 @@ uses
     procedure SetEnabled(Enabl: boolean);
     procedure SetTarget(targ: TWinControl);
     procedure Notification(comp: TComponent; Operation: TOperation); override;
-    function GetValidDropEffect(grfKeyState: Longint): LongInt; Virtual; Abstract;
+    function GetValidDropEffect(grfKeyState: Longint): LongInt; Virtual;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
   published
-    property Dragtypes: TDragTypes Read fDragTypes Write fDragTypes;
+    property Dragtypes: TDragTypes read fDragTypes write fDragTypes;
     property Enabled: Boolean read fEnabled write SetEnabled;
     property GetDataOnEnter: Boolean read fGetDataOnEnter write fGetDataOnEnter;
     property Target: TWinControl read fTarget write SetTarget;
@@ -126,13 +130,13 @@ uses
       read fGetDropEffectEvent write fGetDropEffectEvent;
   end;
 
-  TTargetFileEnterEvent = PROCEDURE(Sender: TObject;
-    Files: TStrings) OF Object;
+  TTargetFileEnterEvent = procedure(Sender: TObject;
+    Files: TStrings) of Object;
 
-  TTargetFileDropEvent = PROCEDURE(Sender: TObject;
-    DragType: TDragType; Files: TStrings; Point: TPoint) OF Object;
+  TTargetFileDropEvent = procedure(Sender: TObject;
+    DragType: TDragType; Files: TStrings; Point: TPoint) of Object;
 
-  TDropFileTarget = CLASS(TDropTarget)
+  TDropFileTarget = class(TDropTarget)
   private
     fFiles: TStrings;
     fEnter: TTargetFileEnterEvent;
@@ -148,7 +152,6 @@ uses
     procedure DoDragLeave; override;
     function DoDrop(grfKeyState: Longint; pt: TPoint;
              var dwEffect: Longint): HRESULT; override;
-    function GetValidDropEffect(grfKeyState: Longint): LongInt; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -159,13 +162,13 @@ uses
     property OnDrop: TTargetFileDropEvent read fDrop write fDrop;
   end;
 
-  TTargetTextEnterEvent = PROCEDURE(Sender: TObject;
-    Text: String) OF Object;
+  TTargetTextEnterEvent = procedure(Sender: TObject;
+    Text: String) of Object;
 
-  TTargetTextDropEvent = PROCEDURE(Sender: TObject;
-    DragType: TDragType; Text: String; Point: TPoint) OF Object;
+  TTargetTextDropEvent = procedure(Sender: TObject;
+    DragType: TDragType; Text: String; Point: TPoint) of Object;
 
-  TDropTextTarget = CLASS(TDropTarget)
+  TDropTextTarget = class(TDropTarget)
   private
     fText: String;
     fEnter: TTargetTextEnterEvent;
@@ -181,7 +184,6 @@ uses
     procedure DoDragLeave; override;
     function DoDrop(grfKeyState: Longint; pt: TPoint;
              var dwEffect: Longint): HRESULT; override;
-    function GetValidDropEffect(grfKeyState: Longint): LongInt; override;
   published
     property OnEnter: TTargetTextEnterEvent read fEnter write fEnter;
     property OnDragOver: TNotifyEvent read fDragOver write fDragOver;
@@ -248,8 +250,27 @@ begin
 
   Result :=  DoDrop(grfKeyState,pt,dwEffect);
 
-  DragLeave; // clean up!
+  // clean up!
+  if fDataObj = nil then exit;
+  fDataObj._Release;
+  fDataObj := nil;
 end;
+
+//******************* TDropTarget.GetValidDropEffect *************************
+function TDropTarget.GetValidDropEffect(grfKeyState: Longint): LongInt;
+begin
+  //Default drop behaviour ... assume COPY if neither Shift nor Ctrl pressed...
+  if (grfKeyState and MK_SHIFT <> 0) and (grfKeyState and MK_CONTROL <> 0) and
+       (dtLink in fDragTypes) then result := DROPEFFECT_LINK
+  else if (grfKeyState and MK_SHIFT <> 0) and (grfKeyState and MK_CONTROL = 0) and
+       (dtMove in fDragTypes) then result := DROPEFFECT_MOVE
+  else if (dtCopy in fDragTypes) then result := DROPEFFECT_COPY
+  else if (dtMove in fDragTypes) then result := DROPEFFECT_MOVE
+  else result := DROPEFFECT_NONE;
+  //Default behaviour can be overridden (see Demo).
+  if Assigned(fGetDropEffectEvent) then fGetDropEffectEvent(self, grfKeyState, result);
+end;
+
 
 //******************* TDropTarget.Create *************************
 constructor TDropTarget.Create( AOwner: TComponent );
@@ -257,7 +278,7 @@ begin
    inherited Create( AOwner );
    _AddRef;
    fEnabled := true;
-   DragTypes := [dtCopy, dtMove]; //default - allows user choice.
+   DragTypes := [dtCopy, dtMove, dtLink]; //default - allows user choice.
    fGetDataOnEnter := false;
    fDataObj := nil;
 end;
@@ -327,21 +348,6 @@ begin
   inherited Destroy;
 end;
 
-//******************* TDropFileTarget.GetValidDropEffect *************************
-function TDropFileTarget.GetValidDropEffect(grfKeyState: Longint): LongInt;
-begin
-  //Default drop behaviour ... assume copy if neither Shift nor Ctrl pressed...
-  {if (grfKeyState and MK_SHIFT <> 0) and (grfKeyState and MK_CONTROL <> 0) and
-       (dtLink in fDragTypes) then result := DROPEFFECT_LINK
-  else} if (grfKeyState and MK_SHIFT <> 0) and (grfKeyState and MK_CONTROL = 0) and
-       (dtMove in fDragTypes) then result := DROPEFFECT_MOVE
-  else if (dtCopy in fDragTypes) then result := DROPEFFECT_COPY
-  else if (dtMove in fDragTypes) then result := DROPEFFECT_MOVE
-  else result := DROPEFFECT_NONE;
-  //Default behaviour can be overridden (see Demo).
-  if Assigned(fGetDropEffectEvent) then fGetDropEffectEvent(self, grfKeyState, result);
-end;
-
 //******************* TDropFileTarget.DoDragEnter *************************
 function TDropFileTarget.DoDragEnter(grfKeyState: Longint;
   pt: TPoint; var dwEffect: Longint): HResult;
@@ -406,8 +412,11 @@ begin
   RESULT := S_OK;
   if Assigned(fDrop) then
     if dwEffect = DROPEFFECT_MOVE then
-      fDrop(Self, dtMove, fFiles, pt) else
-      fDrop(Self, dtCopy, fFiles, pt);
+      fDrop(Self, dtMove, fFiles, pt)
+    else if dwEffect = DROPEFFECT_COPY then
+      fDrop(Self, dtCopy, fFiles, pt)
+    else
+      fDrop(Self, dtLink, fFiles, pt);
 end;
 
 //******************* TDropFileTarget.GetData *************************
@@ -432,24 +441,13 @@ begin
     GlobalUnlock(medium.HGlobal);
   except
   end;
+  //Don't forget to clean-up!
+  ReleaseStgMedium(medium);
 end;
 
 // -----------------------------------------------------------------------------
 //			TDropTextTarget
 // -----------------------------------------------------------------------------
-
-//******************* TDropTextTarget.GetValidDropEffect *************************
-function TDropTextTarget.GetValidDropEffect(grfKeyState: Longint): LongInt;
-begin
-  //Default drop behaviour ... assume copy if neither Shift nor Ctrl pressed...
-  if (grfKeyState and MK_SHIFT <> 0) and (grfKeyState and MK_CONTROL = 0) and
-       (dtMove in fDragTypes) then result := DROPEFFECT_MOVE
-  else if (dtCopy in fDragTypes) then result := DROPEFFECT_COPY
-  else if (dtMove in fDragTypes) then result := DROPEFFECT_MOVE
-  else result := DROPEFFECT_NONE;
-  //Default behaviour can be overridden (see Demo).
-  if Assigned(fGetDropEffectEvent) then fGetDropEffectEvent(self, grfKeyState, result);
-end;
 
 // -----------------------------------------------------------------------------
 const
@@ -521,8 +519,11 @@ begin
   RESULT := S_OK;
   if Assigned(fDrop) then
     if dwEffect = DROPEFFECT_MOVE then
-      fDrop(Self, dtMove, fText, pt) else
-      fDrop(Self, dtCopy, fText, pt);
+      fDrop(Self, dtMove, fText, pt)
+    else if dwEffect = DROPEFFECT_COPY then
+      fDrop(Self, dtCopy, fText, pt)
+    else
+      fDrop(Self, dtLink, fText, pt);
 end;
 
 //******************* TDropTextTarget.GetData *************************
@@ -540,6 +541,8 @@ begin
     GlobalUnlock(medium.HGlobal);
   except
   end;
+  //Don't forget to clean-up!
+  ReleaseStgMedium(medium);
 end;
 
 // -----------------------------------------------------------------------------

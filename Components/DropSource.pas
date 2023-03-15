@@ -6,8 +6,8 @@ UNIT dropsource;
   // Module:          DropSource
   // Description:     Implements Dragging & Dropping of text and files
   //                  FROM your application TO another.
-  // Version:	        2.0
-  // Date:            08-SEP-1998
+  // Version:	        3.0
+  // Date:            22-SEP-1998
   // Target:          Win32, Delphi 3 & 4
   // Authors:         Angus Johnson, ajohnson@rpi.net.au
   //                  Anders Melander, anders@melander.dk
@@ -22,7 +22,10 @@ UNIT dropsource;
   // History:
   // dd/mm/yy  Version  Changes
   // --------  -------  ----------------------------------------
-  // 20.09.98  2.1      * Shortcuts (links) now enabled.
+  // 22.09.98  3.0      * Shortcuts (links) for TDropFileSource now enabled.
+  //                    * Scrap files for TDropTextSource now enabled.
+  //                    * TDropSource.DoEnumFormatEtc() no longer declared abstract.
+  //                    * Some bugs still with NT4 :-)
   // 08.09.98  2.0      * No significant changes to this module
   //                      but the version was updated to coincide with the
   //                      new DropTarget module included with this demo.
@@ -55,10 +58,6 @@ UNIT dropsource;
   //
   // -----------------------------------------------------------------------------
 
-  // Future Plans -
-  // 1. Implement drag and drop of Scrap Files.
-  // -----------------------------------------------------------------------------
-
   // TDropTextSource -
   //   Public
   //      ....
@@ -66,7 +65,7 @@ UNIT dropsource;
   //      function Execute: TDragResult; //drDropCopy, drDropMove, drDropCancel ...
   //      function CopyToClipboard: boolean;
   //    published
-  //      property DragTypes: TDragTypes;  // [dtCopy, dtMove]
+  //      property DragTypes: TDragTypes;  // [dtCopy, dtMove, dtLink]
   //      property OnDrop: TDropEvent;
   //      property OnFeedback: TFeedbackEvent;
   //      ....
@@ -108,13 +107,17 @@ INTERFACE
   USES
     Windows, ActiveX, Classes, ShlObj, SysUtils, ClipBrd;
 
+  CONST
+    MaxFormats = 20;
+
   TYPE
 
     TInterfacedComponent = CLASS(TComponent, IUnknown)
     Private
       fRefCount: Integer;
     Protected
-      FUNCTION QueryInterface(CONST IID: TGuid; OUT Obj): HRESULT; StdCall;
+      FUNCTION QueryInterface(CONST IID: TGuid; OUT Obj): HRESULT;
+                 {$ifdef VER110} reintroduce; {$endif} StdCall;
       FUNCTION _AddRef: Integer; StdCall;
       FUNCTION _Release: Integer; StdCall;
     Public
@@ -136,6 +139,8 @@ INTERFACE
     FeedbackEffect: LongInt;
     fDropEvent: TDropEvent;
     fFBEvent: TFeedBackEvent;
+    fDataFormats: array[0..MaxFormats-1] of TFormatEtc;
+    DataFormatsCount: integer;
   Protected
     // IDropSource implementation
 
@@ -159,8 +164,8 @@ INTERFACE
     //New functions...
     FUNCTION DoGetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Virtual;
     FUNCTION DoGetDataHere(CONST FormatEtc: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Virtual;
-    FUNCTION DoQueryGetData(CONST FormatEtc: TFormatEtc): HRESULT; Virtual; Abstract;
-    FUNCTION DoEnumFormatEtc(dwDirection: LongInt; OUT EnumFormatEtc: IEnumFormatEtc): HRESULT; Virtual; Abstract;
+    FUNCTION DoQueryGetData(CONST FormatEtc: TFormatEtc): HRESULT; Virtual;
+    FUNCTION DoEnumFormatEtc(dwDirection: LongInt; OUT EnumFormatEtc: IEnumFormatEtc): HRESULT; Virtual;
 
   Public
     CONSTRUCTOR Create(aowner: TComponent); Override;
@@ -178,8 +183,6 @@ INTERFACE
   Protected
     FUNCTION DoGetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
     FUNCTION DoGetDataHere(CONST FormatEtc: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
-    FUNCTION DoQueryGetData(CONST FormatEtc: TFormatEtc): HRESULT; Override;
-    FUNCTION DoEnumFormatEtc(dwDirection: LongInt; OUT EnumFormatEtc: IEnumFormatEtc): HRESULT; Override;
   Public
     CONSTRUCTOR Create(aOwner: TComponent); Override;
     FUNCTION CopyToClipboard: boolean; Override;
@@ -189,12 +192,9 @@ INTERFACE
   TDropFileSource = CLASS(TDropSource)
   Private
     fFiles: TStrings;
-    filedataformats: ARRAY[0..1] OF TFormatEtc;
   Protected
     FUNCTION DoGetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
     FUNCTION DoGetDataHere(CONST FormatEtc: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
-    FUNCTION DoQueryGetData(CONST FormatEtc: TFormatEtc): HRESULT; Override;
-    FUNCTION DoEnumFormatEtc(dwDirection: LongInt; OUT EnumFormatEtc: IEnumFormatEtc): HRESULT; Override;
   Public
     CONSTRUCTOR Create(aOwner: TComponent); Override;
     DESTRUCTOR Destroy; Override;
@@ -218,63 +218,6 @@ IMPLEMENTATION
     pMyDropFiles = ^TMyDropFiles;
 
 
-  //******************* GetFullPIDLFromPath *************************
-  function GetFullPIDLFromPath(Path: TFileName): pItemIDList;
-  var
-     DeskTopFolder: IShellFolder;
-     OlePath: Array[0..MAX_PATH] of WideChar;
-     dummy1,dummy2: Longint;
-  begin
-    result := nil;
-    StringToWideChar( Path, OlePath, MAX_PATH );
-    try
-      If (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then
-        DesktopFolder.ParseDisplayName(0,nil,OlePath,dummy1,result,dummy2);
-    except
-    end;
-  end;
-
-  //******************* FreePidl *************************
-  procedure FreePidl(pidl: pItemIDList);
-  var
-    ShellMalloc: IMalloc;
-  begin
-    SHGetMalloc(ShellMalloc);
-    ShellMalloc.free(pidl);
-  end;
-
-  //******************* GetShellFolderOfPath *************************
-  function GetShellFolderOfPath(FolderPath: TFileName): IShellFolder;
-  var
-    DeskTopFolder: IShellFolder;
-    PathPidl: pItemIDList;
-    OlePath: Array[0..MAX_PATH] of WideChar;
-    dummy,pdwAttributes: Longint;
-  begin
-    result := nil;
-    StringToWideChar( FolderPath, OlePath, MAX_PATH );
-    try
-      If not (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then exit;
-      if (DesktopFolder.ParseDisplayName(0,
-            nil,OlePath,dummy,PathPidl,pdwAttributes) = NOERROR) and
-            (pdwAttributes and SFGAO_FOLDER <> 0) then
-        DesktopFolder.BindToObject(PathPidl,nil,IID_IShellFolder,pointer(result));
-      FreePidl(PathPidl);
-    except
-    end;
-  end;
-
-  //******************* GetSubPidl *************************
-  function GetSubPidl(Folder: IShellFolder; Sub: TFilename): pItemIDList;
-  var
-    dummy1,dummy2: Longint;
-    OleFile: Array[0..MAX_PATH] of WideChar;
-  begin
-    StringToWideChar( Sub, OleFile, MAX_PATH );
-    Folder.ParseDisplayName(0,nil,OleFile,dummy1,result,dummy2);
-  end;
-
-
   //******************* GetSizeOfPidl *************************
   function GetSizeOfPidl(pidl: pItemIDList): integer;
   var
@@ -292,11 +235,73 @@ IMPLEMENTATION
     until i = 0;
   end;
 
+  //******************* FreePidl *************************
+  procedure FreePidl(pidl: pItemIDList);
+  var
+    ShellMalloc: IMalloc;
+  begin
+    SHGetMalloc(ShellMalloc);
+    ShellMalloc.free(pidl);
+  end;
+
+  //******************* GetShellFolderOfPath *************************
+  function GetShellFolderOfPath(FolderPath: TFileName): IShellFolder;
+  var
+    DeskTopFolder: IShellFolder;
+    PathPidl: pItemIDList;
+    OlePath: Array[0..MAX_PATH] of WideChar;
+    dummy,pdwAttributes: ULONG;
+  begin
+    result := nil;
+    StringToWideChar( FolderPath, OlePath, MAX_PATH );
+    try
+      If not (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then exit;
+      if (DesktopFolder.ParseDisplayName(0,
+            nil,OlePath,dummy,PathPidl,pdwAttributes) = NOERROR) and
+            (pdwAttributes and SFGAO_FOLDER <> 0) then
+        DesktopFolder.BindToObject(PathPidl,nil,IID_IShellFolder,pointer(result));
+      FreePidl(PathPidl);
+    except
+    end;
+  end;
+
+  //******************* GetFullPIDLFromPath *************************
+  function GetFullPIDLFromPath(Path: TFileName): pItemIDList;
+  var
+     DeskTopFolder: IShellFolder;
+     OlePath: Array[0..MAX_PATH] of WideChar;
+     dummy1,dummy2: ULONG;
+  begin
+    result := nil;
+    StringToWideChar( Path, OlePath, MAX_PATH );
+    try
+      If (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then
+        DesktopFolder.ParseDisplayName(0,nil,OlePath,dummy1,result,dummy2);
+    except
+    end;
+  end;
+
+  //******************* GetSubPidl *************************
+  function GetSubPidl(Folder: IShellFolder; Sub: TFilename): pItemIDList;
+  var
+    dummy1,dummy2: ULONG;
+    OleFile: Array[0..MAX_PATH] of WideChar;
+  begin
+    result := nil;
+    try
+      StringToWideChar( Sub, OleFile, MAX_PATH );
+      Folder.ParseDisplayName(0,nil,OleFile,dummy1,result,dummy2);
+    except
+    end;
+  end;
+
+  //See "Clipboard Formats for Shell Data Transfers" in Ole.hlp...
+  //(Needed to drag links (shortcuts).)
 
   //******************* ConvertFilesToShellIDList *************************
   type
     POffsets = ^TOffsets;
-    TOffsets = array[0..$FFFF] of UINT; 
+    TOffsets = array[0..$FFFF] of UINT;
 
   function ConvertFilesToShellIDList(path: string; files: TStrings): HGlobal;
   var
@@ -311,7 +316,7 @@ IMPLEMENTATION
     shf := GetShellFolderOfPath(path);
     if shf = nil then exit;
     //Calculate size of IDA structure ...
-    IdaSize := (files.count + 2) * sizeof(UINT) + 2;
+    IdaSize := (files.count + 2) * sizeof(UINT);
 
     //Add to IdaSize space for ALL pidls...
     PathPidl := GetFullPIDLFromPath(path);
@@ -348,7 +353,7 @@ IMPLEMENTATION
     for i := 1 to files.count do
     begin
       pidl := GetSubPidl(shf,files[i-1]);
-      pOffset^[i] := pOffset^[i-1] + PreviousPidlSize; //offset of pidl
+      pOffset^[i] := pOffset^[i-1] + UINT(PreviousPidlSize); //offset of pidl
       PreviousPidlSize := GetSizeOfPidl(Pidl);
 
       ptrByte := pointer(Ida);
@@ -488,6 +493,7 @@ IMPLEMENTATION
     DragTypes := [dtCopy]; //default to Copy.
     //To avoid premature release ...
     _AddRef;
+    DataFormatsCount := 0;
   END;
 
   //******************* TDropSource.Execute *************************
@@ -555,7 +561,7 @@ IMPLEMENTATION
 
       IF ContinueDrop THEN result := DRAGDROP_S_DROP
       ELSE result := DRAGDROP_S_CANCEL;
-    END ELSE 
+    END ELSE
       result := NOERROR;
   END;
 
@@ -569,6 +575,36 @@ IMPLEMENTATION
 
     result:=DRAGDROP_S_USEDEFAULTCURSORS;
 
+  END;
+
+  //******************* TDropSource.DoQueryGetData *************************
+  FUNCTION TDropSource.DoQueryGetData(CONST FormatEtc: TFormatEtc): HRESULT;
+  VAR
+    i: integer;
+  BEGIN
+    result:= S_OK;
+    for i := 0 to DataFormatsCount-1 do
+      with fDataFormats[i] do
+      begin
+        IF (FormatEtc.cfFormat = cfFormat) and
+           (FormatEtc.dwAspect = dwAspect) and
+           (FormatEtc.tymed AND tymed <> 0) THEN exit;
+      end;
+    result:= E_INVALIDARG;
+  END;
+
+  //******************* TDropSource.DoEnumFormatEtc *************************
+  FUNCTION TDropSource.DoEnumFormatEtc(dwDirection: LongInt;
+           OUT EnumFormatEtc:IEnumFormatEtc): HRESULT;
+  BEGIN
+    IF (dwDirection = DATADIR_GET) THEN
+    BEGIN
+      EnumFormatEtc :=
+        TEnumFormatEtc.Create(@fDataFormats, DataFormatsCount, 0);
+      result := S_OK;
+    END ELSE IF (dwDirection = DATADIR_SET) THEN
+      result := E_NOTIMPL
+    ELSE result := E_INVALIDARG;
   END;
 
   //******************* TDropSource.GetCanonicalFormatEtc *************************
@@ -646,12 +682,37 @@ IMPLEMENTATION
   // -----------------------------------------------------------------------------
   //			TDropTextSource
   // -----------------------------------------------------------------------------
-  
+
+  var
+    CF_FILEGROUPDESCRIPTOR, CF_FILECONTENTS: UINT;
+
   //******************* TDropTextSource.Create *************************
   CONSTRUCTOR TDropTextSource.Create(aOwner: TComponent);
   BEGIN
     INHERITED Create(aOwner);
     fText := '';
+    CF_FILECONTENTS := RegisterClipboardFormat(CFSTR_FILECONTENTS);
+    CF_FILEGROUPDESCRIPTOR := RegisterClipboardFormat(CFSTR_FILEDESCRIPTOR);
+
+    fDataFormats[0].cfFormat := CF_TEXT;
+    fDataFormats[0].ptd := NIL;
+    fDataFormats[0].dwAspect := DVASPECT_CONTENT;
+    fDataFormats[0].lIndex := -1;
+    fDataFormats[0].tymed := TYMED_HGLOBAL;
+
+    fDataFormats[1].cfFormat := CF_FILEGROUPDESCRIPTOR;
+    fDataFormats[1].ptd := NIL;
+    fDataFormats[1].dwAspect := DVASPECT_CONTENT;
+    fDataFormats[1].lIndex := -1;
+    fDataFormats[1].tymed := TYMED_HGLOBAL;
+
+    fDataFormats[2].cfFormat := CF_FILECONTENTS;
+    fDataFormats[2].ptd := NIL;
+    fDataFormats[2].dwAspect := DVASPECT_CONTENT;
+    fDataFormats[2].lIndex := -1;
+    fDataFormats[2].tymed := TYMED_HGLOBAL;
+
+    DataFormatsCount := 3;
   END;
 
   // Adapted from Zbysek Hlinka, zhlinka@login.cz.
@@ -701,7 +762,11 @@ IMPLEMENTATION
   // Adapted from stefc@fabula.com
   //******************* TDropTextSource.DoGetData *************************
   FUNCTION TDropTextSource.DoGetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT;
+  var
+    pFGD: PFileGroupDescriptor;
+    pText: PChar;
   BEGIN
+    //result := E_FAIL;
 
     Medium.tymed := 0;
     Medium.UnkForRelease := NIL;
@@ -718,44 +783,58 @@ IMPLEMENTATION
         Exit;
       END;
       medium.tymed := TYMED_HGLOBAL;
+
       result := DoGetDataHere(FormatEtcIn, Medium);
+      //if RenderTextAsHGlobal(fText,Medium.hGlobal) then result := S_OK;
+    END
+    ELSE IF (FormatEtcIn.cfFormat = CF_FILEGROUPDESCRIPTOR) AND
+      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) AND
+      (FormatEtcIn.tymed AND TYMED_HGLOBAL <> 0) THEN
+    BEGIN
+      Medium.hGlobal := GlobalAlloc(GMEM_SHARE OR GHND, SizeOf(TFileGroupDescriptor));
+      IF (Medium.hGlobal = 0) THEN
+      BEGIN
+        result := E_OUTOFMEMORY;
+        Exit;
+      END;
+      medium.tymed := TYMED_HGLOBAL;
+      pFGD := pointer(GlobalLock(Medium.hGlobal));
+      with pFGD^ do
+      begin
+        cItems := 1;
+        fgd[0].dwFlags := FD_LINKUI;
+        fgd[0].cFileName := 'Text Scrap File.txt';
+      end;
+      GlobalUnlock(Medium.hGlobal);
+      result := S_OK;
+    END
+    ELSE IF (FormatEtcIn.cfFormat = CF_FILECONTENTS) AND
+      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) AND
+      (FormatEtcIn.tymed AND TYMED_HGLOBAL <> 0) THEN
+    BEGIN
+      Medium.hGlobal := GlobalAlloc(GMEM_SHARE OR GHND, Length(fText)+1);
+      IF (Medium.hGlobal = 0) THEN
+      BEGIN
+        result := E_OUTOFMEMORY;
+        Exit;
+      END;
+      medium.tymed := TYMED_HGLOBAL;
+
+      pText := PChar(GlobalLock(Medium.hGlobal));
+      StrCopy(pText, PChar(fText));
+      
+      //if RenderTextAsHGlobal(fText,Medium.hGlobal) then result := S_OK;
+
+      GlobalUnlock(Medium.hGlobal);
+      result := S_OK;
     END ELSE
       result := DV_E_FORMATETC;
-  END;
-
-
-  //******************* TDropTextSource.DoQueryGetData *************************
-  FUNCTION TDropTextSource.DoQueryGetData(CONST FormatEtc: TFormatEtc): HRESULT;
-  BEGIN
-    result:= S_OK;
-    IF (FormatEtc.cfFormat <> CF_TEXT) THEN result:= E_INVALIDARG
-    ELSE IF (FormatEtc.dwAspect <> DVASPECT_CONTENT) THEN result:= DV_E_DVASPECT
-    ELSE IF (FormatEtc.tymed AND TYMED_HGLOBAL = 0) THEN result:= DV_E_TYMED;
-  END;
-
-  //******************* TDropTextSource.DoEnumFormatEtc *************************
-
-  CONST
-    textdataformats: ARRAY[0..0] OF TFormatEtc =
-     ((cfFormat: CF_TEXT; ptd: NIL;
-                 dwAspect: DVASPECT_CONTENT; lIndex: -1; tymed: TYMED_HGLOBAL));
-
-  FUNCTION TDropTextSource.DoEnumFormatEtc(dwDirection: LongInt;
-           OUT EnumFormatEtc:IEnumFormatEtc): HRESULT;
-  BEGIN
-    IF (dwDirection = DATADIR_GET) THEN
-    BEGIN
-      EnumFormatEtc :=
-        TEnumFormatEtc.Create(@textdataformats, High(textdataformats)+1, 0);
-      result := S_OK;
-    END ELSE IF (dwDirection = DATADIR_SET) THEN
-      result := E_NOTIMPL
-    ELSE result := E_INVALIDARG;
   END;
 
   // -----------------------------------------------------------------------------
   //			TDropFileSource
   // -----------------------------------------------------------------------------
+
   var
     CF_IDLIST: UINT;
 
@@ -766,17 +845,19 @@ IMPLEMENTATION
     fFiles := TStringList.Create;
     CF_IDLIST := RegisterClipboardFormat(CFSTR_SHELLIDLIST);
 
-    filedataformats[0].cfFormat := CF_HDROP;
-    filedataformats[0].ptd      := NIL;
-    filedataformats[0].dwAspect := DVASPECT_CONTENT;
-    filedataformats[0].lIndex   := -1;
-    filedataformats[0].tymed    := TYMED_HGLOBAL;
+    fDataFormats[0].cfFormat := CF_HDROP;
+    fDataFormats[0].ptd      := NIL;
+    fDataFormats[0].dwAspect := DVASPECT_CONTENT;
+    fDataFormats[0].lIndex   := -1;
+    fDataFormats[0].tymed    := TYMED_HGLOBAL;
 
-    filedataformats[1].cfFormat := CF_IDLIST;
-    filedataformats[1].ptd      := NIL;
-    filedataformats[1].dwAspect := DVASPECT_CONTENT;
-    filedataformats[1].lIndex   := -1;
-    filedataformats[1].tymed    := TYMED_HGLOBAL;
+    fDataFormats[1].cfFormat := CF_IDLIST;
+    fDataFormats[1].ptd      := NIL;
+    fDataFormats[1].dwAspect := DVASPECT_CONTENT;
+    fDataFormats[1].lIndex   := -1;
+    fDataFormats[1].tymed    := TYMED_HGLOBAL;
+
+    DataFormatsCount := 2;
   END;
 
   //******************* TDropFileSource.Destroy *************************
@@ -886,30 +967,6 @@ IMPLEMENTATION
       tmpFilenames.free;
     END ELSE
       result := DV_E_FORMATETC;
-  END;
-
-  //******************* TDropFileSource.DoQueryGetData *************************
-  FUNCTION TDropFileSource.DoQueryGetData(CONST FormatEtc: TFormatEtc): HRESULT;
-  BEGIN
-    result:= S_OK;
-    IF (FormatEtc.cfFormat <> CF_HDROP) THEN result:= E_INVALIDARG
-    ELSE IF ((FormatEtc.dwAspect <> DVASPECT_CONTENT) AND
-      (FormatEtc.dwAspect <> DVASPECT_ICON)) THEN result:= DV_E_DVASPECT
-    ELSE IF (FormatEtc.tymed AND TYMED_HGLOBAL = 0) THEN result:= DV_E_TYMED;
-  END;
-
-  //******************* TDropFileSource.DoEnumFormatEtc *************************
-
-  FUNCTION TDropFileSource.DoEnumFormatEtc(dwDirection: LongInt;
-           OUT EnumFormatEtc:ienumformatetc): HRESULT;
-  BEGIN
-    IF (dwDirection = DATADIR_GET) THEN
-    BEGIN
-      EnumFormatEtc := TEnumFormatEtc.Create(@filedataformats, high(filedataformats)+1, 0);
-      result := S_OK;
-    END ELSE IF (dwDirection = DATADIR_SET) THEN
-      result := E_NOTIMPL
-    ELSE result := E_INVALIDARG;
   END;
 
   //********************************************
