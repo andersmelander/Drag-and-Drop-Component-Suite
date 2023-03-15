@@ -1,30 +1,21 @@
 unit DropURLSource;
 
-  // -----------------------------------------------------------------------------
-  // Project:         Drag and Drop Source Components
-  // Component Names: TDropURLSource
-  // Module:          DropURLSource
-  // Description:     Implements Dragging & Dropping of URLs
-  //                  FROM your application to another.
-  // Version:	       3.3
-  // Date:            30-OCT-1998
-  // Target:          Win32, Delphi 3 & 4
-  // Author:          Angus Johnson,   ajohnson@rpi.net.au
-  // Copyright        ©1998 Angus Johnson
-  // -----------------------------------------------------------------------------
-  // You are free to use this source but please give me credit for my work.
-  // if you make improvements or derive new components from this code,
-  // I would very much like to see your improvements. FEEDBACK IS WELCOME.
-  // -----------------------------------------------------------------------------
-
-  // History:
-  // dd/mm/yy  Version  Changes
-  // --------  -------  ----------------------------------------
-  // 16.11.98  3.3      * Module header added.
-  //                    * Improved component icon.
-  // 22.10.98  3.2      * Initial release.
-  //                     (Ver. No coincides with Component Suite Ver. No.)
-  // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Project:         Drag and Drop Source Components
+// Component Names: TDropURLSource
+// Module:          DropURLSource
+// Description:     Implements Dragging & Dropping of URLs
+//                  FROM your application to another.
+// Version:	       3.4
+// Date:            17-FEB-1999
+// Target:          Win32, Delphi 3 & 4, CB3
+// Authors:         Angus Johnson,   ajohnson@rpi.net.au
+//                  Anders Melander, anders@melander.dk
+//                                   http://www.melander.dk
+//                  Graham Wideman,  graham@sdsu.edu
+//                                   http://www.wideman-one.com
+// Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
+// -----------------------------------------------------------------------------
 
 interface
 
@@ -36,21 +27,20 @@ type
   TDropURLSource = class(TDropSource)
   private
     fURL: String;
+    fTitle: String;
   protected
     function DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
   public
     constructor Create(aOwner: TComponent); Override;
-    function CopyToClipboard: boolean; Override;
+    function CutOrCopyToClipboard: boolean; Override;
   published
     property URL: String Read fURL Write fURL;
+    property Title: String Read fTitle Write fTitle;
   end;
 
 procedure Register;
 
 implementation
-
-var
-  CF_URL: UINT; //see initialization.
 
 procedure Register;
 begin
@@ -60,7 +50,7 @@ end;
 //******************* ConvertURLToFilename *************************
 function ConvertURLToFilename(url: string): string;
 const
-  Invalids = '\/:?*<>,|''" ';
+  Invalids = '\/:?*<>,|''"';
 var
   i: integer;
 begin
@@ -82,7 +72,7 @@ begin
       break;
     end
     else if pos(result[i],Invalids) <> 0 then
-      result[i] := '_';
+      result[i] := ' ';
    appendstr(result,'.url');
 end;
 
@@ -95,6 +85,7 @@ constructor TDropURLSource.Create(aOwner: TComponent);
 begin
   inherited Create(aOwner);
   fURL := '';
+  fTitle := '';
   DragTypes := [dtLink]; // Only dtLink allowed
 
   AddFormatEtc(CF_URL, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
@@ -104,21 +95,32 @@ begin
 end;
 
 
-//******************* TDropURLSource.CopyToClipboard *************************
-function TDropURLSource.CopyToClipboard: boolean;
+//******************* TDropURLSource.CutOrCopyToClipboard *************************
+function TDropURLSource.CutOrCopyToClipboard: boolean;
 var
   FormatEtcIn: TFormatEtc;
   Medium: TStgMedium;
 begin
+  result := false;
   FormatEtcIn.cfFormat := CF_URL;
   FormatEtcIn.dwAspect := DVASPECT_CONTENT;
   FormatEtcIn.tymed := TYMED_HGLOBAL;
-  if fURL = '' then result := false
-  else if GetData(formatetcIn,Medium) = S_OK then
+  if fURL = '' then exit;
+  if GetData(formatetcIn,Medium) = S_OK then
   begin
     Clipboard.SetAsHandle(CF_URL,Medium.hGlobal);
     result := true;
-  end else result := false;
+  end else exit;
+
+  //render several formats...
+  FormatEtcIn.cfFormat := CF_TEXT;
+  FormatEtcIn.dwAspect := DVASPECT_CONTENT;
+  FormatEtcIn.tymed := TYMED_HGLOBAL;
+  if GetData(formatetcIn,Medium) = S_OK then
+  begin
+    Clipboard.SetAsHandle(CF_TEXT,Medium.hGlobal);
+    result := true;
+  end;
 end;
 
 //******************* TDropURLSource.DoGetData *************************
@@ -192,7 +194,10 @@ begin
       begin
         cItems := 1;
         fgd[0].dwFlags := FD_LINKUI;
-        StrPCopy(fgd[0].cFileName,ConvertURLToFilename(fURL));
+        if title = '' then
+          StrPCopy(fgd[0].cFileName,ConvertURLToFilename(fURL))
+        else
+          StrPCopy(fgd[0].cFileName,ConvertURLToFilename(fTitle));
       end;
     finally
       GlobalUnlock(Medium.hGlobal);
@@ -203,7 +208,7 @@ begin
     result := DV_E_FORMATETC;
 end;
 
-initialization
-  CF_URL := RegisterClipboardFormat('UniformResourceLocator');
+//initialization
+//  CF_URL, CF_FILEGROUPDESCRIPTOR and CF_FILECONTENTS are 'registered' in DropSource
 
 end.

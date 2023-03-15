@@ -1,0 +1,49 @@
+package DragDropD4;
+
+{$R *.RES}
+{$R 'DropSource.dcr'}
+{$R 'DropTarget.dcr'}
+{$R 'DropBMPSource.dcr'}
+{$R 'DropBMPTarget.dcr'}
+{$R 'DropURLSource.dcr'}
+{$R 'DropURLTarget.dcr'}
+{$R 'DropPIDLSource.dcr'}
+{$R 'DropPIDLTarget.dcr'}
+{$ALIGN ON}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO ON}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST ON}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $00400000}
+{$DESCRIPTION 'COM DragDrop components'}
+{$DESIGNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  vcl40;
+
+contains
+  DropSource in 'DropSource.pas',
+  DropTarget in 'DropTarget.pas',
+  DropBMPSource in 'DropBMPSource.pas',
+  DropBMPTarget in 'DropBMPTarget.pas',
+  DropURLSource in 'DropURLSource.pas',
+  DropURLTarget in 'DropURLTarget.pas',
+  DropPIDLSource in 'DropPIDLSource.pas',
+  DropPIDLTarget in 'DropPIDLTarget.pas';
+end.

@@ -1,34 +1,27 @@
 unit DropBMPTarget;
 
-  // -----------------------------------------------------------------------------
-  // Project:         Drag and Drop Source Components
-  // Component Names: TDropBMPSource
-  // Module:          DropBMPSource
-  // Description:     Implements Dragging & Dropping of Bitmaps
-  //                  FROM your application to another.
-  // Version:         3.3
-  // Date:            16-NOV-1998
-  // Target:          Win32, Delphi 3 & 4
-  // Author:          Angus Johnson,   ajohnson@rpi.net.au
-  // Copyright        ©1998 Angus Johnson
-  // -----------------------------------------------------------------------------
-  // You are free to use this source but please give me credit for my work.
-  // if you make improvements or derive new components from this code,
-  // I would very much like to see your improvements. FEEDBACK IS WELCOME.
-  // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Project:         Drag and Drop Source Components
+// Component Names: TDropBMPSource
+// Module:          DropBMPSource
+// Description:     Implements Dragging & Dropping of Bitmaps
+//                  FROM your application to another.
+// Version:         3.4
+// Date:            17-FEB-1999
+// Target:          Win32, Delphi 3 & 4, CB3
+// Authors:         Angus Johnson,   ajohnson@rpi.net.au
+//                  Anders Melander, anders@melander.dk
+//                                   http://www.melander.dk
+//                  Graham Wideman,  graham@sdsu.edu
+//                                   http://www.wideman-one.com
+// Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
+// -----------------------------------------------------------------------------
 
-  // Acknowledgements:
-  // Thanks to Dieter Steinwedel for some help with DIBs.
-  // http://godard.oec.uni-osnabrueck.de/student_home/dsteinwe/delphi/DietersDelphiSite.htm
-  // -----------------------------------------------------------------------------
-
-  // History:
-  // dd/mm/yy  Version  Changes
-  // --------  -------  ----------------------------------------
-  // 16.11.98  3.3      * Added DIB support.
-  // 22.10.98  3.2      * Initial release.
-  //                     (Ver. No coincides with Component Suite Ver. No.)
-  // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Acknowledgement:
+// Thanks to Dieter Steinwedel for some help with DIBs.
+// http://godard.oec.uni-osnabrueck.de/student_home/dsteinwe/delphi/DietersDelphiSite.htm
+// -----------------------------------------------------------------------------
 
 interface
 
@@ -148,23 +141,26 @@ begin
 
   {Create the palette }
   Pal := PaletteFromDIBColorTable(@BitmapInfo.bmiColors, ColorCount);
-
-  DC := GetDC(0);
-  if DC <> 0 then
   try
-    if Pal <> 0 then
-    begin
-      OldPal := SelectPalette(DC, Pal, False);
-      RealizePalette(DC);
-    end;
+    DC := GetDC(0);
+    if DC <> 0 then
     try
-       Bitmap.Handle:=CreateDIBitmap(DC, BitmapInfo^.bmiHeader,
-           CBM_INIT, DIBits, BitmapInfo^, DIB_RGB_COLORS);
+      if Pal <> 0 then
+      begin
+        OldPal := SelectPalette(DC, Pal, False);
+        RealizePalette(DC);
+      end;
+      try
+         Bitmap.Handle:=CreateDIBitmap(DC, BitmapInfo^.bmiHeader,
+             CBM_INIT, DIBits, BitmapInfo^, DIB_RGB_COLORS);
+      finally
+         if OldPal <> 0 then SelectPalette(DC, OldPal, False);
+      end;
     finally
-       if OldPal <> 0 then SelectPalette(DC, OldPal, False);
+      ReleaseDC(0, DC);
     end;
   finally
-    ReleaseDC(0, DC);
+    if Pal <> 0 then DeleteObject(Pal);
   end;
 end;
 
@@ -189,8 +185,8 @@ end;
 //******************* TDropBMPTarget.HasValidFormats *************************
 function TDropBMPTarget.HasValidFormats: boolean;
 begin
-  result := (fDataObj.QueryGetData(DIBFormatEtc) = S_OK) or
-                (fDataObj.QueryGetData(BMPFormatEtc) = S_OK);
+  result := (DataObject.QueryGetData(DIBFormatEtc) = S_OK) or
+                (DataObject.QueryGetData(BMPFormatEtc) = S_OK);
 end;
 
 //******************* TDropBMPTarget.ClearData *************************
@@ -207,7 +203,7 @@ var
 begin
   result := false;
   //--------------------------------------------------------------------------
-  if (fDataObj.GetData(DIBFormatEtc, medium) = S_OK) then
+  if (DataObject.GetData(DIBFormatEtc, medium) = S_OK) then
   begin
     if (medium.tymed = TYMED_HGLOBAL) then
     begin
@@ -222,11 +218,11 @@ begin
     ReleaseStgMedium(medium);
   end
   //--------------------------------------------------------------------------
-  else if (fDataObj.GetData(BMPFormatEtc, medium) = S_OK) then
+  else if (DataObject.GetData(BMPFormatEtc, medium) = S_OK) then
   begin
     try
       if (medium.tymed <> TYMED_GDI) then exit;
-      if (fDataObj.GetData(PalFormatEtc, medium2) = S_OK) then
+      if (DataObject.GetData(PalFormatEtc, medium2) = S_OK) then
       begin
         try
           fBitmap.LoadFromClipboardFormat(CF_BITMAP, Medium.hBitmap, Medium2.hBitmap);

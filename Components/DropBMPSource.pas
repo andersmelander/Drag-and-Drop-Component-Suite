@@ -1,34 +1,27 @@
 unit DropBMPSource;
 
-  // -----------------------------------------------------------------------------
-  // Project:         Drag and Drop Source Components
-  // Component Names: TDropBMPSource
-  // Module:          DropBMPSource
-  // Description:     Implements Dragging & Dropping of Bitmaps
-  //                  FROM your application to another.
-  // Version:	       3.3
-  // Date:            16-NOV-1998
-  // Target:          Win32, Delphi 3 & 4
-  // Author:          Angus Johnson,   ajohnson@rpi.net.au
-  // Copyright        ©1998 Angus Johnson
-  // -----------------------------------------------------------------------------
-  // You are free to use this source but please give me credit for my work.
-  // if you make improvements or derive new components from this code,
-  // I would very much like to see your improvements. FEEDBACK IS WELCOME.
-  // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Project:         Drag and Drop Source Components
+// Component Names: TDropBMPSource
+// Module:          DropBMPSource
+// Description:     Implements Dragging & Dropping of Bitmaps
+//                  FROM your application to another.
+// Version:	       3.4
+// Date:            17-FEB-1999
+// Target:          Win32, Delphi 3 & 4, CB3
+// Authors:         Angus Johnson,   ajohnson@rpi.net.au
+//                  Anders Melander, anders@melander.dk
+//                                   http://www.melander.dk
+//                  Graham Wideman,  graham@sdsu.edu
+//                                   http://www.wideman-one.com
+// Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
+// -----------------------------------------------------------------------------
 
-  // Acknowledgements:
-  // Thanks to Dieter Steinwedel for some help with DIBs.
-  // http://godard.oec.uni-osnabrueck.de/student_home/dsteinwe/delphi/DietersDelphiSite.htm
-  // -----------------------------------------------------------------------------
-
-  // History:
-  // dd/mm/yy  Version  Changes
-  // --------  -------  ----------------------------------------
-  // 16.11.98  3.3      * Added DIB support.
-  // 22.10.98  3.2      * Initial release.
-  //                     (Ver. No coincides with Component Suite Ver. No.)
-  // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Acknowledgement:
+// Thanks to Dieter Steinwedel for some help with DIBs.
+// http://godard.oec.uni-osnabrueck.de/student_home/dsteinwe/delphi/DietersDelphiSite.htm
+// -----------------------------------------------------------------------------
 
 interface
 
@@ -45,7 +38,7 @@ type
   public
     constructor Create(aOwner: TComponent); Override;
     destructor Destroy; Override;
-    function CopyToClipboard: boolean; Override;
+    function CutOrCopyToClipboard: boolean; Override;
   published
     property Bitmap: TBitmap Read fBitmap Write SetBitmap;
   end;
@@ -158,7 +151,7 @@ begin
      Result := 0;
      if Src=0 then exit;
      InternalGetDIBSizes(Src, HeaderSize, ImageSize);
-     Result:=GlobalAlloc(GHND or GMEM_SHARE, HeaderSize+integer(ImageSize));
+     Result:=GlobalAlloc(GMEM_MOVEABLE or GMEM_ZEROINIT or GMEM_SHARE, HeaderSize+integer(ImageSize));
      if Result=0 then exit; //Out of memory.
      try
        DIBHeader:=GlobalLock(Result);
@@ -216,8 +209,8 @@ begin
   fBitmap.assign(Bmp);
 end;
 
-//******************* TDropBMPSource.CopyToClipboard *************************
-function TDropBMPSource.CopyToClipboard: boolean;
+//******************* TDropBMPSource.CutOrCopyToClipboard *************************
+function TDropBMPSource.CutOrCopyToClipboard: boolean;
 var
   data: HGlobal;
 begin
@@ -241,9 +234,8 @@ var
 begin
 
   Medium.tymed := 0;
-  Medium.UnkForRelease := NIL;
-  Medium.hBitmap := 0;
-
+  Medium.UnkForRelease := nil;
+  Medium.HGlobal := 0;
   //--------------------------------------------------------------------------
   if not fBitmap.empty and
      (FormatEtcIn.cfFormat = CF_DIB) and

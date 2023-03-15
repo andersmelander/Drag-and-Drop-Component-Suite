@@ -1,43 +1,36 @@
 unit DropURLTarget;
 
-  // -----------------------------------------------------------------------------
-  // Project:         Drag and Drop Target Components
-  // Component Names: TDropURLTarget
-  // Module:          DropURLTarget
-  // Description:     Implements Dragging & Dropping of URLs
-  //                  TO your application from another.
-  // Version:	       3.3
-  // Date:            30-OCT-1998
-  // Target:          Win32, Delphi 3 & 4
-  // Author:          Angus Johnson,   ajohnson@rpi.net.au
-  // Copyright        ©1998 Angus Johnson
-  // -----------------------------------------------------------------------------
-  // You are free to use this source but please give me credit for my work.
-  // if you make improvements or derive new components from this code,
-  // I would very much like to see your improvements. FEEDBACK IS WELCOME.
-  // -----------------------------------------------------------------------------
-
-  // History:
-  // dd/mm/yy  Version  Changes
-  // --------  -------  ----------------------------------------
-  // 16.11.98  3.3      * Module header added.
-  //                    * Improved component icon.
-  // 22.10.98  3.2      * Initial release.
-  //                     (Ver. No coincides with Component Suite Ver. No.)
-  // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Project:         Drag and Drop Target Components
+// Component Names: TDropURLTarget
+// Module:          DropURLTarget
+// Description:     Implements Dragging & Dropping of URLs
+//                  TO your application from another.
+// Version:	       3.4
+// Date:            17-FEB-1999
+// Target:          Win32, Delphi 3 & 4, CB3
+// Authors:         Angus Johnson,   ajohnson@rpi.net.au
+//                  Anders Melander, anders@melander.dk
+//                                   http://www.melander.dk
+//                  Graham Wideman,  graham@sdsu.edu
+//                                   http://www.wideman-one.com
+// Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
+// -----------------------------------------------------------------------------
 
 interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  DropSource, DropTarget, ActiveX;
+  DropSource, DropTarget, ActiveX, ShlObj;
 
 type
   TDropURLTarget = class(TDropTarget)
   private
-    URLFormatEtc,
-    FileContentsFormatEtc: TFormatEtc;
+    URLFormatEtc, 
+    FileContentsFormatEtc,
+    FGDFormatEtc: TFormatEtc;
     fURL: String;
+    fTitle: String;
   protected
     procedure ClearData; override;
     function DoGetData: boolean; override;
@@ -45,14 +38,12 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     property URL: String Read fURL Write fURL;
+    property Title: String Read fTitle Write fTitle;
   end;
 
 procedure Register;
 
 implementation
-
-var
-  CF_URL: UINT; //see initialization.
 
 procedure Register;
 begin
@@ -66,18 +57,25 @@ var
   str: string;
   i: integer;
 begin
+  //OK, just to get confusing...
+  //URL file contents in 2 possible formats...
+  //1. '[InternetShortcut]'#13#10'URL=http://....';
+  //2. '[InternetShortcut]'#10'URL=http://....';
   result := false;
   AssignFile(URLFile, Filename);
   try
     Reset(URLFile);
-    ReadLn(URLFile, str);
-    CloseFile(URLFile);
-    if (copy(str,1,18) <> '[InternetShortcut]') then
-      exit;
-    i := pos('=',str);
-    if (i <> 23) and (i <> 24) then exit; // Netscape and IE are different!
-    result := true;
-    URL := copy(str,i+1,250);
+    try
+      ReadLn(URLFile, str);
+      if (copy(str,1,18) <> '[InternetShortcut]') then exit; //error
+      if length(str) = 18 then ReadLn(URLFile, str);
+      i := pos('=',str);
+      if (i = 0) then exit;
+      URL := copy(str,i+1,250);
+      result := true;
+    finally
+      CloseFile(URLFile);
+    end;
   except
   end;
 end;
@@ -108,6 +106,14 @@ begin
     lindex := 0;
     tymed := TYMED_HGLOBAL;
   end;
+  with FGDFormatEtc do
+  begin
+    cfFormat := CF_FILEGROUPDESCRIPTOR;
+    ptd := nil;
+    dwAspect := DVASPECT_CONTENT;
+    lindex := -1;
+    tymed := TYMED_HGLOBAL;
+  end;
 end;
 
 //This demonstrates how to enumerate all DataObject formats.
@@ -121,7 +127,7 @@ begin
   result := false;
   //Enumerate available DataObject formats
   //to see if any one of the wanted format is available...
-  if (fDataObj.EnumFormatEtc(DATADIR_GET,FormatEnumerator) <> S_OK) or
+  if (DataObject.EnumFormatEtc(DATADIR_GET,FormatEnumerator) <> S_OK) or
      (FormatEnumerator.Reset <> S_OK) then
     exit;
   GetNum := 1; //get one at a time...
@@ -150,11 +156,13 @@ var
   medium: TStgMedium;
   cText: pchar;
   tmpFiles: TStringList;
+  pFGD: PFileGroupDescriptor;
 begin
   fURL := '';
+  fTitle := '';
   result := false;
   //--------------------------------------------------------------------------
-  if (fDataObj.GetData(URLFormatEtc, medium) = S_OK) then
+  if (DataObject.GetData(URLFormatEtc, medium) = S_OK) then
   begin
     try
       if (medium.tymed <> TYMED_HGLOBAL) then
@@ -168,7 +176,7 @@ begin
     end;
   end
   //--------------------------------------------------------------------------
-  else if (fDataObj.GetData(TextFormatEtc, medium) = S_OK) then
+  else if (DataObject.GetData(TextFormatEtc, medium) = S_OK) then
   begin
     try
       if (medium.tymed <> TYMED_HGLOBAL) then
@@ -182,7 +190,7 @@ begin
     end;
   end
   //--------------------------------------------------------------------------
-  else if (fDataObj.GetData(FileContentsFormatEtc, medium) = S_OK) then
+  else if (DataObject.GetData(FileContentsFormatEtc, medium) = S_OK) then
   begin
     try
       if (medium.tymed <> TYMED_HGLOBAL) then
@@ -197,16 +205,18 @@ begin
     end;
   end
   //--------------------------------------------------------------------------
-  else if (fDataObj.GetData(HDropFormatEtc, medium) = S_OK) then
+  else if (DataObject.GetData(HDropFormatEtc, medium) = S_OK) then
   begin
     try
       if (medium.tymed <> TYMED_HGLOBAL) then exit;
       tmpFiles := TStringList.create;
       try
-        if GetFilesFromHGlobal(medium.HGlobal,TStrings(tmpFiles)) then
-        begin
-          if (lowercase(ExtractFileExt(tmpFiles[0])) = '.url') and
+        if GetFilesFromHGlobal(medium.HGlobal,TStrings(tmpFiles)) and
+          (lowercase(ExtractFileExt(tmpFiles[0])) = '.url') and
              GetURLFromFile(tmpFiles[0], fURL) then
+        begin
+            fTitle := extractfilename(tmpFiles[0]);
+            delete(fTitle,length(fTitle)-3,4); //deletes '.url' extension
             result := true;
         end;
       finally
@@ -216,9 +226,22 @@ begin
       ReleaseStgMedium(medium);
     end;
   end;
+
+  if (DataObject.GetData(FGDFormatEtc, medium) = S_OK) then
+  begin
+    try
+      if (medium.tymed <> TYMED_HGLOBAL) then exit;
+      pFGD := pointer(GlobalLock(medium.HGlobal));
+      fTitle := pFGD^.fgd[0].cFileName;
+      delete(fTitle,length(fTitle)-3,4); //deletes '.url' extension
+    finally
+      ReleaseStgMedium(medium);
+    end;
+  end
+  else if fTitle = '' then fTitle := fURL;
 end;
 
-initialization
-  CF_URL := RegisterClipboardFormat('UniformResourceLocator');
+//initialization
+//  CF_URL, CF_FILEGROUPDESCRIPTOR and CF_FILECONTENTS are 'registered' in DropSource
 
 end.
