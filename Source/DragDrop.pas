@@ -340,21 +340,20 @@ type
   end;
 
   // TDataFormatClasses
-  // List of TCustomDataFormat classes.
+  // Singleton list of TCustomDataFormat classes.
   TDataFormatClasses = class(TObject)
-  private
-    FList: TList;
   strict private
-    { Provides singleton access to the global data format database }
-    class function Instance: TDataFormatClasses;
+    class var
+      FList: TList;
+  strict private
+    class constructor Create;
+    class destructor Destroy;
   protected
     class function GetFormat(Index: integer): TDataFormatClass; static;
     class function GetCount: integer; static;
   public
-    constructor Create;
-    destructor Destroy; override;
-    class function Add(DataFormat: TDataFormatClass): integer; // virtual;
-    class procedure Remove(DataFormat: TDataFormatClass); // virtual;
+    class function Add(DataFormat: TDataFormatClass): integer;
+    class procedure Remove(DataFormat: TDataFormatClass);
     class property Formats[Index: integer]: TDataFormatClass read GetFormat;
     class property Count: integer read GetCount;
   end;
@@ -366,37 +365,38 @@ type
   TDragDropTier = (ddtSource, ddtTarget);
 
   TDataFormatMap = class(TObject)
-  private
-    FList: TList;
+  strict private
+    class var
+      FList: TList;
+  strict private
+    class constructor Create;
+    class destructor Destroy;
   protected
-    function FindMap(DataFormatClass: TDataFormatClass; ClipboardFormatClass: TClipboardFormatClass): integer;
-    procedure Sort;
-    { Provides singleton access to the global format map database }
-    class function Instance: TDataFormatMap;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    procedure Add(DataFormatClass: TDataFormatClass;
+    class function FindMap(DataFormatClass: TDataFormatClass; ClipboardFormatClass: TClipboardFormatClass): integer;
+    class procedure Sort;
+
+    class procedure Add(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass;
       Priority: integer = 0;
       Capabilities: TConversionCapabilities = [ccWriteToDataFormat, ccReadFromDataFormat]);
-    procedure Delete(DataFormatClass: TDataFormatClass;
+    class procedure Delete(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass);
-    procedure DeleteByClipboardFormat(ClipboardFormatClass: TClipboardFormatClass);
-    procedure DeleteByDataFormat(DataFormatClass: TDataFormatClass);
-    class procedure GetClipboardFormats(const DataFormatClass: TDataFormatClass;
-      ClipboardFormats: TClipboardFormats; Tier: TDragDropTier);
-    function CanMap(DataFormatClass: TDataFormatClass;
+    class procedure DeleteByClipboardFormat(ClipboardFormatClass: TClipboardFormatClass);
+    class procedure DeleteByDataFormat(DataFormatClass: TDataFormatClass);
+    class function CanMap(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass): boolean;
-
+  public
     { Registers the specified format mapping }
-    procedure RegisterFormatMap(DataFormatClass: TDataFormatClass;
+    class procedure RegisterFormatMap(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass;
       Priority: integer = 0;
       Capabilities: TConversionCapabilities = [ccWriteToDataFormat, ccReadFromDataFormat]);
     { Unregisters the specified format mapping }
-    procedure UnregisterFormatMap(DataFormatClass: TDataFormatClass;
+    class procedure UnregisterFormatMap(DataFormatClass: TDataFormatClass;
       ClipboardFormatClass: TClipboardFormatClass);
+
+    class procedure GetClipboardFormats(const DataFormatClass: TDataFormatClass;
+      ClipboardFormats: TClipboardFormats; Tier: TDragDropTier);
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -966,7 +966,7 @@ end;
 class procedure TClipboardFormat.RegisterDataConversion(DataFormatClass: TDataFormatClass;
   Priority: integer; Capabilities: TConversionCapabilities);
 begin
-  TDataFormatMap.Instance.RegisterFormatMap(DataFormatClass, Self, Priority, Capabilities);
+  TDataFormatMap.RegisterFormatMap(DataFormatClass, Self, Priority, Capabilities);
 end;
 
 class procedure TClipboardFormat.RegisterFormat;
@@ -1075,7 +1075,7 @@ end;
 class procedure TClipboardFormat.UnregisterClipboardFormat;
 begin
   if (not DragDropShutdown) then
-    TDataFormatMap.Instance.DeleteByClipboardFormat(Self);
+    TDataFormatMap.DeleteByClipboardFormat(Self);
 end;
 
 function TClipboardFormat.GetClipboardFormat: TClipFormat;
@@ -1384,8 +1384,7 @@ class procedure TCustomDataFormat.RegisterDataConversion(ClipboardFormatClass: T
 begin
   // Register format mapping.
   if (not DragDropShutdown) then
-    TDataFormatMap.Instance.RegisterFormatMap(Self, ClipboardFormatClass,
-      Priority, Capabilities);
+    TDataFormatMap.RegisterFormatMap(Self, ClipboardFormatClass, Priority, Capabilities);
 end;
 
 class procedure TCustomDataFormat.RegisterDataConsumer(ClipboardFormatClass: TClipboardFormatClass);
@@ -1408,7 +1407,7 @@ class procedure TCustomDataFormat.UnregisterDataFormat;
 begin
   if (not DragDropShutdown) then
   begin
-    TDataFormatMap.Instance.DeleteByDataFormat(Self);
+    TDataFormatMap.DeleteByDataFormat(Self);
     TDataFormatClasses.Remove(Self);
   end;
 end;
@@ -1479,59 +1478,59 @@ end;
 //              TDataFormatClasses
 //
 ////////////////////////////////////////////////////////////////////////////////
-var
-  FDataFormatClasses: TDataFormatClasses = nil;
-
-class function TDataFormatClasses.Add(DataFormat: TDataFormatClass): integer;
+class constructor TDataFormatClasses.Create;
 begin
-  Result := Instance.FList.IndexOf(DataFormat);
-  if (Result = -1) then
-    Result := Instance.FList.Add(DataFormat);
-end;
-
-constructor TDataFormatClasses.Create;
-begin
-  ASSERT(FDataFormatClasses = nil);
-  inherited Create;
   FList := TList.Create;
 end;
 
-destructor TDataFormatClasses.Destroy;
-var
-  i: integer;
+class destructor TDataFormatClasses.Destroy;
 begin
-  ASSERT(FDataFormatClasses = self);
-  for i := FList.Count-1 downto 0 do
-    Remove(TDataFormatClass(FList[i]));
-  FList.Free;
-  inherited Destroy;
-  FDataFormatClasses := nil;
+  FreeAndNil(FList);
+end;
+
+class function TDataFormatClasses.Add(DataFormat: TDataFormatClass): integer;
+begin
+  if (DragDropShutdown) then
+    OutputDebugString('DragDrop.TDataFormatClasses accessed after shutdown');
+
+  if (FList <> nil) then
+  begin
+    Result := FList.IndexOf(DataFormat);
+    if (Result = -1) then
+      Result := FList.Add(DataFormat);
+  end else
+    Result := -1;
 end;
 
 class function TDataFormatClasses.GetCount: integer;
 begin
-  Result := Instance.FList.Count;
+  if (DragDropShutdown) then
+    OutputDebugString('DragDrop.TDataFormatClasses accessed after shutdown');
+
+  if (FList <> nil) then
+    Result := FList.Count
+  else
+    Result := 0;
 end;
 
 class function TDataFormatClasses.GetFormat(Index: integer): TDataFormatClass;
 begin
-  Result := TDataFormatClass(Instance.FList[Index]);
-end;
+  if (DragDropShutdown) then
+    OutputDebugString('DragDrop.TDataFormatClasses accessed after shutdown');
 
-class function TDataFormatClasses.Instance: TDataFormatClasses;
-begin
-  if (FDataFormatClasses = nil) then
-  begin
-    if (DragDropShutdown) then
-      OutputDebugString('DragDrop.TDataFormatClasses recreated during shutdown');
-    FDataFormatClasses := TDataFormatClasses.Create;
-  end;
-  Result := FDataFormatClasses;
+  if (FList <> nil) then
+    Result := TDataFormatClass(FList[Index])
+  else
+    Result := nil;
 end;
 
 class procedure TDataFormatClasses.Remove(DataFormat: TDataFormatClass);
 begin
-  Instance.FList.Remove(DataFormat);
+  if (DragDropShutdown) then
+    OutputDebugString('DragDrop.TDataFormatClasses accessed after shutdown');
+
+  if (FList <> nil) then
+    FList.Remove(DataFormat);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1550,31 +1549,23 @@ type
 
   PFormatMap = ^TFormatMap;
 
-var
-  FDataFormatMap: TDataFormatMap = nil;
-
-constructor TDataFormatMap.Create;
+class constructor TDataFormatMap.Create;
 begin
-  ASSERT(FDataFormatMap = nil);
-  inherited Create;
   FList := TList.Create;
 end;
 
-destructor TDataFormatMap.Destroy;
+class destructor TDataFormatMap.Destroy;
 var
   i: integer;
 begin
-  ASSERT(FDataFormatMap = self);
   // Zap any mapings which hasn't been unregistered
-  // yet (actually an error condition)
+  // yet (actually an error condition on the part of the data formats).
   for i := FList.Count-1 downto 0 do
     Dispose(FList[i]);
-  FList.Free;
-  inherited Destroy;
-  FDataFormatMap := nil;
+  FreeAndNil(FList);
 end;
 
-procedure TDataFormatMap.Sort;
+class procedure TDataFormatMap.Sort;
 var
   i: integer;
   NewMap: PFormatMap;
@@ -1614,13 +1605,19 @@ begin
   end;
 end;
 
-procedure TDataFormatMap.Add(DataFormatClass: TDataFormatClass;
+class procedure TDataFormatMap.Add(DataFormatClass: TDataFormatClass;
   ClipboardFormatClass: TClipboardFormatClass; Priority: integer;
   Capabilities: TConversionCapabilities);
 var
   FormatMap: PFormatMap;
   OldMap: integer;
 begin
+  if (DragDropShutdown) then
+    OutputDebugString('DragDrop.TDataFormatMap accessed after shutdown');
+
+  if (FList = nil) then
+    exit;
+
   // Avoid duplicate mappings
   OldMap := FindMap(DataFormatClass, ClipboardFormatClass);
   if (OldMap = -1) then
@@ -1646,17 +1643,29 @@ begin
   Sort;
 end;
 
-function TDataFormatMap.CanMap(DataFormatClass: TDataFormatClass;
+class function TDataFormatMap.CanMap(DataFormatClass: TDataFormatClass;
   ClipboardFormatClass: TClipboardFormatClass): boolean;
 begin
-  Result := (FindMap(DataFormatClass, ClipboardFormatClass) <> -1);
+  if (DragDropShutdown) then
+    OutputDebugString('DragDrop.TDataFormatMap accessed after shutdown');
+
+  if (FList <> nil) then
+    Result := (FindMap(DataFormatClass, ClipboardFormatClass) <> -1)
+  else
+    Result := False;
 end;
 
-procedure TDataFormatMap.Delete(DataFormatClass: TDataFormatClass;
+class procedure TDataFormatMap.Delete(DataFormatClass: TDataFormatClass;
   ClipboardFormatClass: TClipboardFormatClass);
 var
   Index: integer;
 begin
+  if (DragDropShutdown) then
+    OutputDebugString('DragDrop.TDataFormatMap accessed after shutdown');
+
+  if (FList = nil) then
+    exit;
+
   Index := FindMap(DataFormatClass, ClipboardFormatClass);
   if (Index <> -1) then
   begin
@@ -1665,10 +1674,16 @@ begin
   end;
 end;
 
-procedure TDataFormatMap.DeleteByClipboardFormat(ClipboardFormatClass: TClipboardFormatClass);
+class procedure TDataFormatMap.DeleteByClipboardFormat(ClipboardFormatClass: TClipboardFormatClass);
 var
   i: integer;
 begin
+  if (DragDropShutdown) then
+    OutputDebugString('DragDrop.TDataFormatMap accessed after shutdown');
+
+  if (FList = nil) then
+    exit;
+
   // Delete all mappings associated with the specified clipboard format
   for i := FList.Count-1 downto 0 do
     if (PFormatMap(FList[i])^.ClipboardFormat.InheritsFrom(ClipboardFormatClass)) then
@@ -1678,10 +1693,16 @@ begin
     end;
 end;
 
-procedure TDataFormatMap.DeleteByDataFormat(DataFormatClass: TDataFormatClass);
+class procedure TDataFormatMap.DeleteByDataFormat(DataFormatClass: TDataFormatClass);
 var
   i: integer;
 begin
+  if (DragDropShutdown) then
+    OutputDebugString('DragDrop.TDataFormatMap accessed after shutdown');
+
+  if (FList = nil) then
+    exit;
+
   // Delete all mappings associated with the specified target format
   for i := FList.Count-1 downto 0 do
     if (PFormatMap(FList[i])^.DataFormat.InheritsFrom(DataFormatClass)) then
@@ -1691,7 +1712,7 @@ begin
     end;
 end;
 
-function TDataFormatMap.FindMap(DataFormatClass: TDataFormatClass;
+class function TDataFormatMap.FindMap(DataFormatClass: TDataFormatClass;
   ClipboardFormatClass: TClipboardFormatClass): integer;
 var
   i: integer;
@@ -1713,14 +1734,21 @@ var
   ClipboardFormat: TClipboardFormat;
   FormatMap: PFormatMap;
 begin
+  if (DragDropShutdown) then
+    OutputDebugString('DragDrop.TDataFormatMap accessed after shutdown');
+
   // Clear the list...
   ClipboardFormats.Clear;
+
+  if (FList = nil) then
+    exit;
+
   // ...and populate it with *instances* of all the clipbard
   // formats associated with the specified target format and
   // registered with the specified data direction.
-  for i := 0 to Instance.FList.Count-1 do
+  for i := 0 to FList.Count-1 do
   begin
-    FormatMap := PFormatMap(Instance.FList[i]);
+    FormatMap := PFormatMap(FList[i]);
     if (FormatMap.DataFormat.InheritsFrom(DataFormatClass)) and
       (((Tier = ddtSource) and ((ccReadFromDataFormat in FormatMap.Capabilities) or (ddWrite in FormatMap.ClipboardFormat.DataDirection))) or
        ((Tier = ddtTarget) and ((ccWriteToDataFormat in FormatMap.Capabilities) or (ddRead in FormatMap.ClipboardFormat.DataDirection)))) then
@@ -1731,28 +1759,25 @@ begin
   end;
 end;
 
-procedure TDataFormatMap.RegisterFormatMap(DataFormatClass: TDataFormatClass;
+class procedure TDataFormatMap.RegisterFormatMap(DataFormatClass: TDataFormatClass;
   ClipboardFormatClass: TClipboardFormatClass; Priority: integer;
   Capabilities: TConversionCapabilities);
 begin
-  Add(DataFormatClass, ClipboardFormatClass, Priority, Capabilities);
+  if (DragDropShutdown) then
+    OutputDebugString('DragDrop.TDataFormatMap accessed after shutdown');
+
+  if (FList <> nil) then
+    Add(DataFormatClass, ClipboardFormatClass, Priority, Capabilities);
 end;
 
-procedure TDataFormatMap.UnregisterFormatMap(DataFormatClass: TDataFormatClass;
+class procedure TDataFormatMap.UnregisterFormatMap(DataFormatClass: TDataFormatClass;
   ClipboardFormatClass: TClipboardFormatClass);
 begin
-  Delete(DataFormatClass, ClipboardFormatClass);
-end;
+  if (DragDropShutdown) then
+    OutputDebugString('DragDrop.TDataFormatMap accessed after shutdown');
 
-class function TDataFormatMap.Instance: TDataFormatMap;
-begin
-  if (FDataFormatMap = nil) then
-  begin
-    if (DragDropShutdown) then
-      OutputDebugString('DragDrop.TDataFormatMap recreated during shutdown');
-    FDataFormatMap := TDataFormatMap.Create;
-  end;
-  Result := FDataFormatMap;
+  if (FList <> nil) then
+    Delete(DataFormatClass, ClipboardFormatClass);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2397,13 +2422,6 @@ initialization
 
 finalization
   DragDropShutdown := True;
-  // Note: Due to unit finalization order, is is possible for the following two
-  // objects to be recreated after this units' finalization has executed.
-  // If that happens it will result in a harmless one-time memory leak.
-  if (FDataFormatMap <> nil) then
-    FDataFormatMap.Free;
-  if (FDataFormatClasses <> nil) then
-    FDataFormatClasses.Free;
 
   ShellMalloc := nil;
 
