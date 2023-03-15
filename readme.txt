@@ -4,7 +4,7 @@
   // Module:          DropSource
   // Description:     Implements Dragging & Dropping of text and files
   //                  FROM your application TO another.
-  // Version:	    1.4
+  // Version:	         1.5
   // Date:            19-AUG-1998
   // Target:          Win32, Delphi 3 & 4
   // Authors:         Angus Johnson, ajohnson@rpi.net.au
@@ -20,6 +20,9 @@
   // History:
   // dd/mm/yy  Version  Changes
   // --------  -------  ----------------------------------------
+  // 31.08.98  1.5      * Fixed a Delphi 4 bug!
+  //                      (I cut and pasted the wrong line!)
+  //                    * Demo code now MUCH tidier and easier to read (I think).
   // 19.08.98  1.4      * CopyToClipboard method added.
   //                    * Should now compile in Delphi 4. (see below)
   //                    * Another tidy up of the code.
@@ -43,14 +46,14 @@
   //                      as the springboard for my new Delphi 3 D'n'D components.
   //                      Thanks to Anders for the excellent start and
   //                      suggestions along the way!
-  //                      
+  //
   // -----------------------------------------------------------------------------
 
   // Future Plans -
   // 1. Implement drag and drop of Links and Scrap Files.
   //    (So far I've drawn a blank. Any hints VERY welcome!)
   // -----------------------------------------------------------------------------
-  
+
   // TDropTextSource -
   //   Public
   //      ....

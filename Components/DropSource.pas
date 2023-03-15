@@ -6,7 +6,7 @@ UNIT dropsource;
   // Module:          DropSource
   // Description:     Implements Dragging & Dropping of text and files
   //                  FROM your application TO another.
-  // Version:	         1.4
+  // Version:	         1.5
   // Date:            19-AUG-1998
   // Target:          Win32, Delphi 3 & 4
   // Authors:         Angus Johnson, ajohnson@rpi.net.au
@@ -22,6 +22,9 @@ UNIT dropsource;
   // History:
   // dd/mm/yy  Version  Changes
   // --------  -------  ----------------------------------------
+  // 31.08.98  1.5      * Fixed a Delphi 4 bug!
+  //                      (I cut and pasted the wrong line!)
+  //                    * Demo code now MUCH tidier and easier to read (I think).
   // 19.08.98  1.4      * CopyToClipboard method added.
   //                    * Should now compile in Delphi 4. (see below)
   //                    * Another tidy up of the code.
@@ -45,14 +48,14 @@ UNIT dropsource;
   //                      as the springboard for my new Delphi 3 D'n'D components.
   //                      Thanks to Anders for the excellent start and
   //                      suggestions along the way!
-  //                      
+  //
   // -----------------------------------------------------------------------------
 
   // Future Plans -
   // 1. Implement drag and drop of Links and Scrap Files.
   //    (So far I've drawn a blank. Any hints VERY welcome!)
   // -----------------------------------------------------------------------------
-  
+
   // TDropTextSource -
   //   Public
   //      ....
@@ -108,9 +111,6 @@ INTERFACE
     Private
       fRefCount: Integer;
     Protected
-      // QueryInterface now returns HRESULT (previously integer)
-      // so should now compile in Delphi 4 as well as Delphi 3.
-      // Thanks to 'Scotto the Unwise', scottos@gtcom.net.
       FUNCTION QueryInterface(CONST IID: TGuid; OUT Obj): HRESULT; StdCall;
       FUNCTION _AddRef: Integer; StdCall;
       FUNCTION _Release: Integer; StdCall;
@@ -136,6 +136,7 @@ INTERFACE
     fFBEvent: TFeedBackEvent;
   Protected
     // IDropSource implementation
+
     FUNCTION QueryContinueDrag(fEscapePressed: bool; grfKeyState: LongInt): HRESULT; StdCall;
     FUNCTION GiveFeedback(dwEffect: LongInt): HRESULT; StdCall;
 
@@ -161,7 +162,6 @@ INTERFACE
 
   Public
     CONSTRUCTOR Create(aowner: TComponent); Override;
-    DESTRUCTOR destroy; Override;
     FUNCTION Execute: TDragResult;
     FUNCTION CopyToClipboard: boolean; Virtual;
   Published
@@ -173,7 +173,6 @@ INTERFACE
   TDropTextSource = CLASS(TDropSource)
   Private
     fText: String;
-    textdataformats: ARRAY[0..0] OF TFormatEtc;   {!!}
   Protected
     FUNCTION DoGetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
     FUNCTION DoGetDataHere(CONST FormatEtc: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
@@ -181,7 +180,6 @@ INTERFACE
     FUNCTION DoEnumFormatEtc(dwDirection: LongInt; OUT EnumFormatEtc: IEnumFormatEtc): HRESULT; Override;
   Public
     CONSTRUCTOR Create(aOwner: TComponent); Override;
-    DESTRUCTOR Destroy; Override;
     FUNCTION CopyToClipboard: boolean; Override;
     PROPERTY Text: String Read fText Write fText;
   END;
@@ -223,10 +221,10 @@ IMPLEMENTATION
   //			TInterfacedComponent
   // -----------------------------------------------------------------------------
 
+  // QueryInterface now returns HRESULT so should now compile in Delphi 4
+  // as well. Thanks to 'Scotto the Unwise' - scottos@gtcom.net
   //******************* TInterfacedComponent.QueryInterface *************************
-  FUNCTION TInterfacedComponent.QueryInterface(CONST IID: TGuid; OUT Obj): Integer;
-  CONST
-    E_NOINTERFACE = $80004002;
+  FUNCTION TInterfacedComponent.QueryInterface(CONST IID: TGuid; OUT Obj): HRESULT;
   BEGIN
     IF GetInterface(IID, Obj) THEN result := 0 ELSE result := E_NOINTERFACE;
   END;
@@ -336,15 +334,9 @@ IMPLEMENTATION
   CONSTRUCTOR TDropSource.Create(aOwner: TComponent);
   BEGIN
     INHERITED Create(aOwner);
-    DragTypes := [dtCopy]; //defaults to Copy.
-    //This avoids premature release!
+    DragTypes := [dtCopy]; //default to Copy.
+    //To avoid premature release ...
     _AddRef;
-  END;
-
-  //******************* TDropSource.Destroy *************************
-  DESTRUCTOR TDropSource.Destroy;
-  BEGIN
-    INHERITED Destroy;
   END;
 
   //******************* TDropSource.Execute *************************
@@ -425,10 +417,6 @@ IMPLEMENTATION
 
     result:=DRAGDROP_S_USEDEFAULTCURSORS;
 
-    //Custom Cursors!
-    //still working on this ... have to "turn off" other cursors ... and then ...
-    //windows.setcursor(screen.cursors[MYCUSTCURSOR1]);
-    //result := S_OK;
   END;
 
   //******************* TDropSource.GetCanonicalFormatEtc *************************
@@ -512,22 +500,9 @@ IMPLEMENTATION
   BEGIN
     INHERITED Create(aOwner);
     fText := '';
-
-    textdataformats[0].cfFormat := CF_TEXT;
-    textdataformats[0].ptd := nil;
-    textdataformats[0].dwAspect := DVASPECT_CONTENT;
-    textdataformats[0].lIndex := -1;
-    textdataformats[0].tymed := TYMED_HGLOBAL;
-
   END;
 
-  //******************* TDropTextSource.Destroy *************************
-  DESTRUCTOR TDropTextSource.Destroy;
-  BEGIN
-    INHERITED Destroy;
-  END;
-
-  // Thanks to Zbysek Hlinka, zhlinka@login.cz.
+  // Adapted from Zbysek Hlinka, zhlinka@login.cz.
   //******************* TDropTextSource.CopyToClipboard *************************
   FUNCTION TDropTextSource.CopyToClipboard: boolean;
   VAR
@@ -571,8 +546,8 @@ IMPLEMENTATION
       result := INHERITED DoGetDataHere(FormatEtc, Medium);
   END;
 
-  //******************* TDropTextSource.DoGetData *************************
   // Adapted from stefc@fabula.com
+  //******************* TDropTextSource.DoGetData *************************
   FUNCTION TDropTextSource.DoGetData(CONST FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT;
   BEGIN
 
@@ -600,8 +575,6 @@ IMPLEMENTATION
   //******************* TDropTextSource.DoQueryGetData *************************
   FUNCTION TDropTextSource.DoQueryGetData(CONST FormatEtc: TFormatEtc): HRESULT;
   BEGIN
-    // This method is called by the drop target to check whether the source
-    // provides data in a format that the target accepts.
     result:= S_OK;
     IF (FormatEtc.cfFormat <> CF_TEXT) THEN result:= E_INVALIDARG
     ELSE IF (FormatEtc.dwAspect <> DVASPECT_CONTENT) THEN result:= DV_E_DVASPECT
@@ -609,6 +582,11 @@ IMPLEMENTATION
   END;
 
   //******************* TDropTextSource.DoEnumFormatEtc *************************
+
+  CONST
+    textdataformats: ARRAY[0..0] OF TFormatEtc =
+     ((cfFormat: CF_TEXT; ptd: NIL;
+                 dwAspect: DVASPECT_CONTENT; lIndex: -1; tymed: TYMED_HGLOBAL));
 
   FUNCTION TDropTextSource.DoEnumFormatEtc(dwDirection: LongInt;
            OUT EnumFormatEtc:IEnumFormatEtc): HRESULT;
@@ -641,7 +619,7 @@ IMPLEMENTATION
     INHERITED Destroy;
   END;
 
-  // Thanks to Zbysek Hlinka, zhlinka@login.cz.
+  // Adapted from Zbysek Hlinka, zhlinka@login.cz.
   //******************* TDropFileSource.CopyToClipboard *************************
   FUNCTION TDropFileSource.CopyToClipboard: boolean;
   VAR
@@ -729,8 +707,6 @@ IMPLEMENTATION
   //******************* TDropFileSource.DoQueryGetData *************************
   FUNCTION TDropFileSource.DoQueryGetData(CONST FormatEtc: TFormatEtc): HRESULT;
   BEGIN
-    // This method is called by the drop target to check whether the source
-    // provides data in a format that the target accepts.
     result:= S_OK;
     IF (FormatEtc.cfFormat <> CF_HDROP) THEN result:= E_INVALIDARG
     ELSE IF ((FormatEtc.dwAspect <> DVASPECT_CONTENT) AND
