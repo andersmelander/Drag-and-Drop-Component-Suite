@@ -4,10 +4,10 @@
 //                  TDropTextTarget, TDropFileTarget.
 // Modules:         DropSource, DropTarget.
 // Description:     Implements Dragging & Dropping of 
-//                  text, files and URLs
+//                  text, files, URLs & BMPs
 //                  TO and FROM your application.
-// Version:	        3.1
-// Date:            01-OCT-1998
+// Version:         3.3
+// Date:            16-NOV-1998
 // Target:          Win32, Delphi 3 & 4
 // Authors:         Angus Johnson, ajohnson@rpi.net.au
 //                  (TDropTextSource, TDropFileSource,
@@ -30,12 +30,10 @@
 // -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
-// History & Usage: See module headers - major changes to both modules.
+// History & Usage: See module headers for detailed changes.
+// 
+// Changes from Version 3.2
+// TDropBMPSource and TDropBMPTarget DIB support added.
+// Minor bug fix to Detailed Demo. (Custom cursors weren't destroyed.)
 // -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-// Future plans: 
-//   1. Simpler demo. OK, we were trying to show off!
-//   2. Help file (if enough people ask for it).
-//   3. CF_BITMAP, CF_DIB formats etc.
-// -----------------------------------------------------------------------------

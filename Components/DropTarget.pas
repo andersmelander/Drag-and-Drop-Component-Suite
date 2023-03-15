@@ -6,9 +6,9 @@ unit DropTarget;
   // Module:          DropTarget
   // Description:     Implements Dragging & Dropping of text, files and URLs
   //                  INTO your application FROM another.
-  // Version:	        3.1
-  // Date:            01-OCT-1998
-  // Target:          Win32, Delphi 3 & 4
+  // Version:	       3.3
+  // Date:            16-NOV-1998
+  // Target:          Win32, Delphi 3 & 4, CB3
   // Authors:         Angus Johnson,   ajohnson@rpi.net.au
   //                  Anders Melander, anders@melander.dk
   //                                   http://www.melander.dk
@@ -30,6 +30,10 @@ unit DropTarget;
   // History:
   // dd/mm/yy  Version  Changes
   // --------  -------  ----------------------------------------
+  // 16.11.98  3.3      * Changes to TDropBMPSource & TDropBMPTarget modules only.
+  // 22.10.98  3.2      * TDropURLTarget moved to another module.
+  //                    * TDropTarget.fDataObj moved from private to protected section
+  //                      of type declaration.
   // 01.10.98  3.1      * Major design changes including changes to published properties and events.
   //                      (The previous version attempted to unregister the drop target window
   //                      in TDropTarget.Notification method. However, the target TWinControl handle is 
@@ -51,7 +55,7 @@ unit DropTarget;
   //                      can again be used. The Enabled property has been removed as a consequence.
   //                      The TargetWindow property has also been removed as the Target TWinControl
   //                      is now assigned when passed as a parameter in the register method.)
-  //                    * Other design changes now make it MUCH easier to create descendant classes 
+  //                    * Other design changes now make it MUCH easier to create descendant classes
   //                      of TDropTarget.
   //                    * TDropURLTarget added.
   // 22.09.98  3.0      * Shortcuts (links) for TDropFileTarget now enabled.
@@ -79,7 +83,7 @@ interface
 
   uses
     Windows, ActiveX, Classes, Controls, ShlObj, ShellApi, SysUtils,
-    ClipBrd, DropSource;
+    ClipBrd, DropSource, Graphics;
 
   type
 
@@ -94,7 +98,6 @@ interface
   //Note: TInterfacedComponent declared in DropSource.pas
   TDropTarget = class(TInterfacedComponent, IDropTarget)
   private
-    fDataObj: IDataObject;
     fDragTypes: TDragTypes;
     fRegistered: boolean;
     fTarget: TWinControl;
@@ -105,6 +108,7 @@ interface
     fOnDrop: TTargetOnDropEvent;
     fGetDropEffectEvent: TGetDropEffectEvent;
   protected
+    fDataObj: IDataObject;
 
     // IDropTarget methods...
     function DragEnter(const DataObj: IDataObject; grfKeyState: Longint;
@@ -160,30 +164,20 @@ interface
     property Text: String Read fText Write fText;
   end;
 
-  TDropURLTarget = class(TDropTarget)
-  private
-    URLFormatEtc,
-    FileContentsFormatEtc: TFormatEtc;
-    fURL: String;
-  protected
-    procedure ClearData; override;
-    function DoGetData: boolean; override;
-    function HasValidFormats: boolean; override;
-  published
-    property Dragtypes: TDragTypes read fDragTypes; //ReadOnly - only dtLink allowed.
-    property GetDataOnEnter: Boolean read fGetDataOnEnter; //ReadOnly - always true.
-  public
-    constructor Create(AOwner: TComponent); override;
-    property URL: String Read fURL Write fURL;
-  end;
+const
+  HDropFormatEtc: TFormatEtc = (cfFormat: CF_HDROP;
+    ptd: nil; dwAspect: DVASPECT_CONTENT; lindex: -1; tymed: TYMED_HGLOBAL);
+  TextFormatEtc: TFormatEtc = (cfFormat: CF_TEXT;
+    ptd: nil; dwAspect: DVASPECT_CONTENT; lindex: -1; tymed: TYMED_HGLOBAL);
 
+function GetFilesFromHGlobal(const HGlob: HGlobal; var Files: TStrings): boolean;
 procedure Register;
 
 implementation
 
 procedure Register;
 begin
-  RegisterComponents('Samples', [TDropFileTarget, TDropTextTarget, TDropURLTarget]);
+  RegisterComponents('DragDrop',[TDropFileTarget, TDropTextTarget]);
 end;
 
 // -----------------------------------------------------------------------------
@@ -220,30 +214,6 @@ begin
     result := true else
     result := false;
 end;
-
-//******************* GetURLFromFile *************************
-function GetURLFromFile(const Filename: string; var URL: string): boolean;
-var
-  URLfile: textfile;
-  str: string;
-  i: integer;
-begin
-  result := false;
-  AssignFile(URLFile, Filename);
-  try
-    Reset(URLFile);
-    ReadLn(URLFile, str);
-    CloseFile(URLFile);
-    if (copy(str,1,18) <> '[InternetShortcut]') then
-      exit;
-    i := pos('=',str);
-    if (i <> 23) and (i <> 24) then exit; // Netscape and IE are different!
-    result := true;
-    URL := copy(str,i+1,250);
-  except
-  end;
-end;
-
 
 // -----------------------------------------------------------------------------
 //			TDropTarget
@@ -395,10 +365,6 @@ end;
 //			TDropFileTarget
 // -----------------------------------------------------------------------------
 
-const
-  HDropFormatEtc: TFormatEtc = (cfFormat: CF_HDROP;
-    ptd: nil; dwAspect: DVASPECT_CONTENT; lindex: -1; tymed: TYMED_HGLOBAL);
-
 //******************* TDropFileTarget.Create *************************
 constructor TDropFileTarget.Create( AOwner: TComponent );
 begin
@@ -452,12 +418,6 @@ end;
 //			TDropTextTarget
 // -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-const
-  TextFormatEtc: TFormatEtc = (cfFormat: CF_TEXT;
-    ptd: nil; dwAspect: DVASPECT_CONTENT; lindex: -1; tymed: TYMED_HGLOBAL);
-// -----------------------------------------------------------------------------
-
 //******************* TDropTextTarget.HasValidFormats *************************
 function TDropTextTarget.HasValidFormats: boolean;
 begin
@@ -494,151 +454,6 @@ begin
   else
     result := false;
 end;
-
-
-// -----------------------------------------------------------------------------
-//			TDropURLTarget
-// -----------------------------------------------------------------------------
-
-{URLFormatEtc cannot be declared as a constant because CF_URL is not a constant.
- URLFormatEtc is declared a private variable of TDropURLTarget.}
-// -----------------------------------------------------------------------------
-//const
-//  URLFormatEtc: TFormatEtc;
-// -----------------------------------------------------------------------------
-
-//******************* TDropURLTarget.Create *************************
-constructor TDropURLTarget.Create(AOwner: TComponent);
-begin
-  inherited Create(AOwner);
-  fDragTypes := [dtLink]; //Only allow links.
-  fGetDataOnEnter := true;
-  with URLFormatEtc do
-  begin
-    cfFormat := CF_URL;
-    ptd := nil;
-    dwAspect := DVASPECT_CONTENT;
-    lindex := -1;
-    tymed := TYMED_HGLOBAL;
-  end;
-  with FileContentsFormatEtc do
-  begin
-    cfFormat := CF_FILECONTENTS;
-    ptd := nil;
-    dwAspect := DVASPECT_CONTENT;
-    lindex := 0;
-    tymed := TYMED_HGLOBAL;
-  end;
-end;
-
-//This demonstrates how to enumerate all DataObject formats.
-//******************* TDropURLTarget.HasValidFormats *************************
-function TDropURLTarget.HasValidFormats: boolean;
-var
-  GetNum, GotNum: longint;
-  FormatEnumerator: IEnumFormatEtc;
-  tmpFormatEtc: TformatEtc;
-begin
-  result := false;
-  //Enumerate available DataObject formats
-  //to see if any one of the wanted format is available...
-  if (fDataObj.EnumFormatEtc(DATADIR_GET,FormatEnumerator) <> S_OK) or
-     (FormatEnumerator.Reset <> S_OK) then
-    exit;
-  GetNum := 1; //get one at a time...
-  while (FormatEnumerator.Next(GetNum, tmpFormatEtc, @GotNum) = S_OK) and
-        (GetNum = GotNum) do
-    with tmpFormatEtc do
-      if (ptd = nil) and (dwAspect = DVASPECT_CONTENT) and
-         {(lindex <> -1) or} (tymed and TYMED_HGLOBAL <> 0) and
-         ((cfFormat = CF_URL) or (cfFormat = CF_FILECONTENTS) or
-         (cfFormat = CF_HDROP) or (cfFormat = CF_TEXT)) then
-      begin
-        result := true;
-        break;
-      end;
-end;
-
-//******************* TDropURLTarget.ClearData *************************
-procedure TDropURLTarget.ClearData;
-begin
-  fURL := '';
-end;
-
-//******************* TDropURLTarget.DoGetData *************************
-function TDropURLTarget.DoGetData: boolean;
-var
-  medium: TStgMedium;
-  cText: pchar;
-  tmpFiles: TStringList;
-begin
-  fURL := '';
-  result := false;
-  //--------------------------------------------------------------------------
-  if (fDataObj.GetData(URLFormatEtc, medium) = S_OK) then
-  begin
-    try
-      if (medium.tymed <> TYMED_HGLOBAL) then
-        exit;
-      cText := PChar(GlobalLock(medium.HGlobal));
-      fURL := cText;
-      GlobalUnlock(medium.HGlobal);
-      result := true;
-    finally
-      ReleaseStgMedium(medium);
-    end;
-  end
-  //--------------------------------------------------------------------------
-  else if (fDataObj.GetData(TextFormatEtc, medium) = S_OK) then
-  begin
-    try
-      if (medium.tymed <> TYMED_HGLOBAL) then
-        exit;
-      cText := PChar(GlobalLock(medium.HGlobal));
-      fURL := cText;
-      GlobalUnlock(medium.HGlobal);
-      result := true;
-    finally
-      ReleaseStgMedium(medium);
-    end;
-  end
-  //--------------------------------------------------------------------------
-  else if (fDataObj.GetData(FileContentsFormatEtc, medium) = S_OK) then
-  begin
-    try
-      if (medium.tymed <> TYMED_HGLOBAL) then
-        exit;
-      cText := PChar(GlobalLock(medium.HGlobal));
-      fURL := cText;
-      fURL := copy(fURL,24,250);
-      GlobalUnlock(medium.HGlobal);
-      result := true;
-    finally
-      ReleaseStgMedium(medium);
-    end;
-  end
-  //--------------------------------------------------------------------------
-  else if (fDataObj.GetData(HDropFormatEtc, medium) = S_OK) then
-  begin
-    try
-      if (medium.tymed <> TYMED_HGLOBAL) then exit;
-      tmpFiles := TStringList.create;
-      try
-        if GetFilesFromHGlobal(medium.HGlobal,TStrings(tmpFiles)) then
-        begin
-          if (lowercase(ExtractFileExt(tmpFiles[0])) = '.url') and
-             GetURLFromFile(tmpFiles[0], fURL) then
-            result := true;
-        end;
-      finally
-        tmpFiles.free;
-      end;
-    finally
-      ReleaseStgMedium(medium);
-    end;
-  end;
-end;
-
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------

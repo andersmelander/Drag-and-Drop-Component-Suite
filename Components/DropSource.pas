@@ -1,14 +1,14 @@
-UNIT dropsource;
+UNIT DropSource;
   
   // -----------------------------------------------------------------------------
   // Project:         Drag and Drop Source Components
-  // Component Names: TDropTextSource, TDropFileSource, TDropURLSource 
+  // Component Names: TDropTextSource, TDropFileSource,
   // Module:          DropSource
-  // Description:     Implements Dragging & Dropping of text, files and URLs
+  // Description:     Implements Dragging & Dropping of text, files
   //                  FROM your application to another.
-  // Version:	        3.1
-  // Date:            01-OCT-1998
-  // Target:          Win32, Delphi 3 & 4
+  // Version:         3.3
+  // Date:            16-NOV-1998
+  // Target:          Win32, Delphi 3 & 4, CB3
   // Authors:         Angus Johnson,   ajohnson@rpi.net.au
   //                  Anders Melander, anders@melander.dk
   //                                   http://www.melander.dk
@@ -25,11 +25,18 @@ UNIT dropsource;
   // 1. Thanks to Jim O'Brien for his tips on Shortcuts and Scrap files. We
   //    were on the right path afterall.
   // 2. Thanks to Zbysek Hlinka for sugestions on Copying to Clipboard.
+  // 3. Thanks to Jan Debis for spotting a small bug in TDropFileSource.
   // -----------------------------------------------------------------------------
 
   // History:
   // dd/mm/yy  Version  Changes
   // --------  -------  ----------------------------------------
+  // 16.11.98  3.3      * Changes to TDropBMPSource & TDropBMPTarget modules only.
+  // 22.10.98  3.2      * TDropURLSource moved to separate unit.
+  //                    * Bug fix - Fixed bug in TDropFileSource.Files property.
+  //                    * AddFormatEtc() method added to TDropSource.
+  //                    * TDropSource.GiveFeedback() method declaration changed
+  //                      to enable use of custom cursors.
   // 01.10.98  3.1      * Removed the "AutoDrag" feature introduced in Version 3.0.
   //                      This feature only seems possible if TDropSource hooks
   //                      the Source TWinControl's message handler. Although
@@ -96,7 +103,8 @@ UNIT dropsource;
 
 INTERFACE
   USES
-    Controls, Windows, ActiveX, Classes, ShlObj, SysUtils, ClipBrd;
+    Controls, Windows, ActiveX, Classes, ShlObj, SysUtils, ClipBrd, Graphics,
+    Forms;
 
   const
     MaxFormats = 20;
@@ -122,7 +130,8 @@ INTERFACE
 
   TDropEvent = procedure(Sender: TObject; DragType: TDragType;
                var ContinueDrop: Boolean) of Object;
-  TFeedbackEvent = procedure(Sender: TObject; Effect: LongInt) of Object;
+  TFeedbackEvent = procedure(Sender: TObject;
+                   Effect: LongInt; var UseDefaultCursors: Boolean) of Object;
 
   TDropSource = class(TInterfacedComponent, IDropSource, IDataObject)
   Private
@@ -155,6 +164,8 @@ INTERFACE
     //New functions...
     function DoGetData(const FormatEtcIn: TFormatEtc;
              OUT Medium: TStgMedium):HRESULT; Virtual; Abstract;
+    procedure AddFormatEtc(cfFmt: TClipFormat;
+                pt: PDVTargetDevice; dwAsp, lInd, tym: longint); Virtual;
   Public
     constructor Create(aowner: TComponent); Override;
     destructor Destroy; override;
@@ -181,6 +192,7 @@ INTERFACE
   TDropFileSource = class(TDropSource)
   Private
     fFiles: TStrings;
+    procedure SetFiles(files: TStrings);
   Protected
     function DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
   Public
@@ -188,21 +200,7 @@ INTERFACE
     destructor Destroy; Override;
     function CopyToClipboard: boolean; Override;
   published
-    property Files: TStrings Read fFiles write fFiles;
-  end;
-
-  TDropURLSource = class(TDropSource)
-  Private
-    fURL: String;
-    //procedure SetURL(url: string);
-  Protected
-    function DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT; Override;
-  Public
-    constructor Create(aOwner: TComponent); Override;
-    function CopyToClipboard: boolean; Override;
-  Published
-    property Dragtypes: TDragTypes read fDragTypes; //ReadOnly as only dtLink allowed
-    property URL: String Read fURL Write fURL;
+    property Files: TStrings Read fFiles Write SetFiles;
   end;
 
   procedure Register;
@@ -224,35 +222,6 @@ IMPLEMENTATION
     end;
     pMyDropFiles = ^TMyDropFiles;
 
-  //******************* ConvertURLToFilename *************************
-  function ConvertURLToFilename(url: string): string;
-  const
-    Invalids = '\/:?*<>,|''" ';
-  var
-    i: integer;
-  begin
-    if lowercase(copy(url,1,7)) = 'http://' then
-      url := copy(url,8,128) // limit to 120 chars.
-    else if lowercase(copy(url,1,6)) = 'ftp://' then
-      url := copy(url,7,127)
-    else if lowercase(copy(url,1,7)) = 'mailto:' then
-      url := copy(url,8,128)
-    else if lowercase(copy(url,1,5)) = 'file:' then
-      url := copy(url,6,126);
-
-    if url = '' then url := 'untitled';
-    result := url;
-    for i := 1 to length(result) do
-      if result[i] = '/'then
-      begin
-        result := copy(result,1,i-1);
-        break;
-      end
-      else if pos(result[i],Invalids) <> 0 then
-        result[i] := '_';
-     appendstr(result,'.url');
-  end;
-
   //******************* GetSizeOfPidl *************************
   function GetSizeOfPidl(pidl: pItemIDList): integer;
   var
@@ -273,18 +242,16 @@ IMPLEMENTATION
     PathPidl: pItemIDList;
     OlePath: Array[0..MAX_PATH] of WideChar;
     dummy,pdwAttributes: ULONG;
-    ShellMalloc: IMalloc;
   begin
     result := nil;
     StringToWideChar( FolderPath, OlePath, MAX_PATH );
     try
-      SHGetMalloc(ShellMalloc);
       if not (SHGetDesktopFolder(DeskTopFolder) = NOERROR) then exit;
       if (DesktopFolder.ParseDisplayName(0,
             nil,OlePath,dummy,PathPidl,pdwAttributes) = NOERROR) and
             (pdwAttributes and SFGAO_FOLDER <> 0) then
         DesktopFolder.BindToObject(PathPidl,nil,IID_IShellFolder,pointer(result));
-      ShellMalloc.free(PathPidl);
+      CoTaskMemFree(PathPidl);
     except
     end;
   end;
@@ -330,7 +297,6 @@ IMPLEMENTATION
   function ConvertFilesToShellIDList(path: string; files: TStrings): HGlobal;
   var
     shf: IShellFolder;
-    ShellMalloc: IMalloc;
     PathPidl, pidl: pItemIDList;
     Ida: PIDA;
     pOffset: POffsets;
@@ -347,7 +313,6 @@ IMPLEMENTATION
     PathPidl := GetFullPIDLFromPath(path);
     if PathPidl = nil then exit;
     PathPidlSize := GetSizeOfPidl(PathPidl);
-    SHGetMalloc(ShellMalloc);
 
     //Add to IdaSize space for ALL pidls...
     IdaSize := IdaSize + PathPidlSize;
@@ -355,14 +320,14 @@ IMPLEMENTATION
     begin
       pidl := GetSubPidl(shf,files[i]);
       IdaSize := IdaSize + GetSizeOfPidl(Pidl);
-      ShellMalloc.free(pidl);
+      CoTaskMemFree(pidl);
     end;
 
     //Allocate memory...
     Result := GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, IdaSize);
     if (Result = 0) then
     begin
-      ShellMalloc.free(PathPidl);
+      CoTaskMemFree(PathPidl);
       Exit;
     end;
 
@@ -378,7 +343,7 @@ IMPLEMENTATION
       ptrByte := pointer(Ida);
       inc(ptrByte,pOffset^[0]); //ptrByte now points to Path pidl
       move(PathPidl^, ptrByte^, PathPidlSize); //copy path pidl
-      ShellMalloc.free(PathPidl);
+      CoTaskMemFree(PathPidl);
 
       PreviousPidlSize := PathPidlSize;
       for i := 1 to files.count do
@@ -391,7 +356,7 @@ IMPLEMENTATION
         inc(ptrByte,pOffset^[i]); //ptrByte now points to current file pidl
         move(Pidl^, ptrByte^, PreviousPidlSize); //copy file pidl
                               //PreviousPidlSize = current pidl size here
-        ShellMalloc.free(pidl);
+        CoTaskMemFree(pidl);
       end;
     finally
       GlobalUnLock(Result);
@@ -401,7 +366,7 @@ IMPLEMENTATION
   //******************* Register *************************
   procedure Register;
   begin
-    RegisterComponents('Samples', [TDropFileSource, TDropTextSource, TDropURLSource]);
+    RegisterComponents('DragDrop',[TDropFileSource, TDropTextSource]);
   end;
 
 
@@ -530,11 +495,17 @@ IMPLEMENTATION
 
   //******************* TDropSource.GiveFeedback *************************
   function TDropSource.GiveFeedback(dwEffect: LongInt): HRESULT; StdCall;
+  var
+    UseDefaultCursors: Boolean;
   begin
+    UseDefaultCursors := true;
     FeedbackEffect := dwEffect;
     //NB: Use the OnFeedback event sparingly as it will effect performance...
-    if Assigned(OnFeedback) then OnFeedback(Self, dwEffect);
-    result:=DRAGDROP_S_USEDEFAULTCURSORS;
+    if Assigned(OnFeedback) then
+      OnFeedback(Self, dwEffect, UseDefaultCursors);
+    if UseDefaultCursors then
+      result := DRAGDROP_S_USEDEFAULTCURSORS else
+      result := S_OK;
   end;
 
   //******************* TDropSource.GetCanonicalFormatEtc *************************
@@ -656,6 +627,11 @@ IMPLEMENTATION
     if (dtLink in fDragTypes) then okeffect := okeffect or DROPEFFECT_LINK;
 
     res := DoDragDrop(Self as IDataObject, Self as IDropSource, okeffect, effect);
+
+    //I haven't been able to get Screen.cursors to behave with D'n'D,
+    //so I've commented this next line out. See demo for the Win API approach.
+    //screen.cursor := crDefault;
+
     case res of
       DRAGDROP_S_DROP:   begin
                            if (okeffect and effect <> 0) then
@@ -671,6 +647,20 @@ IMPLEMENTATION
       DRAGDROP_S_CANCEL: result := drCancel;
       E_OUTOFMEMORY:     result := drOutMemory;
     end;
+  end;
+
+  //******************* TDropSource.AddFormatEtc *************************
+  procedure TDropSource.AddFormatEtc(cfFmt: TClipFormat;
+    pt: PDVTargetDevice; dwAsp, lInd, tym: longint);
+  begin
+    if DataFormatsCount = MaxFormats then exit;
+
+    fDataFormats[DataFormatsCount].cfFormat := cfFmt;
+    fDataFormats[DataFormatsCount].ptd := pt;
+    fDataFormats[DataFormatsCount].dwAspect := dwAsp;
+    fDataFormats[DataFormatsCount].lIndex := lInd;
+    fDataFormats[DataFormatsCount].tymed := tym;
+    inc(DataFormatsCount);
   end;
 
   //******************* TDropSource.CopyToClipboard *************************
@@ -689,25 +679,9 @@ IMPLEMENTATION
     inherited Create(aOwner);
     fText := '';
 
-    fDataFormats[0].cfFormat := CF_TEXT;
-    fDataFormats[0].ptd := NIL;
-    fDataFormats[0].dwAspect := DVASPECT_CONTENT;
-    fDataFormats[0].lIndex := -1;
-    fDataFormats[0].tymed := TYMED_HGLOBAL;
-
-    fDataFormats[1].cfFormat := CF_FILEGROUPDESCRIPTOR;
-    fDataFormats[1].ptd := NIL;
-    fDataFormats[1].dwAspect := DVASPECT_CONTENT;
-    fDataFormats[1].lIndex := -1;
-    fDataFormats[1].tymed := TYMED_HGLOBAL;
-
-    fDataFormats[2].cfFormat := CF_FILECONTENTS;
-    fDataFormats[2].ptd := NIL;
-    fDataFormats[2].dwAspect := DVASPECT_CONTENT;
-    fDataFormats[2].lIndex := -1;
-    fDataFormats[2].tymed := TYMED_HGLOBAL;
-
-    DataFormatsCount := 3;
+    AddFormatEtc(CF_TEXT, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
+    AddFormatEtc(CF_FILEGROUPDESCRIPTOR, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
+    AddFormatEtc(CF_FILECONTENTS, NIL, DVASPECT_CONTENT, 0, TYMED_HGLOBAL);
   end;
 
   //******************* TDropTextSource.CopyToClipboard *************************
@@ -797,27 +771,10 @@ IMPLEMENTATION
     inherited Create(aOwner);
     fFiles := TStringList.Create;
 
-    fDataFormats[0].cfFormat := CF_HDROP;
-    fDataFormats[0].ptd      := NIL;
-    fDataFormats[0].dwAspect := DVASPECT_CONTENT;
-    fDataFormats[0].lIndex   := -1;
-    fDataFormats[0].tymed    := TYMED_HGLOBAL;
-
-    fDataFormats[1].cfFormat := CF_IDLIST;
-    fDataFormats[1].ptd      := NIL;
-    fDataFormats[1].dwAspect := DVASPECT_CONTENT;
-    fDataFormats[1].lIndex   := -1;
-    fDataFormats[1].tymed    := TYMED_HGLOBAL;
-
-    fDataFormats[2].cfFormat := CF_PREFERREDDROPEFFECT;
-    fDataFormats[2].ptd      := NIL;
-    fDataFormats[2].dwAspect := DVASPECT_CONTENT;
-    fDataFormats[2].lIndex   := -1;
-    fDataFormats[2].tymed    := TYMED_HGLOBAL;
-
-    //DataFormatsCount := 3;
+    AddFormatEtc(CF_HDROP, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
+    AddFormatEtc(CF_IDLIST, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
     //Ignore CF_PREFERREDDROPEFFECT for the moment as still testing it.
-    DataFormatsCount := 2;
+    //AddFormatEtc(CF_PREFERREDDROPEFFECT, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
   end;
 
   //******************* TDropFileSource.Destroy *************************
@@ -825,6 +782,12 @@ IMPLEMENTATION
   begin
     fFiles.Free;
     inherited Destroy;
+  end;
+
+  //******************* TDropFileSource.SetFiles *************************
+  procedure TDropFileSource.SetFiles(files: TStrings);
+  begin
+    fFiles.assign(files);
   end;
 
   //******************* TDropFileSource.CopyToClipboard *************************
@@ -936,166 +899,6 @@ IMPLEMENTATION
       end;
     end
     else
-      result := DV_E_FORMATETC;
-  end;
-
-
-  // -----------------------------------------------------------------------------
-  //			TDropURLSource
-  // -----------------------------------------------------------------------------
-
-  //******************* TDropURLSource.Create *************************
-  constructor TDropURLSource.Create(aOwner: TComponent);
-  begin
-    inherited Create(aOwner);
-    fURL := '';
-    fDragTypes := [dtLink]; // Only dtLink allowed
-
-    fDataFormats[0].cfFormat := CF_URL;
-    fDataFormats[0].ptd := NIL;
-    fDataFormats[0].dwAspect := DVASPECT_CONTENT;
-    fDataFormats[0].lIndex := -1;
-    fDataFormats[0].tymed := TYMED_HGLOBAL;
-
-    fDataFormats[1].cfFormat := CF_FILEGROUPDESCRIPTOR;
-    fDataFormats[1].ptd := NIL;
-    fDataFormats[1].dwAspect := DVASPECT_CONTENT;
-    fDataFormats[1].lIndex := -1;
-    fDataFormats[1].tymed := TYMED_HGLOBAL;
-
-    fDataFormats[2].cfFormat := CF_FILECONTENTS;
-    fDataFormats[2].ptd := NIL;
-    fDataFormats[2].dwAspect := DVASPECT_CONTENT;
-    fDataFormats[2].lIndex := 0;
-    fDataFormats[2].tymed := TYMED_HGLOBAL;
-
-    fDataFormats[3].cfFormat := CF_TEXT;
-    fDataFormats[3].ptd := NIL;
-    fDataFormats[3].dwAspect := DVASPECT_CONTENT;
-    fDataFormats[3].lIndex := -1;
-    fDataFormats[3].tymed := TYMED_HGLOBAL;
-
-    DataFormatsCount := 4;
-  end;
-
-(*
-
-//******************* TDropURLSource.SetURL *************************
-  procedure TDropURLSource.SetURL(url: string);
-  begin
-    if url = '' then fURL := ''
-    else if (copy(lowercase(url),1,7) = 'http://') or
-       (copy(lowercase(url),1,6) = 'ftp://') or
-       (copy(lowercase(url),1,5) = 'file:') or
-       (copy(lowercase(url),1,7) = 'mailto:')  then
-      fURL := url
-    else if (copy(lowercase(url),1,4) = 'www.') then
-      fURL := 'http://' + url
-    else if (pos('@',url) > 0) and (pos('@',url) < 20) and (pos(' ',url) = 0) then
-      fURL := 'mailto:' + url
-    else if (copy(url,2,2) = ':\') and
-      (lowercase(url[1]) >= 'a') and (lowercase(url[1]) <= 'z') then
-      fURL := 'file:' + url
-    else fURL := '';
-  end;
-*)
-
-  //******************* TDropURLSource.CopyToClipboard *************************
-  function TDropURLSource.CopyToClipboard: boolean;
-  var
-    FormatEtcIn: TFormatEtc;
-    Medium: TStgMedium;
-  begin
-    FormatEtcIn.cfFormat := CF_URL;
-    FormatEtcIn.dwAspect := DVASPECT_CONTENT;
-    FormatEtcIn.tymed := TYMED_HGLOBAL;
-    if fURL = '' then result := false
-    else if GetData(formatetcIn,Medium) = S_OK then
-    begin
-      Clipboard.SetAsHandle(CF_URL,Medium.hGlobal);
-      result := true;
-    end else result := false;
-  end;
-
-  //******************* TDropURLSource.DoGetData *************************
-  function TDropURLSource.DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT;
-  const
-    URLPrefix = '[InternetShortcut]'#10'URL=';
-  var
-    pFGD: PFileGroupDescriptor;
-    pText: PChar;
-  begin
-
-    Medium.tymed := 0;
-    Medium.UnkForRelease := NIL;
-    Medium.hGlobal := 0;
-
-    //--------------------------------------------------------------------------
-    if ((FormatEtcIn.cfFormat = CF_URL) or (FormatEtcIn.cfFormat = CF_TEXT)) and
-      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
-      (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
-    begin
-      Medium.hGlobal := GlobalAlloc(GMEM_SHARE or GHND, Length(fURL)+1);
-      if (Medium.hGlobal = 0) then
-        result := E_OUTOFMEMORY
-      else
-      begin
-        medium.tymed := TYMED_HGLOBAL;
-        pText := PChar(GlobalLock(Medium.hGlobal));
-        try
-          StrCopy(pText, PChar(fURL));
-        finally
-          GlobalUnlock(Medium.hGlobal);
-        end;
-        result := S_OK;
-      end;
-    end
-    //--------------------------------------------------------------------------
-    else if (FormatEtcIn.cfFormat = CF_FILECONTENTS) and
-      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
-      (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
-    begin
-      Medium.hGlobal := GlobalAlloc(GMEM_SHARE or GHND, Length(URLPrefix + fURL)+1);
-      if (Medium.hGlobal = 0) then
-        result := E_OUTOFMEMORY
-      else
-      begin
-        medium.tymed := TYMED_HGLOBAL;
-        pText := PChar(GlobalLock(Medium.hGlobal));
-        try
-          StrCopy(pText, PChar(URLPrefix + fURL));
-        finally
-          GlobalUnlock(Medium.hGlobal);
-        end;
-        result := S_OK;
-      end;
-    end
-    //--------------------------------------------------------------------------
-    else if (FormatEtcIn.cfFormat = CF_FILEGROUPDESCRIPTOR) and
-      (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
-      (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
-    begin
-      Medium.hGlobal := GlobalAlloc(GMEM_SHARE or GHND, SizeOf(TFileGroupDescriptor));
-      if (Medium.hGlobal = 0) then
-      begin
-        result := E_OUTOFMEMORY;
-        Exit;
-      end;
-      medium.tymed := TYMED_HGLOBAL;
-      pFGD := pointer(GlobalLock(Medium.hGlobal));
-      try
-        with pFGD^ do
-        begin
-          cItems := 1;
-          fgd[0].dwFlags := FD_LINKUI;
-          StrPCopy(fgd[0].cFileName,ConvertURLToFilename(fURL));
-        end;
-      finally
-        GlobalUnlock(Medium.hGlobal);
-      end;
-      result := S_OK;
-    //--------------------------------------------------------------------------
-    end else
       result := DV_E_FORMATETC;
   end;
 
