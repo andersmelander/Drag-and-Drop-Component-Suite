@@ -6,21 +6,15 @@ unit DropTarget;
 // Module:          DropTarget
 // Description:     Implements Dragging & Dropping of text and files
 //                  INTO your application FROM another.
-// Version:	     3.4
-// Date:            20-FEB-1999
-// Target:          Win32, Delphi 3 & 4, CB3
+// Version:	     3.5
+// Date:            30-MAR-1999
+// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
 //                  Graham Wideman,  graham@sdsu.edu
 //                                   http://www.wideman-one.com
 // Copyright        ©1997-99 Angus Johnson, Anders Melander & Graham Wideman
-// -----------------------------------------------------------------------------
-
-// -----------------------------------------------------------------------------
-// Acknowledgement:
-// Thanks to Gerald Nunn for the tip to implement DragImages in
-// TDropTarget rather than TDropSource.
 // -----------------------------------------------------------------------------
 
 interface
@@ -31,6 +25,9 @@ interface
 
   type
 
+  TScrollDirection = (sdHorizontal, sdVertical);
+  TScrollDirections = set of TScrollDirection;
+  
   TDropTargetEvent = procedure(Sender: TObject;
     ShiftState: TShiftState; Point: TPoint; var Effect: Longint) of Object;
 
@@ -54,7 +51,7 @@ interface
     fImageHotSpot: TPoint;
     fLastPoint: TPoint; //Point where DragImage was last painted (used internally)
 
-    fCanScroll: boolean;    //enables auto scrolling of target window during drags
+    fScrollDirs: TScrollDirections; //enables auto scrolling of target window during drags
     fScrollTimer: TTimer;   //and paints any drag image 'cleanly'.
     procedure DoTargetScroll(Sender: TObject);
 
@@ -74,8 +71,6 @@ interface
     function HasValidFormats: boolean; Virtual; Abstract;
     function GetValidDropEffect(ShiftState: TShiftState;
       pt: TPoint; dwEffect: LongInt): LongInt; Virtual;
-
-    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -83,7 +78,6 @@ interface
     procedure Unregister;
     function PasteFromClipboard: longint; Virtual;
     property DataObject: IDataObject read fDataObj;
-    //Target is set automatically with Register() method
     property Target: TWinControl read fTarget write SetTarget;
   published
     property Dragtypes: TDragTypes read fDragTypes write fDragTypes;
@@ -98,7 +92,6 @@ interface
     //Drag Images...
     property ShowImage: boolean read fShowImage write fShowImage;
   end;
-
 
   TDropFileTarget = class(TDropTarget)
   private
@@ -126,17 +119,16 @@ interface
     property Text: String Read fText Write fText;
   end;
 
-  //A dummy target which just displays a drag image over the registered window.
-  //No drops can be handled.
   TDropDummy = class(TDropTarget)
   protected
     procedure ClearData; override;
     function DoGetData: boolean; override;
     function HasValidFormats: boolean; override;
-  public
   end;
 
 const
+  SCROLL_MARGIN = 15;                       
+
   HDropFormatEtc: TFormatEtc = (cfFormat: CF_HDROP;
     ptd: nil; dwAspect: DVASPECT_CONTENT; lindex: -1; tymed: TYMED_HGLOBAL);
   TextFormatEtc: TFormatEtc = (cfFormat: CF_TEXT;
@@ -158,7 +150,7 @@ end;
 //			Miscellaneous functions ...
 // -----------------------------------------------------------------------------
 
-//******************* ClientToWindow *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function ClientPtToWindowPt(Handle: HWND; pt: TPoint): TPoint;
 var
   Rect: TRect;
@@ -169,7 +161,7 @@ begin
   Result.Y := pt.Y - Rect.Top;
 end;
 
-//******************* GetFilesFromHGlobal *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function GetFilesFromHGlobal(const HGlob: HGlobal; var Files: TStrings): boolean;
 var
   DropFiles: PDropFiles;
@@ -204,14 +196,13 @@ end;
 //			TDropTarget
 // -----------------------------------------------------------------------------
 
-//******************* TDropTarget.DragEnter *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropTarget.DragEnter(const dataObj: IDataObject; grfKeyState: Longint;
   pt: TPoint; var dwEffect: Longint): HRESULT;
 var
   ShiftState: TShiftState;
   TargetStyles: longint;
 begin
-
   ClearData;
   fDataObj := dataObj;
   fDataObj._AddRef;
@@ -226,10 +217,12 @@ begin
     exit;
   end;
 
+  fScrollDirs := [];
   TargetStyles := GetWindowLong(fTarget.handle,GWL_STYLE);
-  if (TargetStyles and (WS_HSCROLL or WS_VSCROLL) <> 0) then
-    fCanScroll := true else
-    fCanScroll := false;
+  if (TargetStyles and WS_HSCROLL <> 0) then
+    fScrollDirs := fScrollDirs + [sdHorizontal];
+  if (TargetStyles and WS_VSCROLL <> 0) then
+    fScrollDirs := fScrollDirs + [sdVertical];
   //It's generally more efficient to get data only if a drop occurs
   //rather than on entering a potential target window.
   //However - sometimes there is a good reason to get it here.
@@ -248,11 +241,8 @@ begin
     fDragImageHandle := ImageList_GetDragImage(nil,@fImageHotSpot);
     if (fDragImageHandle <> 0) then
     begin
-      //Hopefully this is just a temporary workaround. The source should 
-      //hide the 'real' cursor if displaying an image but many sources 
-      //(eg Explorer) don't do this! Currently we will just replace the 
-      //'embedded' cursor with a blank (invisible) cursor 
-      //otherwise we sometimes get 2 cursors ...
+      //Currently we will just replace any 'embedded' cursor with our
+      //blank (transparent) image otherwise we sometimes get 2 cursors ...
       ImageList_SetDragCursorImage(fImages.Handle,0,fImageHotSpot.x,fImageHotSpot.y);
       with ClientPtToWindowPt(fTarget.handle,pt) do
         ImageList_DragEnter(fTarget.handle,x,y);
@@ -260,7 +250,7 @@ begin
   end;
 end;
 
-//******************* TDropTarget.DragOver *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropTarget.DragOver(grfKeyState: Longint;
   pt: TPoint; var dwEffect: Longint): HResult;
 var
@@ -272,16 +262,26 @@ begin
   dwEffect := GetValidDropEffect(ShiftState, pt, dwEffect);
   if Assigned(fOnDragOver) then
     fOnDragOver(self, ShiftState, pt, dwEffect);
-  IsScrolling := (dwEffect and DROPEFFECT_SCROLL <> 0);
-  if not IsScrolling then fScrollTimer.enabled := false;
+
+  if (fScrollDirs <> []) and (dwEffect and DROPEFFECT_SCROLL <> 0) then
+  begin
+    IsScrolling := true;
+    fScrollTimer.enabled := true
+  end else
+  begin
+    IsScrolling := false;
+    fScrollTimer.enabled := false;
+  end;
+
   if (fDragImageHandle <> 0) and
       ((fLastPoint.x <> pt.x) or (fLastPoint.y <> pt.y)) then
   begin
-    //Can swap cursor images if 'embedded' in the image here...
+    //Can 'embed' a cursor in the image here...
     //ImageList_SetDragCursorImage(fImages.Handle,0,0,0);
 
     fLastPoint := pt;
-    if fCanScroll and IsScrolling then fScrollTimer.enabled := true
+    if IsScrolling then
+      //fScrollTimer.enabled := true
     else with ClientPtToWindowPt(fTarget.handle,pt) do
       ImageList_DragMove(X,Y);
   end
@@ -290,7 +290,7 @@ begin
   RESULT := S_OK;
 end;
 
-//******************* TDropTarget.DragLeave *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropTarget.DragLeave: HResult;
 begin
   ClearData;
@@ -309,7 +309,7 @@ begin
   Result := S_OK;
 end;
 
-//******************* TDropTarget.Drop *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropTarget.Drop(const dataObj: IDataObject; grfKeyState: Longint;
   pt: TPoint; var dwEffect: Longint): HResult;
 var
@@ -337,7 +337,7 @@ begin
   fDataObj := nil;
 end;
 
-//******************* TDropTarget.Create *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 constructor TDropTarget.Create( AOwner: TComponent );
 var
   bm: TBitmap;
@@ -351,8 +351,9 @@ begin
    fGetDataOnEnter := false;
 
    fImages := TImageList.create(self);
-   //create a blank image for fImages...
-   //We will use this blank image when we wish to replace (hide) a cursor.
+   //Create a blank image for fImages which we...
+   //will use to hide any cursor 'embedded' in a drag image.
+   //This avoids the possibility of two cursors showing.
    bm := TBitmap.create;
    with bm do
    begin
@@ -367,7 +368,7 @@ begin
    ShowImage := true;
 end;
 
-//******************* TDropTarget.Destroy *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 destructor TDropTarget.Destroy;
 begin
   fImages.free;
@@ -376,7 +377,7 @@ begin
   inherited Destroy;
 end;
 
-//******************* TDropTarget.SetTarget *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropTarget.SetTarget(Target: TWinControl);
 begin
   if fTarget = Target then exit;
@@ -384,7 +385,7 @@ begin
   fTarget := Target;
 end;
 
-//******************* TDropTarget.RegisterTarget *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropTarget.Register(Target: TWinControl);
 begin
   if fTarget = Target then exit;
@@ -398,7 +399,7 @@ begin
   fRegistered := true;
 end;
 
-//******************* TDropTarget.UnregisterTarget *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropTarget.Unregister;
 begin
   fRegistered := false;
@@ -411,7 +412,7 @@ begin
   fTarget := nil;
 end;
 
-//******************* TDropTarget.GetValidDropEffect *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropTarget.GetValidDropEffect(ShiftState: TShiftState;
   pt: TPoint; dwEffect: LongInt): LongInt;
 begin
@@ -433,7 +434,7 @@ begin
     //As we're only interested in ssShift & ssCtrl here
     //mouse buttons states are screened out ...
     ShiftState := ([ssShift, ssCtrl] * ShiftState);
-    
+
     if (ShiftState = [ssShift, ssCtrl]) and
       (dwEffect and DROPEFFECT_LINK <> 0) then result := DROPEFFECT_LINK
     else if (ShiftState = [ssShift]) and
@@ -442,26 +443,34 @@ begin
     else if (dwEffect and DROPEFFECT_MOVE <> 0) then result := DROPEFFECT_MOVE
     else if (dwEffect and DROPEFFECT_LINK <> 0) then result := DROPEFFECT_LINK
     else result := DROPEFFECT_NONE;
+    //Add Scroll effect if necessary...
+    if fScrollDirs = [] then exit;
+    if (sdHorizontal in fScrollDirs) and
+      ((pt.x<SCROLL_MARGIN) or (pt.x>fTarget.ClientWidth-SCROLL_MARGIN)) then
+        result := result or integer(DROPEFFECT_SCROLL)
+    else if (sdVertical in fScrollDirs) and
+      ((pt.y<SCROLL_MARGIN) or (pt.y>fTarget.ClientHeight-SCROLL_MARGIN)) then
+        result := result or integer(DROPEFFECT_SCROLL);
   end;
 end;
 
-//******************* TDropTarget.DoTargetScroll *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropTarget.DoTargetScroll(Sender: TObject);
 begin
   with fTarget, fLastPoint do
   begin
     if (fDragImageHandle <> 0) then ImageList_DragLeave(handle);
-    if (Y<15) then Perform(WM_VSCROLL,SB_LINEUP,0)
-    else if (Y>ClientHeight-15) then Perform(WM_VSCROLL,SB_LINEDOWN,0);
-    if (X<15) then Perform(WM_HSCROLL,SB_LINEUP,0)
-    else if (X>ClientWidth-15) then Perform(WM_HSCROLL,SB_LINEDOWN,0);
+    if (Y<SCROLL_MARGIN) then Perform(WM_VSCROLL,SB_LINEUP,0)
+    else if (Y>ClientHeight-SCROLL_MARGIN) then Perform(WM_VSCROLL,SB_LINEDOWN,0);
+    if (X<SCROLL_MARGIN) then Perform(WM_HSCROLL,SB_LINEUP,0)
+    else if (X>ClientWidth-SCROLL_MARGIN) then Perform(WM_HSCROLL,SB_LINEDOWN,0);
     if (fDragImageHandle <> 0) then
       with ClientPtToWindowPt(handle,fLastPoint) do
         ImageList_DragEnter(handle,x,y);
   end;
 end;
 
-//******************* TDropTarget.PasteFromClipboard *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropTarget.PasteFromClipboard: longint;
 var
   Global: HGlobal;
@@ -478,37 +487,25 @@ begin
   end;
 end;
 
-//******************* TDropTarget.Notification *************************
-procedure TDropTarget.Notification(AComponent: TComponent;
-  Operation: TOperation);
-begin
-  inherited Notification(AComponent, Operation);
-  if (Operation = opRemove) and (AComponent = fImages) then
-  begin
-    fImages := nil;
-    fShowImage := false;
-  end;
-end;
-
 // -----------------------------------------------------------------------------
 //			TDropFileTarget
 // -----------------------------------------------------------------------------
 
-//******************* TDropFileTarget.Create *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 constructor TDropFileTarget.Create( AOwner: TComponent );
 begin
    inherited Create( AOwner );
    fFiles := TStringList.Create;
 end;
 
-//******************* TDropFileTarget.Destroy *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 destructor TDropFileTarget.Destroy;
 begin
   fFiles.Free;
   inherited Destroy;
 end;
 
-//******************* TDropFileTarget.PasteFromClipboard *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropFileTarget.PasteFromClipboard: longint;
 var
   Global: HGlobal;
@@ -526,19 +523,19 @@ begin
     result := Preferred;
 end;
 
-//******************* TDropFileTarget.HasValidFormats *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropFileTarget.HasValidFormats: boolean;
 begin
   result := (fDataObj.QueryGetData(HDropFormatEtc) = S_OK);
 end;
 
-//******************* TDropFileTarget.ClearData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropFileTarget.ClearData;
 begin
   fFiles.clear;
 end;
 
-//******************* TDropFileTarget.DoGetData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropFileTarget.DoGetData: boolean;
 var
   medium: TStgMedium;
@@ -565,7 +562,7 @@ end;
 //			TDropTextTarget
 // -----------------------------------------------------------------------------
 
-//******************* TDropTextTarget.PasteFromClipboard *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropTextTarget.PasteFromClipboard: longint;
 var
   Global: HGlobal;
@@ -580,19 +577,19 @@ begin
   result := DROPEFFECT_COPY;
 end;
 
-//******************* TDropTextTarget.HasValidFormats *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropTextTarget.HasValidFormats: boolean;
 begin
   result := (fDataObj.QueryGetData(TextFormatEtc) = S_OK);
 end;
 
-//******************* TDropTextTarget.ClearData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropTextTarget.ClearData;
 begin
   fText := '';
 end;
 
-//******************* TDropTextTarget.DoGetData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropTextTarget.DoGetData: boolean;
 var
   medium: TStgMedium;
@@ -618,24 +615,24 @@ begin
 end;
 
 // -----------------------------------------------------------------------------
-//			TDropDummy 
-//      This component is designed just to display drag images over the 
-//      registered TWincontrol but where no drop is desired (eg a TForm). 
+//			TDropDummy
+//      This component is designed just to display drag images over the
+//      registered TWincontrol but where no drop is desired (eg a TForm).
 // -----------------------------------------------------------------------------
 
-//******************* TDropDummy.HasValidFormats *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropDummy.HasValidFormats: boolean;
 begin
   result := true;
 end;
 
-//******************* TDropDummy.ClearData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropDummy.ClearData;
 begin
   //abstract method override
 end;
 
-//******************* TDropDummy.DoGetData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropDummy.DoGetData: boolean;
 begin
   result := false;

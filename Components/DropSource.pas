@@ -6,9 +6,9 @@ unit DropSource;
 // Module:          DropSource
 // Description:     Implements Dragging & Dropping of text, files
 //                  FROM your application to another.
-// Version:         3.4
-// Date:            20-FEB-1999
-// Target:          Win32, Delphi 3 & 4, CB3
+// Version:         3.5
+// Date:            30-MAR-1999
+// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
@@ -24,13 +24,28 @@ unit DropSource;
 // 3. Thanks to Jan Debis for spotting a small bug in TDropFileSource.
 // -----------------------------------------------------------------------------
 
+// -----------------------------------------------------------------------------
+//  Compiler compatability...
+// -----------------------------------------------------------------------------
+// Delphi 4.x
+{$IFDEF VER120}
+  {$DEFINE VER120_PLUS}
+{$ENDIF}
+
+// C++ Builder 4.x
+{$IFDEF VER125}
+  {$DEFINE VER120_PLUS}
+  {$DEFINE VER125_PLUS}
+{$ENDIF}
+// -----------------------------------------------------------------------------
+
 interface
   uses
     Controls, Windows, ActiveX, Classes, ShlObj, SysUtils, ClipBrd, Graphics,
     Forms, CommCtrl;
 
   const
-    MaxFormats = 20;
+    MAXFORMATS = 20;
 
   type
 
@@ -39,17 +54,15 @@ interface
     fRefCount: Integer;
   protected
     function QueryInterface(const IID: TGuid; out Obj): HRESULT;
-               {$ifdef VER120} reintroduce; {$endif} stdcall;
+               {$ifdef VER120_PLUS} reintroduce; {$endif} stdcall;
     function _AddRef: Integer; stdcall;
     function _Release: Integer; stdcall;
-  public
-     property RefCount: Integer read fRefCount;
   end;
 
   TDragType = (dtCopy, dtMove, dtLink);
   TDragTypes = set of TDragType;
 
-  TDragResult = (drDropCopy, drDropMove, drDropLink, drCancel, droutMemory, drUnknown);
+  TDragResult = (drDropCopy, drDropMove, drDropLink, drCancel, drOutMemory, drUnknown);
 
   TDropEvent = procedure(Sender: TObject; DragType: TDragType;
                var ContinueDrop: Boolean) of object;
@@ -61,7 +74,7 @@ interface
     fDragTypes      : TDragTypes;
     fDropEvent      : TDropEvent;
     fFBEvent        : TFeedBackEvent;
-    fDataFormats    : array[0..MaxFormats-1] of TFormatEtc;
+    fDataFormats    : array[0..MAXFORMATS-1] of TFormatEtc;
     DataFormatsCount: integer;
 
     //drag images...
@@ -69,6 +82,7 @@ interface
     fShowImage: boolean;
     fImageIndex: integer;
     fImageHotSpot: TPoint;
+    procedure SetShowImage(Value: boolean);
   protected
     FeedbackEffect  : LongInt;
 
@@ -114,7 +128,7 @@ interface
     //Drag Images...
     property Images: TImageList read fImages write SetImages;
     property ImageIndex: integer read fImageIndex write SetImageIndex;
-    property ShowImage: boolean read fShowImage write fShowImage;
+    property ShowImage: boolean read fShowImage write SetShowImage;
     property ImageHotSpotX: integer read fImageHotSpot.X write fImageHotSpot.X;
     property ImageHotSpotY: integer read fImageHotSpot.Y write fImageHotSpot.Y;
   end;
@@ -154,17 +168,10 @@ interface
 implementation
 
 // -----------------------------------------------------------------------------
-//			Miscellaneous declarations and functions.
+//			Miscellaneous functions.
 // -----------------------------------------------------------------------------
 
-type
-  TMyDropFiles = packed record
-    dropfiles: TDropFiles;
-    filenames: array[1..1] of Char;
-  end;
-  pMyDropFiles = ^TMyDropFiles;
-
-//******************* GetSizeOfPidl *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function GetSizeOfPidl(pidl: pItemIDList): integer;
 var
   i: integer;
@@ -177,7 +184,7 @@ begin
   until i = 0;
 end;
 
-//******************* GetShellFolderOfPath *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function GetShellFolderOfPath(FolderPath: TFileName): IShellFolder;
 var
   DeskTopFolder: IShellFolder;
@@ -199,7 +206,7 @@ begin
   end;
 end;
 
-//******************* GetFullPIDLFromPath *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function GetFullPIDLFromPath(Path: TFileName): pItemIDList;
 var
    DeskTopFolder: IShellFolder;
@@ -215,7 +222,7 @@ begin
   end;
 end;
 
-//******************* GetSubPidl *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function GetSubPidl(Folder: IShellFolder; Sub: TFilename): pItemIDList;
 var
   dummy1,dummy2: ULONG;
@@ -232,7 +239,7 @@ end;
 //See "Clipboard Formats for Shell Data Transfers" in Ole.hlp...
 //(Needed to drag links (shortcuts).)
 
-//******************* ConvertFilesToShellIDList *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 type
   POffsets = ^TOffsets;
   TOffsets = array[0..$FFFF] of UINT;
@@ -306,7 +313,7 @@ begin
   end;
 end;
 
-//******************* Register *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 procedure Register;
 begin
   RegisterComponents('DragDrop',[TDropFileSource, TDropTextSource]);
@@ -319,19 +326,19 @@ end;
 
 // QueryInterface now returns HRESULT (needed for Delphi 4).
 // Thanks to 'Scotto the Unwise' - scottos@gtcom.net
-//******************* TInterfacedComponent.QueryInterface *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TInterfacedComponent.QueryInterface(const IID: TGuid; out Obj): HRESULT;
 begin
   if GetInterface(IID, Obj) then result := 0 else result := E_NOINTERFACE;
 end;
 
-//******************* TInterfacedComponent._AddRef *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TInterfacedComponent._AddRef: Integer;
 begin
   result := InterlockedIncrement(fRefCount);
 end;
 
-//******************* TInterfacedComponent._Release *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TInterfacedComponent._Release: Integer;
 begin
   Result := InterlockedDecrement(fRefCount);
@@ -362,7 +369,7 @@ public
   function Clone(out Enum: IEnumFormatEtc): HRESULT; stdcall;
 end;
 
-//******************* TEnumFormatEtc.Create *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 constructor TEnumFormatEtc.Create(FormatList: pFormatList;
             FormatCount, Index: Integer);
 begin
@@ -372,7 +379,7 @@ begin
   fIndex := Index;
 end;
 
-//******************* TEnumFormatEtc.Next *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TEnumFormatEtc.Next(Celt: LongInt; out Elt; pCeltFetched: pLongInt): HRESULT;
 var
   i: Integer;
@@ -388,7 +395,7 @@ begin
   if i = Celt then result := S_OK else result := S_FALSE;
 end;
 
-//******************* TEnumFormatEtc.Skip *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TEnumFormatEtc.Skip(Celt: LongInt): HRESULT;
 begin
   if Celt <= fFormatCount - fIndex then
@@ -402,14 +409,14 @@ begin
   end;
 end;
 
-//******************* TEnumFormatEtc.Reset *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TEnumFormatEtc.ReSet: HRESULT;
 begin
   fIndex := 0;
   result := S_OK;
 end;
 
-//******************* TEnumFormatEtc.Clone *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TEnumFormatEtc.Clone(out Enum: IEnumFormatEtc): HRESULT;
 begin
   enum := TEnumFormatEtc.Create(fFormatList, fFormatCount, fIndex);
@@ -420,7 +427,7 @@ end;
 //			TDropSource
 // -----------------------------------------------------------------------------
 
-//******************* TDropSource.Create *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 constructor TDropSource.Create(aOwner: TComponent);
 begin
   inherited Create(aOwner);
@@ -432,20 +439,19 @@ begin
   fImages := nil;
 end;
 
-//******************* TDropSource.Destroy *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 destructor TDropSource.Destroy;
 begin
   inherited Destroy;
 end;
 
-//******************* TDropSource.GiveFeedback *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TDropSource.GiveFeedback(dwEffect: LongInt): HRESULT; stdcall;
 var
   UseDefaultCursors: Boolean;
 begin
   UseDefaultCursors := true;
   FeedbackEffect := dwEffect;
-  //NB: Use the OnFeedback event sparingly as it will effect performance...
   if Assigned(OnFeedback) then
     OnFeedback(Self, dwEffect, UseDefaultCursors);
   if UseDefaultCursors then
@@ -453,53 +459,53 @@ begin
     result := S_OK;
 end;
 
-//******************* TDropSource.GetCanonicalFormatEtc *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TDropSource.GetCanonicalFormatEtc(const FormatEtc: TFormatEtc;
          out FormatEtcout: TFormatEtc): HRESULT;
 begin
   result := DATA_S_SAMEFORMATETC;
 end;
 
-//******************* TDropSource.SetData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TDropSource.SetData(const FormatEtc: TFormatEtc; var Medium: TStgMedium;
          fRelease: Bool): HRESULT;
 begin
   result := E_NOTIMPL;
 end;
 
-//******************* TDropSource.DAdvise *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TDropSource.DAdvise(const FormatEtc: TFormatEtc; advf: LongInt;
          const advSink: IAdviseSink; out dwConnection: LongInt): HRESULT;
 begin
   result := OLE_E_ADVISENOTSUPPORTED;
 end;
 
-//******************* TDropSource.DUnadvise *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function TDropSource.DUnadvise(dwConnection: LongInt): HRESULT;
 begin
   result := OLE_E_ADVISENOTSUPPORTED;
 end;
 
-//******************* TDropSource.EnumDAdvise *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropSource.EnumDAdvise(out EnumAdvise: IEnumStatData): HRESULT;
 begin
   result := OLE_E_ADVISENOTSUPPORTED;
 end;
 
-//******************* TDropSource.GetData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropSource.GetData(const FormatEtcIn: TFormatEtc; out Medium: TStgMedium):HRESULT; stdcall;
 begin
   result := DoGetData(FormatEtcIn, Medium);
 end;
 
-//******************* TDropSource.GetDataHere *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropSource.GetDataHere(const FormatEtc: TFormatEtc;
          out Medium: TStgMedium):HRESULT; stdcall;
 begin
   result := E_NOTIMPL;
 end;
 
-//******************* TDropSource.QueryGetData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropSource.QueryGetData(const FormatEtc: TFormatEtc): HRESULT; stdcall;
 var
   i: integer;
@@ -515,7 +521,7 @@ begin
   result:= E_FAIL;
 end;
 
-//******************* TDropSource.EnumFormatEtc *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropSource.EnumFormatEtc(dwDirection: LongInt;
          out EnumFormatEtc:IEnumFormatEtc): HRESULT; stdcall;
 begin
@@ -529,7 +535,7 @@ begin
   else result := E_INVALIDARG;
 end;
 
-//******************* TDropSource.QueryContinueDrag *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropSource.QueryContinueDrag(fEscapePressed: bool;
   grfKeyState: LongInt): HRESULT; stdcall;
 var
@@ -547,7 +553,7 @@ begin
     else if (FeedbackEffect and DROPEFFECT_MOVE <> 0) then dragtype := dtMove
     else if (FeedbackEffect and DROPEFFECT_LINK <> 0) then dragtype := dtLink
     else ContinueDrop := False;
-    
+
     if not (DragType in dragtypes) then ContinueDrop := False;
     //if a valid drop then do OnDrop event if assigned...
     if ContinueDrop and Assigned(OnDrop) then
@@ -559,7 +565,7 @@ begin
     result := NOERROR;
 end;
 
-//******************* TDropSource.Execute *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropSource.Execute: TDragResult;
 var
   res: HRESULT;
@@ -572,7 +578,8 @@ begin
   if (dtMove in fDragTypes) then okeffect := okeffect or DROPEFFECT_MOVE;
   if (dtLink in fDragTypes) then okeffect := okeffect or DROPEFFECT_LINK;
 
-  if fShowImage and ImageList_BeginDrag(fImages.Handle,
+  if fShowImage and (fImages <> nil) and
+        ImageList_BeginDrag(fImages.Handle,
              fImageIndex, fImageHotSpot.X, fImageHotSpot.Y) then
   begin
     IsDraggingImage := true;
@@ -588,32 +595,27 @@ begin
     //windows.ShowCursor(true);
   end;
 
-  //I haven't been able to get Screen.cursors to behave with D'n'D,
-  //so I've commented this next line out. See demo for the Win API approach.
-  //screen.cursor := crDefault;
-
   case res of
-    DRAGDROP_S_DROP:   begin
-                         if (okeffect and effect <> 0) then
-                         begin
-                           if (effect and DROPEFFECT_COPY <> 0) then
-                             result := drDropCopy
-                           else if (effect and DROPEFFECT_MOVE <> 0) then
-                             result := drDropMove
-                           else result := drDropLink;
-                         end else
-                           result := drCancel;
-                       end;
+    DRAGDROP_S_DROP:
+      begin
+        if (okeffect and effect <> 0) then
+        begin
+          if (effect and DROPEFFECT_COPY <> 0) then result := drDropCopy
+          else if (effect and DROPEFFECT_MOVE <> 0) then result := drDropMove
+          else result := drDropLink;
+        end else
+          result := drCancel;
+      end;
     DRAGDROP_S_CANCEL: result := drCancel;
-    E_outOFMEMORY:     result := droutMemory;
+    E_OUTOFMEMORY:     result := drOutMemory;
   end;
 end;
 
-//******************* TDropSource.AddFormatEtc *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropSource.AddFormatEtc(cfFmt: TClipFormat;
   pt: PDVTargetDevice; dwAsp, lInd, tym: longint);
 begin
-  if DataFormatsCount = MaxFormats then exit;
+  if DataFormatsCount = MAXFORMATS then exit;
 
   fDataFormats[DataFormatsCount].cfFormat := cfFmt;
   fDataFormats[DataFormatsCount].ptd := pt;
@@ -623,22 +625,21 @@ begin
   inc(DataFormatsCount);
 end;
 
-//******************* TDropSource.CutToClipboard *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropSource.CutToClipboard: boolean;
 begin
   //sets CF_PREFERREDDROPEFFECT...
   Result := InternalCutCopyToClipboard(DROPEFFECT_MOVE);
 end;
 
-//******************* TDropSource.CopyToClipboard *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropSource.CopyToClipboard: boolean;
 begin
   //sets CF_PREFERREDDROPEFFECT...
   Result := InternalCutCopyToClipboard(DROPEFFECT_COPY);
 end;
 
-//This is overridden in descendant classes...
-//******************* TDropSource.CutOrCopyToClipboard *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropSource.CutOrCopyToClipboard: boolean;
 begin
   Result := False;
@@ -647,7 +648,7 @@ end;
 //1. Renders the CF_PREFERREDDROPEFFECT clipboard dataobject.
 //2. Encloses all calls to Clipboard.SetAsHandle() between Clipboard.Open and
 //Clipboard.Close so multiple clipboard formats can be rendered in CutOrCopyToClipboard().
-//******************* TDropSource.InternalCutCopyToClipboard *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropSource.InternalCutCopyToClipboard(Effect: LongInt): boolean;
 var
   FormatEtc: TFormatEtc;
@@ -673,7 +674,7 @@ begin
   end;
 end;
 
-//******************* TDropSource.SetImages *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropSource.SetImages(const Value: TImageList);
 begin
   if fImages = Value then exit;
@@ -681,12 +682,12 @@ begin
   if (csLoading in ComponentState) then exit;
 
   fImageIndex := 0;
-  if (fImages <> nil) and (fImages.Count > 0) then
+  if (fImages <> nil) then
     fShowImage := true else
     fShowImage := False;
 end;
 
-//******************* TDropSource.SetImageIndex *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropSource.SetImageIndex(const Value: integer);
 begin
   if (csLoading in ComponentState) then fImageIndex := Value
@@ -700,7 +701,15 @@ begin
     fImageIndex := Value;
 end;
 
-//******************* TDropSource.Notification *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
+procedure TDropSource.SetShowImage(Value: boolean);
+begin
+  fShowImage := Value;
+  if (csLoading in ComponentState) then exit;
+  if (fImages = nil) then fShowImage := False;
+end;
+
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropSource.Notification(AComponent: TComponent;
   Operation: TOperation);
 begin
@@ -717,7 +726,7 @@ end;
 //			TDropTextSource
 // -----------------------------------------------------------------------------
 
-//******************* TDropTextSource.Create *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 constructor TDropTextSource.Create(aOwner: TComponent);
 begin
   inherited Create(aOwner);
@@ -730,7 +739,7 @@ begin
   //AddFormatEtc(CF_FILECONTENTS, NIL, DVASPECT_CONTENT, 0, TYMED_HGLOBAL);
 end;
 
-//******************* TDropTextSource.CutOrCopyToClipboard *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropTextSource.CutOrCopyToClipboard: boolean;
 var
   FormatEtcIn: TFormatEtc;
@@ -747,7 +756,7 @@ begin
   end else result := false;
 end;
 
-//******************* TDropTextSource.DoGetData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropTextSource.DoGetData(const FormatEtcIn: TFormatEtc;
   out Medium: TStgMedium):HRESULT;
 var
@@ -812,7 +821,7 @@ end;
 //			TDropFileSource
 // -----------------------------------------------------------------------------
 
-//******************* TDropFileSource.Create *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 constructor TDropFileSource.Create(aOwner: TComponent);
 begin
   inherited Create(aOwner);
@@ -823,20 +832,20 @@ begin
   AddFormatEtc(CF_PREFERREDDROPEFFECT, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
 end;
 
-//******************* TDropFileSource.Destroy *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 destructor TDropFileSource.destroy;
 begin
   fFiles.Free;
   inherited Destroy;
 end;
 
-//******************* TDropFileSource.SetFiles *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropFileSource.SetFiles(files: TStrings);
 begin
   fFiles.assign(files);
 end;
 
-//******************* TDropFileSource.CutOrCopyToClipboard *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropFileSource.CutOrCopyToClipboard: boolean;
 var
   FormatEtcIn: TFormatEtc;
@@ -853,13 +862,13 @@ begin
   end else result := false;
 end;
 
-//******************* TDropFileSource.DoGetData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropFileSource.DoGetData(const FormatEtcIn: TFormatEtc;
          out Medium: TStgMedium):HRESULT;
 var
   i: Integer;
-  dropfiles: pMyDropFiles;
-  pText: PChar;
+  dropfiles: pDropFiles;
+  pFile: PChar;
   DropEffect: ^DWORD;
   strlength: Integer;
   tmpFilenames: TStringList;
@@ -880,21 +889,21 @@ begin
     Medium.hGlobal :=
       GlobalAlloc(GMEM_SHARE or GMEM_ZEROINIT, SizeOf(TDropFiles)+strlength+1);
     if (Medium.hGlobal = 0) then
-      result:=E_outOFMEMORY
+      result:=E_OUTOFMEMORY
     else
     begin
       Medium.tymed := TYMED_HGLOBAL;
       dropfiles := GlobalLock(Medium.hGlobal);
       try
-        dropfiles^.dropfiles.pfiles := SizeOf(TDropFiles);
-        dropfiles^.dropfiles.fwide := False;
-        pText := @(dropfiles^.filenames);
+        dropfiles^.pfiles := SizeOf(TDropFiles);
+        dropfiles^.fwide := False;
+        longint(pFile) := longint(dropfiles)+SizeOf(TDropFiles);
         for i := 0 to fFiles.Count-1 do
         begin
-          StrPCopy(pText, fFiles[i]);
-          Inc(pText, Length(fFiles[i])+1);
+          StrPCopy(pFile,fFiles[i]);
+          Inc(pFile, Length(fFiles[i])+1);
         end;
-        pText^ := #0;
+        pFile^ := #0; 
       finally
         GlobalUnlock(Medium.hGlobal);
       end;
@@ -923,7 +932,7 @@ begin
   //--------------------------------------------------------------------------
   //This next format does not work for Win95 but should for Win98, WinNT ...
   //It stops the shell from prompting (with a popup menu) for the choice of
-  //Copy/Move/Shortcut when dropping a file shortcut onto Desktop or Explorer.
+  //Copy/Move/Shortcut when performing a file 'Shortcut' onto Desktop or Explorer.
   else if (FormatEtcIn.cfFormat = CF_PREFERREDDROPEFFECT) and
     (FormatEtcIn.dwAspect = DVASPECT_CONTENT) and
     (FormatEtcIn.tymed and TYMED_HGLOBAL <> 0) then
@@ -947,8 +956,8 @@ begin
     result := DV_E_FORMATETC;
 end;
 
-//********************************************
-//********************************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 
 initialization
   OleInitialize(NIL);

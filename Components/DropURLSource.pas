@@ -6,9 +6,9 @@ unit DropURLSource;
 // Module:          DropURLSource
 // Description:     Implements Dragging & Dropping of URLs
 //                  FROM your application to another.
-// Version:	       3.4
-// Date:            17-FEB-1999
-// Target:          Win32, Delphi 3 & 4, CB3
+// Version:	       3.5
+// Date:            30-MAR-1999
+// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
@@ -47,7 +47,7 @@ begin
   RegisterComponents('DragDrop', [TDropURLSource]);
 end;
 
-//******************* ConvertURLToFilename *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function ConvertURLToFilename(url: string): string;
 const
   Invalids = '\/:?*<>,|''"';
@@ -80,7 +80,7 @@ end;
 //			TDropURLSource
 // -----------------------------------------------------------------------------
 
-//******************* TDropURLSource.Create *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 constructor TDropURLSource.Create(aOwner: TComponent);
 begin
   inherited Create(aOwner);
@@ -95,7 +95,7 @@ begin
 end;
 
 
-//******************* TDropURLSource.CutOrCopyToClipboard *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropURLSource.CutOrCopyToClipboard: boolean;
 var
   FormatEtcIn: TFormatEtc;
@@ -123,7 +123,7 @@ begin
   end;
 end;
 
-//******************* TDropURLSource.DoGetData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropURLSource.DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT;
 const
   URLPrefix = '[InternetShortcut]'#10'URL=';

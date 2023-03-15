@@ -6,9 +6,9 @@ unit DropBMPSource;
 // Module:          DropBMPSource
 // Description:     Implements Dragging & Dropping of Bitmaps
 //                  FROM your application to another.
-// Version:	       3.4
-// Date:            17-FEB-1999
-// Target:          Win32, Delphi 3 & 4, CB3
+// Version:	       3.5
+// Date:            30-MAR-1999
+// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
@@ -57,7 +57,7 @@ end;
 //    (Modified from Graphic.pas - ©Inprise Corporation.)
 // -----------------------------------------------------------------------------
 
-//******************* BytesPerScanline *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function BytesPerScanline(PixelsPerScanline, BitsPerPixel, Alignment: Longint): Longint;
 begin
   Dec(Alignment);
@@ -65,7 +65,7 @@ begin
   Result := Result div 8;
 end;
 
-//******************* InitializeBitmapInfoHeader *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure InitializeBitmapInfoHeader(Bitmap: HBITMAP; var BI: TBitmapInfoHeader);
 var
   DS: TDIBSection;
@@ -93,7 +93,7 @@ begin
     BI.biSizeImage := BytesPerScanLine(BI.biWidth, BI.biBitCount, 32) * Abs(BI.biHeight);
 end;
 
-//******************* InternalGetDIBSizes *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure InternalGetDIBSizes(Bitmap: HBITMAP; var InfoHeaderSize: Integer;
   var ImageSize: DWORD);
 var
@@ -114,7 +114,7 @@ begin
   ImageSize := BI.biSizeImage;
 end;
 
-//******************* InternalGetDIB *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function InternalGetDIB(Bitmap: HBITMAP;
    Palette: HPALETTE; var BitmapInfo; var Bits): Boolean;
 var
@@ -141,7 +141,7 @@ begin
   end;
 end;
 
-//******************* GetHGlobalDIBFromBitmap *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function GetHGlobalDIBFromBitmap(Src: HBITMAP; Pal: HPALETTE): HGlobal;
 var HeaderSize: Integer;
     ImageSize: DWORD;
@@ -184,7 +184,7 @@ end;
 //			TDropBMPSource
 // -----------------------------------------------------------------------------
 
-//******************* TDropBMPSource.Create *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 constructor TDropBMPSource.Create(aOwner: TComponent);
 begin
   inherited Create(aOwner);
@@ -196,20 +196,20 @@ begin
   AddFormatEtc(CF_DIB, NIL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL);
 end;
 
-//******************* TDropBMPSource.Destroy *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 destructor TDropBMPSource.destroy;
 begin
   fBitmap.Free;
   inherited Destroy;
 end;
 
-//******************* TDropBMPSource.SetBitmap *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropBMPSource.SetBitmap(Bmp: TBitmap);
 begin
   fBitmap.assign(Bmp);
 end;
 
-//******************* TDropBMPSource.CutOrCopyToClipboard *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropBMPSource.CutOrCopyToClipboard: boolean;
 var
   data: HGlobal;
@@ -226,7 +226,7 @@ begin
   end;
 end;
 
-//******************* TDropBMPSource.DoGetData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropBMPSource.DoGetData(const FormatEtcIn: TFormatEtc; OUT Medium: TStgMedium):HRESULT;
 var
   fmt: WORD;

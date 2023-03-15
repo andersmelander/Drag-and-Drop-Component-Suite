@@ -6,9 +6,9 @@ unit DropPIDLTarget;
 // Module:          DropPIDLTarget
 // Description:     Implements Dragging & Dropping of PIDLs
 //                  TO your application from another.
-// Version:	       3.4
-// Date:            17-FEB-1999
-// Target:          Win32, Delphi 3 & 4, CB3
+// Version:	       3.5
+// Date:            30-MAR-1999
+// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
@@ -62,14 +62,14 @@ end;
 //			Miscellaneous Functions...
 // -----------------------------------------------------------------------------
 
-//******************* GetPidlsFromHGlobal *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function GetPidlsFromHGlobal(const HGlob: HGlobal; var Pidls: TStrings): boolean;
 var
   i: integer;
   pInt: ^UINT;
   pCIDA: PIDA;
 begin
-  result := false; 
+  result := false;
   pCIDA := PIDA(GlobalLock(HGlob));
   try
     pInt := @(pCIDA^.aoffset[0]);
@@ -83,44 +83,6 @@ begin
     GlobalUnlock(HGlob);
   end;
 end;
-
-(*
-//******************* GetSizeOfPidl *************************
-function GetSizeOfPidl(pidl: PItemIDList): integer;
-var
-  i: integer;
-begin
-  result := SizeOf(Word);
-  repeat
-    i := pSHItemID(pidl)^.cb;
-    inc(result,i);
-    inc(longint(pidl),i);
-  until i = 0;
-end;
-
-//******************* PidlToString *************************
-function PidlToString(pidl: PItemIDList): String;
-var
-  PidlLength: integer;
-begin
-  PidlLength := GetSizeOfPidl(pidl);
-  setlength(result,PidlLength);
-  Move(pidl^,pchar(result)^,PidlLength);
-end;
-*)
-
-//******************* JoinPidlStrings *************************
-function JoinPidlStrings(pidl1,pidl2: string): String;
-var
-  PidlLength: integer;
-begin
-  if Length(pidl1) <= 2 then PidlLength := 0
-  else PidlLength := Length(pidl1)-2;
-  setlength(result,PidlLength+length(pidl2));
-  if PidlLength > 0 then Move(pidl1[1],result[1],PidlLength);
-  Move(pidl2[1],result[PidlLength+1],length(pidl2));
-end;
-
 
 {By implementing the following TStrings class, component processing is reduced.}
 // -----------------------------------------------------------------------------
@@ -188,7 +150,7 @@ end;
 //			TDropPIDLTarget
 // -----------------------------------------------------------------------------
 
-//******************* TDropPIDLTarget.Create *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 constructor TDropPIDLTarget.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
@@ -206,7 +168,7 @@ begin
   end;
 end;
 
-//******************* TDropPIDLTarget.Destroy *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 destructor TDropPIDLTarget.Destroy;
 begin
   fPIDLs.free;
@@ -215,19 +177,19 @@ begin
   inherited Destroy;
 end;
 
-//******************* TDropPIDLTarget.HasValidFormats *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.HasValidFormats: boolean;
 begin
   result := (DataObject.QueryGetData(PIDLFormatEtc) = S_OK);
 end;
 
-//******************* TDropPIDLTarget.ClearData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropPIDLTarget.ClearData;
 begin
   fPIDLs.clear;
 end;
 
-//******************* TDropPIDLTarget.DoGetData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.DoGetData: boolean;
 var
   medium: TStgMedium;
@@ -249,7 +211,7 @@ end;
 //the returned PIDLs from the following 3 methods. 
 //Use - CoTaskMemFree() - to free the PIDLs.
 
-//******************* TDropPIDLTarget.GetFolderPidl *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.GetFolderPidl: pItemIdList;
 begin
   result :=nil;
@@ -259,7 +221,7 @@ begin
     move(pChar(fPIDLs[0])^,result^,length(fPIDLs[0]));
 end;
 
-//******************* TDropPIDLTarget.GetRelativeFilePidl *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.GetRelativeFilePidl(index: integer): pItemIdList;
 begin
   result :=nil;
@@ -269,7 +231,7 @@ begin
     move(pChar(fPIDLs[index])^,result^,length(fPIDLs[index]));
 end;
 
-//******************* TDropPIDLTarget.GetAbsoluteFilePidl *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.GetAbsoluteFilePidl(index: integer): pItemIdList;
 var
   s: string;
@@ -282,7 +244,7 @@ begin
     move(pChar(s)^,result^,length(s));
 end;
 
-//******************* TDropPIDLTarget.PasteFromClipboard *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.PasteFromClipboard: longint;
 var
   Global: HGlobal;
@@ -300,7 +262,7 @@ begin
     result := Preferred;
 end;
 
-//******************* TDropPIDLTarget.GetPidlCount *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropPIDLTarget.GetPidlCount: integer;
 begin
   result := fPidls.count; //Note: includes folder pidl in count!

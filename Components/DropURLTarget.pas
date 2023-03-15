@@ -6,9 +6,9 @@ unit DropURLTarget;
 // Module:          DropURLTarget
 // Description:     Implements Dragging & Dropping of URLs
 //                  TO your application from another.
-// Version:	       3.4
-// Date:            17-FEB-1999
-// Target:          Win32, Delphi 3 & 4, CB3
+// Version:	       3.5
+// Date:            30-MAR-1999
+// Target:          Win32, Delphi3, Delphi4, C++ Builder 3, C++ Builder 4
 // Authors:         Angus Johnson,   ajohnson@rpi.net.au
 //                  Anders Melander, anders@melander.dk
 //                                   http://www.melander.dk
@@ -50,7 +50,7 @@ begin
   RegisterComponents('DragDrop', [TDropURLTarget]);
 end;
 
-//******************* GetURLFromFile *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function GetURLFromFile(const Filename: string; var URL: string): boolean;
 var
   URLfile: textfile;
@@ -84,7 +84,7 @@ end;
 //			TDropURLTarget
 // -----------------------------------------------------------------------------
 
-//******************* TDropURLTarget.Create *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 constructor TDropURLTarget.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
@@ -117,7 +117,7 @@ begin
 end;
 
 //This demonstrates how to enumerate all DataObject formats.
-//******************* TDropURLTarget.HasValidFormats *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropURLTarget.HasValidFormats: boolean;
 var
   GetNum, GotNum: longint;
@@ -144,13 +144,13 @@ begin
       end;
 end;
 
-//******************* TDropURLTarget.ClearData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 procedure TDropURLTarget.ClearData;
 begin
   fURL := '';
 end;
 
-//******************* TDropURLTarget.DoGetData *************************
+{-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=} 
 function TDropURLTarget.DoGetData: boolean;
 var
   medium: TStgMedium;
