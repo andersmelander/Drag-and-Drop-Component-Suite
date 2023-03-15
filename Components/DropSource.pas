@@ -6,8 +6,8 @@ UNIT dropsource;
   // Module:          DropSource
   // Description:     Implements Dragging & Dropping of text and files
   //                  FROM your application TO another.
-  // Version:	         1.5
-  // Date:            19-AUG-1998
+  // Version:	        2.0
+  // Date:            08-SEP-1998
   // Target:          Win32, Delphi 3 & 4
   // Authors:         Angus Johnson, ajohnson@rpi.net.au
   //                  Anders Melander, anders@melander.dk
@@ -22,6 +22,9 @@ UNIT dropsource;
   // History:
   // dd/mm/yy  Version  Changes
   // --------  -------  ----------------------------------------
+  // 08.09.98  2.0      * No significant changes to this module
+  //                      but the version was updated to coincide with the
+  //                      new DropTarget module included with this demo.
   // 31.08.98  1.5      * Fixed a Delphi 4 bug!
   //                      (I cut and pasted the wrong line!)
   //                    * Demo code now MUCH tidier and easier to read (I think).
@@ -126,7 +129,6 @@ INTERFACE
     TDropEvent = PROCEDURE(Sender: TObject; DragType: TDragType;
                  VAR ContinueDrop: Boolean) OF Object;
     TFeedbackEvent = PROCEDURE(Sender: TObject; Effect: LongInt) OF Object;
-
 
   TDropSource = CLASS(TInterfacedComponent, IDropSource, IDataObject)
   Private
@@ -385,7 +387,8 @@ IMPLEMENTATION
   BEGIN
     IF fEscapePressed THEN
       result := DRAGDROP_S_CANCEL
-    ELSE IF (grfKeyState AND MK_LBUTTON = 0) THEN 
+    // will now allow drag and drop with either mouse button.
+    ELSE IF (grfKeyState AND (MK_LBUTTON OR MK_RBUTTON) = 0) THEN
     BEGIN
       ContinueDrop := True;
       dragtype := dtCopy;
