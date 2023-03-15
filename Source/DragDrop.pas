@@ -1,16 +1,15 @@
 ﻿unit DragDrop;
-// -----------------------------------------------------------------------------
-// Project:         Drag and Drop Component Suite
-// Module:          DragDrop
-// Description:     Implements base classes and utility functions.
-// Version:         5.2
-// Date:            17-AUG-2010
-// Target:          Win32, Delphi 5-2010
-// Authors:         Anders Melander, anders@melander.dk, http://melander.dk
-// Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2010 Anders Melander
-// -----------------------------------------------------------------------------
-// TODO -oanme -cPortability : Replace all public use of HWND with THandle. BCB's HWND <> Delphi's HWND.
+
+(*
+ * Drag and Drop Component Suite
+ *
+ * Copyright (c) Angus Johnson & Anders Melander
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ *)
 
 interface
 

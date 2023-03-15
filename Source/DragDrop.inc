@@ -1,12 +1,13 @@
-// -----------------------------------------------------------------------------
-// Project:         Drag and Drop Component Suite
-// Module:          DragDrop.inc
-// Description:     This include file contains common defines used by the
-//                  library.
-// Authors:         Anders Melander, anders@melander.dk, http://melander.dk
-// Copyright        © 1997-2010 Anders Melander
-// -----------------------------------------------------------------------------
-
+(*
+ * Drag and Drop Component Suite
+ *
+ * Copyright (c) Angus Johnson & Anders Melander
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ *)
 
 // -----------------------------------------------------------------------------
 //                      Detect compiler version

@@ -1,15 +1,15 @@
 unit DragDropPIDL;
-// -----------------------------------------------------------------------------
-// Project:         Drag and Drop Component Suite
-// Module:          DragDropPIDL
-// Description:     Implements Dragging & Dropping of PIDLs (files and folders).
-// Version:         5.2
-// Date:            17-AUG-2010
-// Target:          Win32, Delphi 5-2010
-// Authors:         Anders Melander, anders@melander.dk, http://melander.dk
-// Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2010 Anders Melander
-// -----------------------------------------------------------------------------
+
+(*
+ * Drag and Drop Component Suite
+ *
+ * Copyright (c) Angus Johnson & Anders Melander
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ *)
 
 interface
 

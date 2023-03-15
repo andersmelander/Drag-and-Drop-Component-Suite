@@ -1,24 +1,15 @@
 unit DropSource;
-// -----------------------------------------------------------------------------
-// Project:         Drag and Drop Component Suite
-// Module:          DropSource
-// Description:     Implements Dragging & Dropping of data
-//                  FROM your application to another.
-// Version:         5.2
-// Date:            17-AUG-2010
-// Target:          Win32, Delphi 5-2010
-// Authors:         Anders Melander, anders@melander.dk, http://melander.dk
-// Copyright        © 1997-1999 Angus Johnson & Anders Melander
-//                  © 2000-2010 Anders Melander
-// -----------------------------------------------------------------------------
-// TODO -oanme -cCheckItOut : OleQueryLinkFromData
-// TODO -oanme -cDocumentation : CutToClipboard and CopyToClipboard alters the value of PreferredDropEffect.
-// TODO -oanme -cDocumentation : Clipboard must be flushed or emptied manually after CutToClipboard and CopyToClipboard. Automatic flush is not guaranteed.
-// TODO -oanme -cDocumentation : Delete-on-paste. Why and How.
-// TODO -oanme -cDocumentation : Optimized move. Why and How.
-// TODO -oanme -cDocumentation : OnPaste event is only fired if target sets the "Paste Succeeded" clipboard format. Explorer does this for delete-on-paste move operations.
-// TODO -oanme -cDocumentation : DragDetectPlus. Why and How.
-// -----------------------------------------------------------------------------
+
+(*
+ * Drag and Drop Component Suite
+ *
+ * Copyright (c) Angus Johnson & Anders Melander
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ *)
 
 interface
 
