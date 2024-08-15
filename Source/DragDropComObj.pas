@@ -412,8 +412,6 @@ begin
   Result := False;
 end;
 
-{$define UseSystemFileAssociations}
-
 procedure TShellExtFactory.UpdateRegistry(ARegister: Boolean);
 var
   RegPrefix: string;
