@@ -1656,7 +1656,7 @@ end;
 
 function TDropURLTarget.GetPreferredDropEffect: LongInt;
 begin
-  Result := GetPreferredDropEffect;
+  Result := inherited GetPreferredDropEffect;
   if (Result = DROPEFFECT_NONE) then
     Result := DROPEFFECT_LINK;
 end;
