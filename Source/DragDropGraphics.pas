@@ -19,7 +19,7 @@ uses
   DropSource,
   ActiveX,
   Windows,
-  Graphics,
+  VCL.Graphics,
   Classes;
 
 {$include DragDrop.inc}
@@ -429,7 +429,7 @@ constructor TCustomBitmapClipboardFormat.CreateFormat(Atymed: Longint);
 begin
   inherited CreateFormat(Atymed);
 
-  FBitmap := Graphics.TBitmap.Create;
+  FBitmap := VCL.Graphics.TBitmap.Create;
 end;
 
 destructor TCustomBitmapClipboardFormat.Destroy;

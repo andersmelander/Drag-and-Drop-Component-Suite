@@ -15,7 +15,7 @@ interface
 
 uses
   Classes,
-  Graphics,
+  VCL.Graphics,
   ActiveX,
   DragDrop,
   DropTarget,
