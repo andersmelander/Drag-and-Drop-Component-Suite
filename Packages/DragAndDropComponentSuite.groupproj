@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{2D43FF10-D22B-461D-B21A-5FC2C9C12F3E}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="DragDropRunTimePackage.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="DragDropDesignPackage.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="DragDropRunTimePackage">
+        <MSBuild Projects="DragDropRunTimePackage.dproj"/>
+    </Target>
+    <Target Name="DragDropRunTimePackage:Clean">
+        <MSBuild Projects="DragDropRunTimePackage.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DragDropRunTimePackage:Make">
+        <MSBuild Projects="DragDropRunTimePackage.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="DragDropDesignPackage">
+        <MSBuild Projects="DragDropDesignPackage.dproj"/>
+    </Target>
+    <Target Name="DragDropDesignPackage:Clean">
+        <MSBuild Projects="DragDropDesignPackage.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DragDropDesignPackage:Make">
+        <MSBuild Projects="DragDropDesignPackage.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="DragDropRunTimePackage;DragDropDesignPackage"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="DragDropRunTimePackage:Clean;DragDropDesignPackage:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="DragDropRunTimePackage:Make;DragDropDesignPackage:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
