@@ -1233,7 +1233,7 @@ begin
   // descriptor (i.e. the internet shortcut file name).
   // We do this to prevent the situation where we have to pull a lot of data
   // from the source and then discard the data because it didn't actually
-  // contain anything usefull (e.g. 10Mb of data from the AsyncSource demo).
+  // contain anything useful (e.g. 10Mb of data from the AsyncSource demo).
   //
   // The RegisterDataConversion priorities ensures that we will read the
   // the file group descriptor before the file contents.
@@ -1442,7 +1442,7 @@ const
 {$ifend}
 
 procedure LoadMAPI;
-// TODO : See also: finding the lcoation os MSMAPI
+// TODO : See also: finding the location os MSMAPI
 // http://www.tech-archive.net/Archive/Development/microsoft.public.win32.programmer.messaging/2005-10/msg00127.html
 // http://support.microsoft.com/kb/229700
 

@@ -108,7 +108,7 @@ const
 //              TInterfacedComponent
 //
 ////////////////////////////////////////////////////////////////////////////////
-// Top level base class for the drag/drop component hierachy.
+// Top level base class for the drag/drop component hierarchy.
 // Implements the IUnknown interface.
 // Corresponds to TInterfacedObject (see VCL online help), but descends from
 // TComponent instead of TObject.
@@ -1068,7 +1068,7 @@ begin
   if (Result) then
     Result := (ADataObject.SetData(FormatEtc, AMedium, True) = S_OK);
 
-  // If we didn't succeed in transfering ownership of the data medium to the
+  // If we didn't succeed in transferring ownership of the data medium to the
   // IDataObject, we must deallocate the medium ourselves.
   if (not Result) then
     ReleaseStgMedium(AMedium);
@@ -1338,7 +1338,7 @@ begin
     if (Assign(ClipboardFormat)) then
       Result := True;
 
-    // Once data has been sucessfully transfered to the TDataFormat object
+    // Once data has been successfully transferred to the TDataFormat object
     // (or not), we clear the data in the TClipboardFormat object in order
     // to conserve resources.
     ClipboardFormat.Clear;

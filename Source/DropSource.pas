@@ -40,7 +40,7 @@ type
     var ContinueDrop: Boolean) of object;
 
   //: TAfterDropEvent is fired after the target has finished processing a
-  // successfull drop.
+  // successful drop.
   // The Optimized parameter is True if the target either performed an operation
   // other than a move or performed an "optimized move". In either cases, the
   // source isn't required to delete the source data.
@@ -309,7 +309,7 @@ uses
 
 resourcestring
   sDropSourceBusy = 'A drag and drop operation is already in progress';
-  sDropSourceAsyncFailed = 'Failed to initiate asynchronouse drag and drop operation';
+  sDropSourceAsyncFailed = 'Failed to initiate asynchronous drag and drop operation';
   sDropSourceAsyncBusy = 'An asynchronous drag and drop operation is in progress';
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1310,7 +1310,7 @@ type
     constructor Create; overload;
     constructor Create(AFormats: TDataFormats; Direction: TDataDirection); overload;
     destructor Destroy; override;
-    { IEnumFormatEtc implentation }
+    { IEnumFormatEtc implementation }
     function Next(Celt: LongInt; out Elt; pCeltFetched: pLongInt): HRESULT; stdcall;
     function Skip(Celt: LongInt): HRESULT; stdcall;
     function Reset: HRESULT; stdcall;
@@ -1494,7 +1494,7 @@ begin
         (CF.HasData) and
         (CF.SetDataToMedium(FormatEtcIn, Medium)) then
       begin
-        // Once data has been sucessfully transfered to the medium, we clear
+        // Once data has been successfully transferred to the medium, we clear
         // the data in the TClipboardFormat object in order to conserve
         // resources.
         CF.Clear;
@@ -1521,7 +1521,7 @@ begin
         (DataFormats[i].Assign(DataFormats[i].CompatibleFormats[j])) then
       begin
         DoOnSetData(DataFormats[i], DataFormats[i].CompatibleFormats[j]);
-        // Once data has been sucessfully transfered to the medium, we clear
+        // Once data has been successfully transferred to the medium, we clear
         // the data in the TClipboardFormat object in order to conserve
         // resources.
         DataFormats[i].CompatibleFormats[j].Clear;
@@ -1631,9 +1631,9 @@ begin
   end else
   if (ClipboardFormat is TPerformedDropEffectClipboardFormat) then
   begin
-    // Sometimes the Explorer breaks the asyncronous transfer contract by
+    // Sometimes the Explorer breaks the asynchronous transfer contract by
     // failing to call IAsyncOperation.EndOperation even though it has started
-    // an asynchrounous transfer by calling IAsyncOperation.StartOperation.
+    // an asynchronous transfer by calling IAsyncOperation.StartOperation.
     //
     // From the platform SDK's shldisp.idl:
     //

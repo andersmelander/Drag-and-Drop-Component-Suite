@@ -502,7 +502,7 @@ type
 
 // CreateIStreamFromIStorage stores a copy of an IStorage object on an IStream
 // object and returns the IStream object.
-// It is the callers resposibility to dispose of the IStream. Any modifications
+// It is the callers responsibility to dispose of the IStream. Any modifications
 // made to the IStream does not affect the original IStorage object.
 //
 // CreateIStreamFromIStorage and the work to integrate it into
@@ -924,7 +924,7 @@ begin
   try
     if (cb < 0) then
     begin
-      // Note: The folowing is a workaround for a design bug in either explorer
+      // Note: The following is a workaround for a design bug in either explorer
       // or the clipboard. See comment in TCustomSimpleClipboardFormat.DoSetData
       // for an explanation.
       if (Stream.Position = Stream.Size) then
