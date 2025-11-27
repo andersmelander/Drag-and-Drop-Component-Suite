@@ -1578,7 +1578,7 @@ class destructor TDataFormatMap.Destroy;
 var
   i: integer;
 begin
-  // Zap any mapings which hasn't been unregistered
+  // Zap any mappings which hasn't been unregistered
   // yet (actually an error condition on the part of the data formats).
   for i := FList.Count-1 downto 0 do
     Dispose(FList[i]);
