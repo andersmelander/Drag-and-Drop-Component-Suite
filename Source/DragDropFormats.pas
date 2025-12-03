@@ -163,9 +163,9 @@ type
 //
 //   2) Base class reads data from a buffer provided by the descendant class.
 //
-// Method #1 only requires that the descedant class implements the ReadData.
+// Method #1 only requires that the descendant class implements the ReadData.
 //
-// Method #2 requires that the descedant class overrides the default
+// Method #2 requires that the descendant class overrides the default
 // DoGetDataSized method. The descendant DoGetDataSized method should allocate a
 // buffer of the specified size and then call the ReadDataInto method to
 // transfer data to the buffer. Even though the ReadData method will not be used
@@ -1373,7 +1373,7 @@ begin
   // Note that since this work around, if applied generally, would mean that we
   // couldn't use this class to handle arbitrary binary data (which might
   // include zeroes), we are required to explicitly enable it in the classes
-  // where we need it (e.g. all TCustomTextClipboardFormat descedants).
+  // where we need it (e.g. all TCustomTextClipboardFormat descendants).
   if (FTrimZeroes) then
     SetLength(FData, Length(PAnsiChar(FData)));
 
