@@ -1869,7 +1869,7 @@ begin
   for i := 0 to DataFormats.Count-1 do
   begin
     // This isn't strictly nescessary and adds overhead, but it reduces
-    // unnescessary calls to DoAcceptData (format is asked if it can accept data
+    // unnecessary calls to DoAcceptData (format is asked if it can accept data
     // even though no data is available to the format).
     if not(FDataFormats[i].HasValidFormats(DataObject)) then
       continue;
