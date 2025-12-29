@@ -576,20 +576,20 @@ begin
     TFileContentsClipboardFormat(Dest).Data := AnsiText
   end else
 
-  if (Dest is TFileGroupDescritorClipboardFormat) then
+  if (Dest is TFileGroupDescriptorClipboardFormat) then
   begin
     FGD := Default(TFileGroupDescriptorA);
     FGD.cItems := 1;
     StrPLCopy(FGD.fgd[0].cFileName, sTextScrap, SizeOf(FGD.fgd[0].cFileName));
-    TFileGroupDescritorClipboardFormat(Dest).CopyFrom(@FGD);
+    TFileGroupDescriptorClipboardFormat(Dest).CopyFrom(@FGD);
   end else
 
-  if (Dest is TFileGroupDescritorWClipboardFormat) then
+  if (Dest is TFileGroupDescriptorWClipboardFormat) then
   begin
     FGDW := Default(TFileGroupDescriptorW);
     FGDW.cItems := 1;
     StringToWideChar(sTextScrap, PWideChar(@(FGDW.fgd[0].cFileName)), MAX_PATH);
-    TFileGroupDescritorWClipboardFormat(Dest).CopyFrom(@FGDW);
+    TFileGroupDescriptorWClipboardFormat(Dest).CopyFrom(@FGDW);
   end else
 {$endif}
     Result := inherited AssignTo(Dest);
@@ -712,8 +712,8 @@ begin
   RegisterDataConversion(TRichTextClipboardFormat);
 {$ifdef DROPSOURCE_TEXTSCRAP}
   RegisterDataConversion(TFileContentsClipboardFormat, 3);
-  RegisterDataConsumer(TAnsiFileGroupDescritorClipboardFormat);
-  RegisterDataConsumer(TUnicodeFileGroupDescritorClipboardFormat);
+  RegisterDataConsumer(TAnsiFileGroupDescriptorClipboardFormat);
+  RegisterDataConsumer(TUnicodeFileGroupDescriptorClipboardFormat);
 {$endif}
 end;
 
