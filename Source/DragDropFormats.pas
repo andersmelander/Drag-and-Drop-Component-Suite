@@ -922,7 +922,7 @@ begin
   BytesRead := 0;
   BytesWritten := 0;
   try
-    if (cb < 0) then
+    if (cb = LargeUInt(-1)) then
     begin
       // Note: The following is a workaround for a design bug in either explorer
       // or the clipboard. See comment in TCustomSimpleClipboardFormat.DoSetData

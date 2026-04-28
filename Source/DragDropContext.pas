@@ -257,10 +257,10 @@ begin
   Result := E_FAIL;
 
   // Make sure we are not being called by an application or with a verb.
-  if (FContextMenu = nil) or (HiWord(Integer(lpici.lpVerb)) <> 0) then
+  if (FContextMenu = nil) or (NativeUInt(lpici.lpVerb) > $FFFF) then
     Exit;
 
-  ItemIndex := LoWord(lpici.lpVerb);
+  ItemIndex := LoWord(NativeUInt(lpici.lpVerb));
 
   // Find the menu item specified by lpici.lpVerb.
   MenuItem := GetMenuItem(ItemIndex);
