@@ -497,7 +497,7 @@ begin
               // TODO : Who owns these bitmap handles?
               MenuItemInfo.hbmpChecked := FContextMenu.Items[i].Bitmap.Handle;
               MenuItemInfo.hbmpUnchecked := MenuItemInfo.hbmpChecked;
-            end;
+            end else
             begin
 {$ifopt D+}
   OutputDebugString('MFT_STRING');
@@ -881,7 +881,6 @@ type
 
 procedure TDropContextMenu.DrawMenuItem(var DrawItemStruct: TDrawItemStruct);
 var
-  ItemIndex: integer;
   MenuItem: TMenuItem;
   Canvas: TCanvas;
   SaveIndex: Integer;
@@ -896,14 +895,11 @@ begin
   if (FContextMenu = nil) or (DrawItemStruct.CtlType <> ODT_MENU) then
     Exit;
 
-  ItemIndex := integer(DrawItemStruct.itemID-FMenuOffset);
-  MenuItem := GetMenuItem(ItemIndex);
+  MenuItem := TMenuItem(DrawItemStruct.itemData);
 
   // Make sure we aren't being passed an invalid item ID.
   if (MenuItem <> nil) then
   begin
-    ASSERT(MenuItem = TMenuItem(DrawItemStruct.itemData));
-
     Canvas := TControlCanvas.Create;
     try
       SaveIndex := SaveDC(DrawItemStruct.hDC);
@@ -1056,7 +1052,6 @@ end;
 
 procedure TDropContextMenu.MeasureItem(var MeasureItemStruct: TMeasureItemStruct);
 var
-  ItemIndex: integer;
   MenuItem: TMenuItem;
   Canvas: TCanvas;
   SaveIndex: Integer;
@@ -1066,14 +1061,11 @@ begin
   if (FContextMenu = nil) or (MeasureItemStruct.CtlType <> ODT_MENU) then
     Exit;
 
-  ItemIndex := integer(MeasureItemStruct.itemID-FMenuOffset);
-  MenuItem := GetMenuItem(ItemIndex);
+  MenuItem := TMenuItem(MeasureItemStruct.itemData);
 
   // Make sure we aren't being passed an invalid item ID.
   if (MenuItem <> nil) then
   begin
-    ASSERT(MenuItem = TMenuItem(MeasureItemStruct.itemData));
-
     DC := GetWindowDC(GetForegroundWindow);
     try
       Canvas := TControlCanvas.Create;
