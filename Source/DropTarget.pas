@@ -1200,7 +1200,7 @@ end;
 
 procedure TCustomDropTarget.ResetScrollZone;
 var
-  TargetStyles: longint;
+  TargetStyles: LONG_PTR;
 begin
   CustomScrollZone := False;
 
@@ -1209,7 +1209,7 @@ begin
   if (AutoScroll) and (FTarget <> nil) then
   begin
     // Determine if the target control has scroll bars (and which).
-    TargetStyles := GetWindowLong(FTarget.Handle, GWL_STYLE);
+    TargetStyles := GetWindowLongPtr(FTarget.Handle, GWL_STYLE);
     if (TargetStyles and WS_HSCROLL <> 0) then
       include(FScrollBars, sbHorizontal);
     if (TargetStyles and WS_VSCROLL <> 0) then
