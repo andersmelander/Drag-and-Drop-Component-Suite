@@ -734,7 +734,6 @@ uses
 {$endif}
   WinApi.Messages,
   WinApi.ShlObj,
-  WinApi.MMSystem,
   DragDropFormats, // Used by TRawClipboardFormat
   DropSource,
   DropTarget;
@@ -2184,7 +2183,7 @@ function DragDetectPlus(Handle: THandle; Position: TPoint): boolean;
 var
   DragRect: TRect;
   Msg: TMsg;
-  StartTime: DWORD;
+  StartTime: integer;
 const
   PM_QS_INPUT = QS_INPUT shl 16;
   PM_QS_KEY = QS_KEY shl 16;
@@ -2224,7 +2223,10 @@ begin
   DragRect.BottomRight := Position;
   InflateRect(DragRect, GetSystemMetrics(SM_CXDRAG), GetSystemMetrics(SM_CYDRAG));
 
-  StartTime := TimeGetTime;
+  // Graphics32, issue 407:
+  // The source of the value in MSG.time is GetTickCount
+  // See: https://devblogs.microsoft.com/oldnewthing/20140122-00/?p=2013
+  StartTime := GetTickCount;
 
   // Capture the mouse so that we will receive mouse messages even after the
   // mouse leaves the control rect.
@@ -2273,8 +2275,7 @@ begin
           // time has elapsed.
           // Note that we ignore time warp (wrap around) and that Msg.Time
           // might be smaller than StartTime.
-          Result := (not PtInRect(DragRect, Msg.pt)) and
-            (Msg.time >= StartTime + DWORD(DragDropDragDelay));
+          Result := (not PtInRect(DragRect, Msg.pt)) and (integer(Msg.time) - StartTime >= DragDropDragDelay);
 
         // [Esc] cancels drag detection.
         WM_KEYDOWN:
