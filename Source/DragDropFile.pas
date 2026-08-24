@@ -2467,7 +2467,7 @@ begin
               end;
             end;
           except
-            // Eat exceptions since they wont work inside drag/drop anyway.
+            // Eat exceptions since they won't work inside drag/drop anyway.
             Result := False;
           end;
       end;
