@@ -408,7 +408,7 @@ end;
 function TShellExtFactory.OwnsFileExtension: boolean;
 begin
   // Return True if it's safe to delete the file association upon unregistration.
-  // Be careful that we don't delete file associations used by other applications
+  // Be carefull that we don't delete file associations used by other applications
   Result := False;
 end;
 
