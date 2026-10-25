@@ -1065,10 +1065,13 @@ end;
 
 type
   TWinControlProxy = class(TWinControl)
+  private
+    FRegistered: boolean;
   protected
     procedure DestroyWnd; override;
     procedure CreateWnd; override;
     procedure CreateParams(var Params: TCreateParams); override;
+    property IsRegistered: boolean read FRegistered;
   end;
 
 procedure TWinControlProxy.CreateParams(var Params: TCreateParams);
@@ -1080,18 +1083,26 @@ begin
 end;
 
 procedure TWinControlProxy.CreateWnd;
+var
+  Res: HResult;
 begin
   inherited CreateWnd;
 
-  OleCheck(RegisterDragDrop(Parent.Handle, TCustomDropTarget(Owner)));
+  Res := RegisterDragDrop(Parent.Handle, TCustomDropTarget(Owner));
+  FRegistered := Succeeded(Res);
+  if (not FRegistered) then
+    OleError(Res);
+
   Visible := False;
   Width := 0;
 end;
 
 procedure TWinControlProxy.DestroyWnd;
 begin
-  if (Parent.HandleAllocated) then
+  if (Parent.HandleAllocated) and (FRegistered) then
     RevokeDragDrop(Parent.Handle);
+  FRegistered := False;
+
   // Control must be visible in order to guarantee that CreateWnd is called when
   // parent control recreates window handle.
   Visible := True;
@@ -1099,6 +1110,8 @@ begin
 end;
 
 procedure TCustomDropTarget.DoRegister(ATarget: TWinControl);
+var
+  Res: HResult;
 begin
   if (AutoRegister) then
   begin
@@ -1237,6 +1250,15 @@ begin
 end;
 
 procedure TCustomDropTarget.DoUnregister(ATarget: TWinControl);
+
+  function IsRegisteredToThisTarget(Handle: HWND): boolean;
+  var
+    Prop: THandle;
+  begin
+    Prop := GetProp(Handle, 'OleDropTargetInterface');
+    Result := (Prop = THandle(IDropTarget(Self)));
+  end;
+
 var
   i: integer;
 begin
@@ -1257,9 +1279,9 @@ begin
         break;
       end;
   end else
-    if (ATarget.HandleAllocated) then
-      // Ignore failed unregistrations - nothing to do about it anyway
-      RevokeDragDrop(ATarget.Handle);
+  if (ATarget.HandleAllocated) and (IsRegisteredToThisTarget(ATarget.Handle)) then
+    // Ignore failed unregistrations - nothing to do about it anyway
+    RevokeDragDrop(ATarget.Handle);
 end;
 
 function TCustomDropTarget.FindTarget(p: TPoint): TWinControl;
